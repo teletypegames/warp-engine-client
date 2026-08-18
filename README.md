@@ -192,17 +192,28 @@ builds an application and publishes to a release.
 | `check` | `electronuserland/builder:22` | `npm ci`, type-check, lint, and the smoke test |
 | `linux` | `electronuserland/builder:22` | AppImage and deb |
 | `windows` | `electronuserland/builder:22-wine` | the NSIS installer and the portable exe, built through Wine |
-| `release` | `alpine` | on a tag only: attaches what this pipeline built |
+| `release` | `alpine` | on a tag only: **creates the release** and attaches what this pipeline built |
 
-**macOS stays a local build.** Apple's toolchain and its signing only exist on a Mac,
-so a full release is `make release` here for the macOS package plus this pipeline for
-the other two. The window test is local too: it needs a display and a store on the
-machine.
+**macOS stays a local build.** Apple's toolchain and its signing only exist on a Mac.
+So the whole of a release is:
 
-The `release` step needs a **`gitea_token`** repository secret in Woodpecker, with
-write access to this repository — CI has a token where a workstation has a `tea`
-login, which is why `scripts/ci-upload.sh` exists alongside `scripts/release.sh`
-instead of one script with two ways to authenticate.
+1. bump the version, commit, and push the tag: `git tag v1.4.0 && git push origin v1.4.0`;
+2. the pipeline builds Linux and Windows, **creates the release** with `RELEASE_NOTES.md`
+   as its body, and attaches those four packages;
+3. on a Mac, `make release` builds the macOS package and pushes it onto the same release.
+
+The window test is local as well: it needs a display and a store on the machine.
+
+The `release` step needs **no secret**. It authenticates with the forge credential
+Woodpecker hands every step for cloning, which is an access token of the repository's
+owner; Gitea takes it as `token …` or `Bearer …` depending on how Woodpecker was set up,
+so `scripts/ci-upload.sh` probes which of the two works instead of assuming. To publish
+as somebody else, add a `gitea_token` repository secret and map it into the step.
+
+There are two publishers on purpose: `scripts/release.sh` drives `tea`, which is logged
+in on a workstation, and `scripts/ci-upload.sh` speaks the API with whatever credential
+CI has. Each is short enough to read in full; one script with two ways to authenticate
+would not be.
 
 Both build steps end by checking what they produced: a package under 10 MB did not
 finish. That check exists because a half-finished Wine build leaves a stub *named* like
@@ -224,10 +235,12 @@ convention.
 make release
 ```
 
-The tag comes from `package.json`, so `npm version patch` is the only place a
-version is set. The release is created if it is not there yet, and an attachment
-whose name is already on it is **replaced** rather than refused — so a rebuild and
-a second `make publish` lands rather than erroring.
+This is the **macOS half** of a release; the Linux and Windows packages come from the
+pipeline when the tag is pushed (see above). The tag comes from `package.json`, so
+`npm version patch` is the only place a version is set. The release is created if it is
+not there yet — either half can go first — and an attachment whose name is already on it
+is **replaced** rather than refused, so a rebuild and a second `make publish` lands
+rather than erroring.
 
 Release notes come from `RELEASE_NOTES.md` when the file is present, otherwise the
 release gets a one-line note. The repository is read from `origin`, so a fork

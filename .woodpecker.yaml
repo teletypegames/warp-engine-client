@@ -23,9 +23,6 @@ steps:
     image: *node_image
     commands:
       - node --version
-      # One-off diagnostic: does Woodpecker hand steps a forge credential of their own?
-      # If it does, the release step needs no secret at all.
-      - 'echo "netrc user: ${CI_NETRC_USERNAME:+present}, password: ${CI_NETRC_PASSWORD:+present}"'
       - npm ci
       - npm run typecheck
       - npm run lint
@@ -61,9 +58,9 @@ steps:
   # from the Mac that can sign them.
   - name: release
     image: alpine
-    environment:
-      GITEA_TOKEN:
-        from_secret: gitea_token
+    # No secret: the step authenticates with the forge credential Woodpecker already
+    # hands every step, which belongs to the repository's owner. To publish as someone
+    # else instead, add a `gitea_token` repository secret and map it here as GITEA_TOKEN.
     commands:
       - apk add --no-cache curl jq
       # No globs on the command line: the package names have spaces in them.

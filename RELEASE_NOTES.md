@@ -58,11 +58,15 @@ window failed it.
 
 ### Linux and Windows packages now come from CI
 
-`.woodpecker.yaml` builds the AppImage, the deb, the NSIS installer and the portable
-exe — Windows through Wine — and on a tag attaches them to this release. macOS stays a
-local build, because Apple's toolchain and its signing exist only on a Mac, so a full
-release is one local `make release` plus the pipeline. The Windows installer is not
-signed: Windows will warn about an unknown publisher until there is a certificate.
+A `vX.Y.Z` tag now starts the pipeline, which builds the AppImage, the deb, the NSIS
+installer and the portable exe — Windows through Wine — **creates this release** and
+attaches all four. macOS stays a local build, because Apple's toolchain and its signing
+exist only on a Mac, so `make release` from a Mac pushes that package onto the same
+release afterwards. No secret is involved: the pipeline publishes with the forge
+credential Woodpecker already gives every step.
+
+The Windows installer is not signed: Windows will warn about an unknown publisher until
+there is a certificate.
 
 ### Opening it on macOS
 

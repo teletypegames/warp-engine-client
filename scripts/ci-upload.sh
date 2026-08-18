@@ -6,8 +6,11 @@
 # two are deliberately separate scripts rather than one with two ways to authenticate —
 # each is short enough to read in full.
 #
-#   GITEA_TOKEN=… scripts/ci-upload.sh                  every package in dist/
-#   GITEA_TOKEN=… scripts/ci-upload.sh dist/one.deb     just these
+#   scripts/ci-upload.sh                  every package in dist/
+#   scripts/ci-upload.sh dist/one.deb     just these
+#
+# Authenticates with the `gitea_token` secret when there is one, and otherwise with the
+# credential Woodpecker gives every step for cloning — so a release needs no secret.
 #
 # Creates the release when the tag has none, with RELEASE_NOTES.md as its body. That is
 # the flow: a `vX.Y.Z` tag starts this pipeline, which publishes the release with the
@@ -24,13 +27,30 @@ NOTES="${NOTES:-RELEASE_NOTES.md}"
 say() { echo "[ci-upload] $*"; }
 die() { echo "[ci-upload] error: $*" >&2; exit 1; }
 
-[ -n "${GITEA_TOKEN:-}" ] || die "GITEA_TOKEN is not set — add the gitea_token secret to the repository"
+# Who to be. A `gitea_token` secret wins when there is one; otherwise the credential
+# Woodpecker already hands every step for cloning is used, which is an access token of
+# the repository's owner — so publishing needs no secret of its own. Gitea accepts a
+# personal access token as `token …` and an OAuth one as `Bearer …`, and which of the two
+# this is depends on how Woodpecker was set up, so the scheme is probed once rather than
+# assumed.
+TOKEN="${GITEA_TOKEN:-${CI_NETRC_PASSWORD:-}}"
+[ -n "$TOKEN" ] || die "no credential: set GITEA_TOKEN, or run this where Woodpecker provides CI_NETRC_PASSWORD"
 [ -n "$REPO" ] || die "cannot work out the repository — set REPO=owner/name"
 [ -n "$TAG" ] || die "cannot work out the tag — set TAG=v1.2.3"
 
+AUTH=""
+for scheme in token Bearer; do
+  if curl -fsS -H "Authorization: $scheme $TOKEN" "$FORGE/user" >/dev/null 2>&1; then
+    AUTH="Authorization: $scheme $TOKEN"
+    say "authenticated with the $scheme scheme"
+    break
+  fi
+done
+[ -n "$AUTH" ] || die "the credential was refused by $FORGE — it cannot read /user"
+
 api() {
   method="$1"; path="$2"; shift 2
-  curl -fsS -X "$method" -H "Authorization: token $GITEA_TOKEN" "$FORGE$path" "$@"
+  curl -fsS -X "$method" -H "$AUTH" "$FORGE$path" "$@"
 }
 
 # Package names contain spaces — "WarpEngine Store Setup 1.4.0.exe" does — so the list
@@ -52,8 +72,7 @@ say "$REPO $TAG"
 
 # `curl -f` fails on the 404 a missing release answers, so the lookup is allowed to
 # fail and judged by what came back rather than by its exit status.
-release_id="$(curl -sS -H "Authorization: token $GITEA_TOKEN" \
-  "$FORGE/repos/$REPO/releases/tags/$TAG" | jq -r '.id // empty')"
+release_id="$(curl -sS -H "$AUTH" "$FORGE/repos/$REPO/releases/tags/$TAG" | jq -r '.id // empty')"
 
 if [ -z "$release_id" ]; then
   say "no release for $TAG yet — creating it"
