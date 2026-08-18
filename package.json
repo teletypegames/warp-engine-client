@@ -1,7 +1,7 @@
 {
   "name": "warp-engine-desktop-gui",
   "productName": "WarpEngine Store",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Graphical client for a WarpEngine desktop store: install the catalog into your own application menu.",
   "license": "MIT",
   "author": "Teletype Games <games@teletype.hu>",
@@ -51,7 +51,8 @@
         "AppImage",
         "deb"
       ]
-    }
+    },
+    "afterPack": "scripts/after-pack.js"
   },
   "allowScripts": {
     "electron@43.4.0": true

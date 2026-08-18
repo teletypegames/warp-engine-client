@@ -60,6 +60,13 @@ async function guarded (fn) {
 // would otherwise be noticed: the main process log stays empty.
 const SELFTEST = process.argv.includes('--selftest')
 
+// A test run must never be swallowed by a copy the user already has open: it gets
+// its own user-data directory and skips the single-instance lock. Without this the
+// second process exits silently with status 0, which reads as a passing test.
+if (SELFTEST) {
+  app.setPath('userData', path.join(app.getPath('temp'), 'warpstore-gui-selftest'))
+}
+
 async function selftest () {
   const result = await win.webContents.executeJavaScript(`(() => ({
     cards: document.querySelectorAll('.card').length,
@@ -215,7 +222,7 @@ ipcMain.handle('app:openExternal', async (_event, url) => {
 
 // --- lifecycle ------------------------------------------------------------
 
-if (!app.requestSingleInstanceLock()) {
+if (!SELFTEST && !app.requestSingleInstanceLock()) {
   app.quit()
 } else {
   app.on('second-instance', () => {

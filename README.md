@@ -27,10 +27,27 @@ Grab the package for your machine from the
 and open it. On first run, if there is no store on the machine yet, the window
 offers to download one — that is the whole setup.
 
-The macOS build is **not signed or notarised**, so the first open needs
-*right-click ▸ Open* (or *System Settings ▸ Privacy & Security*). Nothing the
-store itself downloads is affected: those files are fetched by Python, which does
-not set the quarantine flag.
+### Opening it on macOS
+
+The build is ad-hoc signed but **not notarised**, so macOS asks before running a
+copy that came from a browser. The reliable way through:
+
+```sh
+xattr -dr com.apple.quarantine "/Applications/WarpEngine Store.app"
+```
+
+If macOS offers *Open Anyway* under **System Settings ▸ Privacy & Security** after
+a blocked attempt, that works as well. Notarisation is the only thing that removes
+the step entirely, and it needs a paid Apple Developer ID.
+
+Nothing the store itself downloads is affected: Python fetches those files, and
+Python does not set the quarantine flag.
+
+**v1.0.0 could not be opened at all** — it reported *"is damaged"*. The bundle had
+never been signed; only its main executable carried the linker's ad-hoc signature,
+so there was no resource seal and Gatekeeper refused it outright rather than
+asking. `scripts/after-pack.js` signs the bundle during the build now, and the
+result verifies as `valid on disk`.
 
 ## Use
 
@@ -60,6 +77,10 @@ npm run dist:mac           # or dist:win / dist:linux
 **Node 22 or newer is needed to install**, not to run: Electron's own installer
 is ESM-only, and older Node cannot `require()` it. The packaged app carries its
 own runtime.
+
+`npm run uitest` runs with its own user-data directory and without the
+single-instance lock. Otherwise a copy the user already has open swallows the test
+process, which exits 0 and reads as a pass.
 
 Both test scripts accept a sandbox store instead of the real one, which is how
 this repository is tested without touching a working installation:
@@ -95,10 +116,17 @@ too — that is why the indirection is there.
 
 ## Verified, and not
 
-Exercised on macOS (arm64): the store is discovered, the catalog lists, a sync
-installs, the window renders the installed state, and `npm run uitest` passes with
-the grid rendered and both languages in the picker. The bootstrap download was run
-into an empty directory and the resulting store answered the bridge.
+Exercised on macOS (arm64), with the packaged app from the release rather than a
+dev run: the store is discovered, the catalog lists, a sync installs, the window
+renders the installed state, and `npm run uitest` passes with the grid rendered
+and both languages in the picker. The bootstrap download was run into an empty
+directory and the resulting store answered the bridge.
+
+The signing was measured rather than assumed, by setting the quarantine flag on a
+copy unzipped from the release artifact: `codesign --verify --deep --strict` is
+clean, and `syspolicy_check` reports only the expected *"adhoc signed"* warning.
+A quarantined copy is still stopped until it is approved — that part is Gatekeeper
+policy, not a fault in the package.
 
 **Not tried on Linux or Windows.** The paths and the launch behaviour are written
 for them, and the store CLI itself has the same gap — `.desktop` and `.lnk`
