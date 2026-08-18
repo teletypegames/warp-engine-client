@@ -6,12 +6,10 @@ import type { InstalledStore } from '../domain/models/InstalledStore'
 import type { RegistryStore } from '../domain/models/RegistryStore'
 import { DESKTOP_STORE_ENGINE } from '../domain/models/StoreEngine'
 import { deriveStoreId } from '../domain/models/StoreIdentity'
+import { NativeStoreCatalogGateway } from '../infrastructure/engine/NativeStoreCatalogGateway'
 import { HttpTextClient } from '../infrastructure/http/HttpTextClient'
-import { PythonEngineProcessRunner } from '../infrastructure/process/PythonEngineProcessRunner'
-import { SystemPythonRuntimeLocator } from '../infrastructure/process/SystemPythonRuntimeLocator'
 import { FileSystemInstalledStoreRepository } from '../infrastructure/repositories/FileSystemInstalledStoreRepository'
 import { HttpStoreRegistryRepository } from '../infrastructure/repositories/HttpStoreRegistryRepository'
-import { PythonStoreCatalogGateway } from '../infrastructure/repositories/PythonStoreCatalogGateway'
 import type { GameDto } from '../shared/contracts/dto/GameDto'
 import { ENGLISH_MESSAGES } from '../shared/i18n/EnglishMessages'
 import { HUNGARIAN_MESSAGES } from '../shared/i18n/HungarianMessages'
@@ -19,6 +17,9 @@ import { LOCALES } from '../shared/i18n/MessageBundle'
 
 /**
  * Drives the store with no window and no Electron at all.
+ *
+ * Since the engine is part of this application, this exercises the real thing rather
+ * than a child process: a bad release choice or a broken menu entry fails here.
  *
  * This is the second composition root, and the reason the layers are worth having:
  * the same services the window uses are assembled here against the same ports, so an
@@ -31,10 +32,7 @@ class SmokeTest {
   private failed = false
 
   private readonly stores = new FileSystemInstalledStoreRepository()
-  private readonly pythonLocator = new SystemPythonRuntimeLocator()
-  private readonly catalogGateway = new PythonStoreCatalogGateway(
-    new PythonEngineProcessRunner(this.pythonLocator)
-  )
+  private readonly catalogGateway = new NativeStoreCatalogGateway()
   private readonly httpClient = new HttpTextClient()
   private readonly registry = new HttpStoreRegistryRepository(this.httpClient)
   private readonly gameMapper = new GameDtoMapper()
@@ -42,7 +40,6 @@ class SmokeTest {
   public async run (): Promise<number> {
     console.log('warp-engine-client smoke test')
 
-    if (!this.checkPython()) return 1
     this.checkMessages()
     await this.checkRegistry()
 
@@ -51,16 +48,6 @@ class SmokeTest {
     await this.checkCatalog(store)
 
     return this.failed ? 1 : 0
-  }
-
-  private checkPython (): boolean {
-    const runtime = this.pythonLocator.findRuntime()
-    if (runtime === null) {
-      this.reportBad('python', 'not found — the store cannot run')
-      return false
-    }
-    this.reportOk('python', runtime.version)
-    return true
   }
 
   /** The bundles are typed against one key set, so this only counts them. */
@@ -115,15 +102,12 @@ class SmokeTest {
         id: path.basename(home).replace(DESKTOP_STORE_ENGINE.homeSuffix, ''),
         name: path.basename(home),
         home,
-        scriptPath: path.join(home, DESKTOP_STORE_ENGINE.scriptFileName),
         configPath: path.join(home, 'config.json'),
         engine: DESKTOP_STORE_ENGINE.id
       }
-      for (const file of [store.scriptPath, store.configPath]) {
-        if (!fs.existsSync(file)) {
-          this.reportBad('SMOKE_HOME', `${file} is missing`)
-          return null
-        }
+      if (!fs.existsSync(store.configPath)) {
+        this.reportBad('SMOKE_HOME', `${store.configPath} is missing`)
+        return null
       }
       this.reportOk('store (SMOKE_HOME)', store.home)
       return store
@@ -142,11 +126,6 @@ class SmokeTest {
   private async checkCatalog (store: InstalledStore): Promise<void> {
     const logLines: string[] = []
     const progress = { onLog: (line: string): void => { logLines.push(line) } }
-
-    const engine = this.catalogGateway.readEngineVersion(store)
-    if (engine === null) this.reportBad('engine', 'the store did not answer --version')
-    else if (!engine.supported) this.reportBad('engine', `${engine.text} is too old for this client`)
-    else this.reportOk('engine', engine.text)
 
     const paths = await this.catalogGateway.readPaths(store, progress)
     if (paths.operatingSystem.length > 0 && paths.storeFolder.length > 0) {

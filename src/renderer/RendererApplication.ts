@@ -70,16 +70,8 @@ export class RendererApplication {
     this.store.applyAppState(await this.bridge.readState())
     const state = this.store.readState()
 
-    if (state.pythonVersion === null) {
-      this.stores.showMissingPythonGate()
-      return
-    }
     if (state.currentStore === null) {
       await this.stores.offerStores()
-      return
-    }
-    if (state.engine !== null && !state.engine.supported) {
-      this.stores.showOutdatedEngineGate()
       return
     }
     this.store.applyGate(null)

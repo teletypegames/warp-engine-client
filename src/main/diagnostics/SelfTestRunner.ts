@@ -26,6 +26,8 @@ interface SelfTestReport {
   readonly paths: string
   readonly logLines: number
   readonly locales: readonly string[]
+  /** `<accessible name>:<glyph count>` per icon-only control in the footer. */
+  readonly iconControls: readonly string[]
 }
 
 /** What changed after clicking a store that was not open. */
@@ -68,7 +70,11 @@ export class SelfTestRunner {
     // A gate passes on having something to do, not on having a picker: the picker
     // only appears when the registry offers more than one store, and one store is
     // the ordinary case. Requiring choices here failed a perfectly good window.
-    const rendered = report.locales.length > 1 && (
+    // Both footer icons must be present, named and drawn: refresh and the language
+    // picker are the only way to reach those two actions now that neither has a label.
+    const iconsNamed = report.iconControls.length === 2 &&
+      report.iconControls.every((control: string): boolean => /^.+:1$/.test(control))
+    const rendered = report.locales.length > 1 && iconsNamed && (
       (report.cards > 0 && !report.gateVisible && report.stores.length > 0 &&
         report.categories.length > 0 && report.activeCategory !== null) ||
       (report.gateVisible && report.gateAction.length > 0))
@@ -98,7 +104,15 @@ export class SelfTestRunner {
       activeCategory: (document.querySelector('#cats .cat.is-active') || {}).textContent || null,
       paths: document.getElementById('log-paths').textContent.slice(0, 120),
       logLines: document.querySelectorAll('.log-line').length,
-      locales: [...document.getElementById('locale').options].map((option) => option.value)
+      locales: [...document.getElementById('locale').options].map((option) => option.value),
+      // The two icon-only controls: a glyph with no accessible name is a button nobody
+      // can identify, and the failure is silent because the icon still draws.
+      iconControls: [...document.querySelectorAll('.side-tools .icon-btn')]
+        .map((control) => {
+          const named = control.getAttribute('aria-label') || control.getAttribute('title') ||
+            (control.querySelector('[aria-label]') || {}).ariaLabel || ''
+          return named + ':' + control.querySelectorAll('svg.icon').length
+        })
     })`))) ?? {}
 
     return {
@@ -117,7 +131,8 @@ export class SelfTestRunner {
       activeCategory: readOptionalString(record, 'activeCategory'),
       paths: readString(record, 'paths'),
       logLines: readNumber(record, 'logLines'),
-      locales: readStringArray(record, 'locales')
+      locales: readStringArray(record, 'locales'),
+      iconControls: readStringArray(record, 'iconControls')
     }
   }
 

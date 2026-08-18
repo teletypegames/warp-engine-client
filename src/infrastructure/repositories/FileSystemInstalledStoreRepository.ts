@@ -10,11 +10,11 @@ const STORE_DIRECTORY_NAME = 'warp-engine-store'
 const CONFIG_FILE_NAME = 'config.json'
 
 /**
- * Finds stores where the shell installers put them.
+ * Finds stores where they were put.
  *
- * The roots are searched in the installers' own order, and `STORE_ROOT` comes
- * first so a sandbox can be driven without touching a working installation — which
- * is how this repository is tested.
+ * The roots are searched in the shell installers' own order — those homes are still
+ * valid stores — and `STORE_ROOT` comes first so a sandbox can be driven without
+ * touching a working installation, which is how this repository is tested.
  */
 export class FileSystemInstalledStoreRepository implements InstalledStoreRepository {
   public findAll (): readonly InstalledStore[] {
@@ -69,20 +69,20 @@ export class FileSystemInstalledStoreRepository implements InstalledStoreReposit
     }
   }
 
+  /**
+   * A store home, recognised by its config and its directory name.
+   *
+   * The config is the only file that has to be there. It used to be the config *and*
+   * the engine script, and dropping that condition is what lets a home provisioned by
+   * an older client keep working after its scripts are cleared out.
+   */
   private readStoreAt (home: string, directoryName: string): InstalledStore | null {
+    const configPath = path.join(home, CONFIG_FILE_NAME)
+    if (!fs.existsSync(configPath)) return null
     for (const engine of STORE_ENGINES) {
-      const scriptPath = path.join(home, engine.scriptFileName)
-      const configPath = path.join(home, CONFIG_FILE_NAME)
-      if (!fs.existsSync(scriptPath) || !fs.existsSync(configPath)) continue
-      const id = directoryName.replace(engine.homeSuffix, '')
-      return {
-        id,
-        name: this.readStoreName(configPath, id),
-        home,
-        scriptPath,
-        configPath,
-        engine: engine.id
-      }
+      if (!directoryName.endsWith(engine.homeSuffix)) continue
+      const id = directoryName.slice(0, directoryName.length - engine.homeSuffix.length)
+      return { id, name: this.readStoreName(configPath, id), home, configPath, engine: engine.id }
     }
     return null
   }
@@ -90,9 +90,8 @@ export class FileSystemInstalledStoreRepository implements InstalledStoreReposit
   /**
    * The store's own name, from the config the installer wrote.
    *
-   * Read here rather than asked of the engine: the switcher lists every store on
-   * the machine, and starting a Python process per entry to learn its name would
-   * be absurd.
+   * Read here rather than asked of the engine: the switcher lists every store on the
+   * machine, and assembling an engine per entry to learn its name would be absurd.
    */
   private readStoreName (configPath: string, fallback: string): string {
     try {

@@ -18,8 +18,10 @@ SHELL := /bin/sh
 SCRIPTS := scripts
 NODE_MIN := 22
 
-# The version is package.json's, so the release tag never drifts from the app.
-VERSION := $(shell python3 -c 'import json; print(json.load(open("package.json"))["version"])')
+# The version is package.json's, so the release tag never drifts from the app. Read with
+# node, which this project already requires — nothing here needs an interpreter the app
+# itself no longer depends on.
+VERSION := $(shell node -p 'require("./package.json").version')
 TAG ?= v$(VERSION)
 
 # Which site's store registry a packaged build reads. Empty means the default in
@@ -116,6 +118,5 @@ version: ## Show the versions involved
 	@printf "typescript "; npx tsc --version 2>/dev/null || echo "missing"
 	@printf "eslint     "; npx eslint --version 2>/dev/null || echo "missing"
 	@printf "tea        "; tea --version 2>/dev/null | head -1 || echo "missing — devarea: make tea"
-	@printf "python3    "; python3 --version 2>/dev/null || echo "missing"
-	@printf "registry   "; python3 -c 'import json; print(json.load(open("package.json"))["warpEngine"]["registryUrl"])'
+	@printf "registry   "; node -p 'require("./package.json").warpEngine.registryUrl'
 	@if [ -n "$(STORES_API)" ]; then printf "  build override: %s\n" "$(STORES_API)"; fi

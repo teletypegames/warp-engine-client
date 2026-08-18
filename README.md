@@ -1,18 +1,18 @@
 # warp-engine-client — the WarpEngine Client app
 
-The graphical client for a WarpEngine store — the app is called **WarpEngine
-Store** — driving
-[`warp-engine-desktop-store`](https://git.teletypegames.org/stores/warp-engine-desktop-store)
-underneath: the catalog as a grid of cards, one click to install a title into your
-own application menu, one to play it, one to remove it. Linux, macOS and Windows.
+The client for a WarpEngine store: the catalog as a grid of cards, one click to install
+a title into your own application menu, one to play it, one to remove it. Linux, macOS
+and Windows.
 
-The CLI stays the product; this is its front door. Every action here runs
-`desktop_store.py`, so there is one catalog logic, one state file and one delete
-guard — the window never touches the filesystem itself.
+**The store engine is part of this application.** Reading the catalog, choosing which
+release fits this machine, unpacking it, writing the menu entry and remembering what
+went where all happen in process — there is no interpreter to find and no child process
+to parse. What lands on disk has not changed: `config.json` and `state.json` keep the
+shape the shell engine wrote, so a machine whose library was installed by the CLI keeps
+it, and the engine's own defaults still decide everything a store does not configure.
 
-It is also **the Windows install path**. The store's own installer is
-`curl … | sh`, which Windows does not have; this app downloads the store engine
-itself, into the same folder the shell installer would use.
+That also makes this the only install path that needs nothing of the machine. The shell
+store's installer was `curl … | sh`, which Windows does not have.
 
 Which store it installs is not baked in: the client asks a registry — `GET
 /api/stores` on the site — and each record says what the store is called, which
@@ -20,10 +20,8 @@ catalog it serves and where its configuration lives.
 
 ## What it needs
 
-- **Python 3** on the machine, because the store is a Python program. The app
-  looks for `python3`, `python` and `py -3`, and says so plainly if none answer.
-- Nothing else at runtime. No Node, no package manager, no admin rights: the
-  store installs under your own user account.
+- **Nothing.** No interpreter, no package manager, no admin rights: the app carries its
+  own runtime and the store installs under your own user account.
 
 To *develop* it you also need **Node 22 or newer** — see below — and nothing else: the
 toolchain (TypeScript, ESLint, esbuild, electron-builder) installs with `make setup`.
@@ -48,8 +46,8 @@ If macOS offers *Open Anyway* under **System Settings ▸ Privacy & Security** a
 a blocked attempt, that works as well. Notarisation is the only thing that removes
 the step entirely, and it needs a paid Apple Developer ID.
 
-Nothing the store itself downloads is affected: Python fetches those files, and
-Python does not set the quarantine flag.
+Nothing the store itself downloads is affected: the app fetches those files over its
+own HTTP client, which does not set the quarantine flag.
 
 **v1.0.0 could not be opened at all** — it reported *"is damaged"*. The bundle had
 never been signed; only its main executable carried the linker's ad-hoc signature,
@@ -311,9 +309,9 @@ is the map** — the layers, every pattern in use, and the naming rules. The sho
 | Layer | What lives there |
 |---|---|
 | `src/shared/` | the IPC channel table, the bridge contract, the DTOs, the two message bundles |
-| `src/domain/` | models, ports and errors — no Electron, no Node, no Python |
+| `src/domain/` | models, ports and errors — no Electron, no Node |
 | `src/application/` | services and the domain → DTO mappers |
-| `src/infrastructure/` | the adapters: the Python CLI, HTTP, the filesystem, Electron itself |
+| `src/infrastructure/` | the adapters: the store engine, HTTP, the archive reader, the filesystem, Electron itself |
 | `src/main/` | the window, the IPC controllers, the composition root, the self-test |
 | `src/preload/` | the bridge, bundled into one file — a sandboxed preload cannot require modules |
 | `src/renderer/` | the state store, the views and the renderer controllers |
@@ -334,14 +332,47 @@ Two properties are worth stating because they are what the layers buy:
 CSP that allows only its own script and stylesheet plus images over HTTPS. Links open
 in the real browser; the window itself never navigates.
 
-`PythonStoreCatalogGateway` is the only class that knows the store is a Python
-program. It talks to the CLI through `--json`, which puts data on stdout and the
-human-readable log on stderr. That flag arrived with engine **1.1.0**, and the client
-checks: an older store is met with an offer to refresh it rather than a failed call.
+`NativeStoreCatalogGateway` is the engine behind the `StoreCatalogGateway` port, and
+`src/infrastructure/engine/` is the engine itself: the catalog client, the release
+picker, the host match, the payload installer, the three launcher writers and the state
+file. Above the port nothing knows any of that exists, which is the point — a second
+host would be a second gateway, not a second code path.
 
-`STORE_ENGINES` has one entry today. The RetroArch store has the same command shape,
-so a second entry is the whole change needed to drive it too — that is why the table is
-there.
+`STORE_ENGINES` has one entry today. A RetroArch store writes playlists rather than
+menu entries, so it would be an entry there and a gateway of its own.
+
+### Reading a zip without a dependency
+
+Node has no zip reader and this application has **no runtime dependencies**, so
+`src/infrastructure/archive/ZipArchive.ts` is one over `node:zlib` — about 150 lines that
+walk the central directory, inflate `stored` and `deflate` entries, and restore the
+executable bit from each entry's external attributes. That last part is not a detail: the
+archive records it, and without it nothing the store installs can start.
+
+It reads what our own release pipeline produces and refuses the rest: a zip64 archive, an
+unknown compression method and a path that would escape the destination are all errors
+rather than best guesses.
+
+### Which WarpEngine served the catalog
+
+Every WarpEngine API response carries a `WarpEngine-Version` header, so the client knows
+the engine's age without asking. `SUPPORTED_WARP_ENGINE_VERSIONS` lists the versions this
+client is written against, and `selectCatalogDialect` maps each one to the `CatalogDialect`
+that reads its catalog shape.
+
+The switch over that list is exhaustive, which is the whole mechanism: adding a version to
+the array stops the build — in the type checker *and* in the linter — until somebody says
+what it reads like. A new engine version cannot arrive silently.
+
+| What the header says | What happens |
+|---|---|
+| a supported version | its dialect reads the catalog, and the log names it |
+| nothing at all | read as the oldest supported version, which is what an engine older than 0.4.0 is |
+| older than anything supported | the same, and the log says so |
+| newer than anything supported | the newest dialect is tried anyway, with a warning that titles may be missed |
+
+Three versions share one dialect today, because the catalog's shape has not changed
+across them. One class serving three versions is the honest way to say that.
 
 ## Verified, and not
 

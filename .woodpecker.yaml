@@ -27,14 +27,9 @@ steps:
       - npm run typecheck
       - npm run lint
       # The window test wants a display and a store on the machine; that check belongs
-      # where there is one. The bridge check is worth running here: it exercises the
-      # registry and the message bundles.
-      - |
-        if command -v python3 >/dev/null 2>&1; then
-          npm run smoke
-        else
-          echo "no python3 in the image — the smoke test needs it, skipping"
-        fi
+      # where there is one. The bridge check runs here unconditionally — it needs nothing
+      # but Node, now that the store engine is part of the application.
+      - npm run smoke
 
   # A quarter of a gigabyte of packages is not worth building on every push, so the
   # two builds run when a release is being cut — or when asked for by hand.

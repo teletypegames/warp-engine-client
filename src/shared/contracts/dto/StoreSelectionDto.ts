@@ -1,8 +1,6 @@
-import type { EngineVersionDto } from './EngineVersionDto'
 import type { InstalledStoreDto } from './InstalledStoreDto'
 
-/** The answer to a store switch: which store is open, and can it be driven. */
+/** The answer to a store switch: which store is now open. */
 export interface StoreSelectionDto {
   readonly store: InstalledStoreDto
-  readonly engine: EngineVersionDto | null
 }

@@ -1,5 +1,4 @@
 import type { AppStateDto } from '../../shared/contracts/dto/AppStateDto'
-import type { EngineVersionDto } from '../../shared/contracts/dto/EngineVersionDto'
 import type { GameDto } from '../../shared/contracts/dto/GameDto'
 import type { InstalledStoreDto } from '../../shared/contracts/dto/InstalledStoreDto'
 import type { StorePathsDto } from '../../shared/contracts/dto/StorePathsDto'
@@ -21,11 +20,8 @@ export interface AppState {
   readonly locales: readonly Locale[]
   readonly messages: MessageBundle
   readonly navigationOpen: boolean
-  readonly pythonVersion: string | null
   readonly stores: readonly InstalledStoreDto[]
   readonly currentStore: InstalledStoreDto | null
-  readonly engine: EngineVersionDto | null
-  readonly minimumEngineVersion: string
   readonly registryUrl: string
   readonly defaultStoreRoot: string
   readonly games: readonly GameDto[]
@@ -42,11 +38,8 @@ const INITIAL_STATE: AppState = {
   locales: ['en'],
   messages: ENGLISH_MESSAGES,
   navigationOpen: true,
-  pythonVersion: null,
   stores: [],
   currentStore: null,
-  engine: null,
-  minimumEngineVersion: '',
   registryUrl: '',
   defaultStoreRoot: '',
   games: [],
@@ -85,11 +78,8 @@ export class AppStore {
       locales: dto.locales,
       messages: dto.messages,
       navigationOpen: dto.navigationOpen,
-      pythonVersion: dto.pythonVersion,
       stores: dto.stores,
       currentStore: dto.currentStore,
-      engine: dto.engine,
-      minimumEngineVersion: dto.minimumEngineVersion,
       registryUrl: dto.registryUrl,
       defaultStoreRoot: dto.defaultStoreRoot
     }
@@ -111,8 +101,8 @@ export class AppStore {
     this.notify()
   }
 
-  public applySelectedStore (store: InstalledStoreDto, engine: EngineVersionDto | null): void {
-    this.state = { ...this.state, currentStore: store, engine, games: [], paths: null, filter: ALL_CATEGORIES }
+  public applySelectedStore (store: InstalledStoreDto): void {
+    this.state = { ...this.state, currentStore: store, games: [], paths: null, filter: ALL_CATEGORIES }
     this.notify()
   }
 

@@ -1,9 +1,14 @@
-/** A store engine installed on this machine, with everything needed to run it. */
+/**
+ * A store set up on this machine.
+ *
+ * A home and a config, which is all a store is now that the engine is part of this
+ * application: the home holds the state and the catalog cache, and the config says
+ * what the store offers and where its games go.
+ */
 export interface InstalledStore {
   readonly id: string
   readonly name: string
   readonly home: string
-  readonly scriptPath: string
   readonly configPath: string
   readonly engine: string
 }

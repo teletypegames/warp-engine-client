@@ -1,5 +1,4 @@
 import { InstalledStoreDtoMapper } from '../../application/mappers/InstalledStoreDtoMapper'
-import { EngineVersionDtoMapper } from '../../application/mappers/EngineVersionDtoMapper'
 import { RegistryStoreDtoMapper } from '../../application/mappers/RegistryStoreDtoMapper'
 import type { StoreProvisioningService } from '../../application/services/StoreProvisioningService'
 import type { StoreSelectionService } from '../../application/services/StoreSelectionService'
@@ -20,8 +19,7 @@ export class StoreIpcController {
     private readonly guard: SingleFlightGuard,
     private readonly streams: WindowStreamBroadcaster,
     private readonly registryMapper: RegistryStoreDtoMapper = new RegistryStoreDtoMapper(),
-    private readonly storeMapper: InstalledStoreDtoMapper = new InstalledStoreDtoMapper(),
-    private readonly engineMapper: EngineVersionDtoMapper = new EngineVersionDtoMapper()
+    private readonly storeMapper: InstalledStoreDtoMapper = new InstalledStoreDtoMapper()
   ) {}
 
   public register (router: IpcRouter): void {
@@ -63,11 +61,6 @@ export class StoreIpcController {
   }
 
   private handleSelectStore (home: string): StoreSelectionDto {
-    const store = this.selection.selectStore(home)
-    const engine = this.selection.findEngineVersion(store)
-    return {
-      store: this.storeMapper.toDto(store),
-      engine: engine === null ? null : this.engineMapper.toDto(engine)
-    }
+    return { store: this.storeMapper.toDto(this.selection.selectStore(home)) }
   }
 }

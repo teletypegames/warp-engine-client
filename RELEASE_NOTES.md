@@ -1,37 +1,57 @@
-# WarpEngine Client 1.5.0
+# WarpEngine Client 2.0.0
 
-**The app is called WarpEngine Client.** It was WarpEngine Store, which named the thing
-it opens rather than the thing you run — and the store is a catalog on a site, not a
-window on your machine. The window title, the packages, the bundle and the menu entry all
-say Client now; the repository already did. The store the window is driving is named in
-the side menu, so the bar no longer repeats it as a badge.
+**The store engine is part of the app. Nothing has to be installed on the machine any
+more.** Reading the catalog, choosing which release fits your computer, downloading and
+unpacking it, writing the menu entry and remembering what went where all happen inside
+the application now. There is no Python to find, no child process, and no JSON protocol
+between the two halves — which is why this is a major version rather than a feature.
 
-**Every title in the catalog is listed, including the ones this machine cannot install.**
-A C64 cartridge on a desktop, or a game with no build for your operating system, used to
-be silently absent — leaving you to wonder whether the catalog is small or your machine
-is unusual. Those cards are now there, dimmed, with an *unsupported platform* or *no
-build for this machine* badge and the engine's own sentence underneath, and with nothing
-to press. They have a category of their own, *Not for this machine*, and they stay out of
-the native/hosted counts: a title with no build has no mode to be counted under.
+What that changes for a person: on Windows and on a fresh Mac the app simply works.
+Before it looked for `python3`, `python` and `py -3`, and where none answered it drew a
+screen with a link to python.org instead of a catalog. That screen is gone, along with
+the one that offered to refresh a store engine too old to drive.
 
-This needs store engine **1.2.0** (desktop) on **warpstore 1.4.0**, which report what
-they had to leave out and why. An older engine still works — its listing is simply all
-installable, as it was before.
+**Your existing library is kept.** `config.json` and `state.json` on disk are unchanged —
+the same field names, the same `<scope>:<name>` keys, the same file modes — so a machine
+whose games were installed by the shell store keeps them. Opening this version against
+such a store lists them as installed, offers no needless update, and a sync reports
+*already up to date*. A `version: 1` state file is still migrated on first read.
 
-**A build can be pointed at another site's registry.**
+The two Python files an earlier install left in the store folder are removed the next
+time that store is set up. Nothing reads them, and a folder that still looks like it
+holds the engine invites someone to run it against a state file this app is also writing.
 
-```sh
-make dist STORES_API=https://games.example.org/api/stores
-```
+**The client knows which WarpEngine served a catalog.** Every WarpEngine API response
+carries a `WarpEngine-Version` header, and the client now reads it, names the version in
+the log, and picks the catalog dialect for it. `SUPPORTED_WARP_ENGINE_VERSIONS` lists what
+this build was written against — 0.2, 0.3 and 0.4 — and the four cases are all handled:
 
-The address is written into the packaged app's own `package.json`, so a client built for
-somebody else's catalog needs no source change and nothing set on the user's machine. A
-runtime `STORES_API` still wins, which is for trying something out rather than shipping.
+| The header says | What the client does |
+|---|---|
+| a supported version | reads the catalog with that version's dialect |
+| nothing at all | reads it as the oldest supported version — an engine before 0.4.0 sent no header |
+| something older | the same, and says so in the log |
+| something newer | tries the newest dialect anyway, warning that titles may be missed |
+
+Adding a version to that list fails the build until somebody says what it reads like, in
+the type checker and in the linter both. A new engine version cannot arrive unnoticed.
+
+**Refresh and the language picker are icons.** They sit together at the foot of the side
+menu, and the *Actions* heading that used to head a section of one button is gone. Both
+carry their name as a tooltip and to a screen reader, and the language picker is still a
+real `<select>` underneath — the native dropdown, keyboard and all, with only the glyph
+showing.
 
 ### Also
 
-The scrollbars are the window's own now: the platform's light track down the side menu of
-a dark window looked like a mistake.
+No runtime dependencies, still: the zip reader the installer needs is about 150 lines over
+`node:zlib` rather than a package. It restores the executable bit from each entry's
+external attributes, which is what makes an unpacked game able to start at all, and it
+refuses a zip64 archive, an unknown compression method or an entry that would be written
+outside its destination rather than guessing.
+
+The repository itself is free of Python too — the Makefile, the CI check and the release
+script read `package.json` and the forge's JSON with Node now.
 
 ### Opening it on macOS
 
@@ -48,8 +68,19 @@ Windows (installer, portable) packages the pipeline builds when the tag is pushe
 
 ### Verified
 
-`make check` is clean. The store on this machine lists 13 titles — ten installable, three
-C64 cartridges this store does not carry — and the window was photographed with all
-thirteen on screen, the three dimmed and labelled. The engine change was measured through
-the CLI as well, in both its human and its `--json` listing, and the other two store
-engines still get the two-value answer they ask for.
+`make check` is clean: typecheck, lint, the headless smoke test and the window self-test.
+
+The new engine was measured against the old one rather than trusted. On the same catalog
+and the same config, the Python engine and this one produce **the same 13-title listing
+with zero field differences** and the same resolved paths. Installing three titles — a
+bare TIC-80 binary wrapped in a bundle, a Godot `.app` symlinked, and a hosted web entry —
+gives **byte-identical payloads, identical file modes and an identical `Info.plist`**; the
+only difference in the two trees is the sandbox path inside the generated launcher script.
+`state.json` matches record for record.
+
+The upgrade path was tested directly: pointed at a store home installed by the Python
+engine, this one reports all three titles installed with no update available, and a
+re-sync writes nothing. Remove, prune, prune-suppression on a named sync, and the v1→v2
+state migration were each exercised. The zip reader was checked against Python's
+`extractall` on an archive holding stored, deflated, directory and symlink entries —
+identical bytes and identical modes — and its zip-slip and not-a-zip guards both fire.

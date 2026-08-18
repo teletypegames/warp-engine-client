@@ -24,11 +24,7 @@ export class StoreController {
     const messages = this.store.readState().messages
     try {
       const selection = await this.bridge.selectStore(home)
-      this.store.applySelectedStore(selection.store, selection.engine)
-      if (selection.engine !== null && !selection.engine.supported) {
-        this.showOutdatedEngineGate()
-        return
-      }
+      this.store.applySelectedStore(selection.store)
       this.store.applyGate(null)
       await this.catalog.refresh()
     } catch (error: unknown) {
@@ -72,25 +68,6 @@ export class StoreController {
         }
       },
       choices: result.stores
-    })
-  }
-
-  public showOutdatedEngineGate (): void {
-    const state = this.store.readState()
-    const engineText = state.engine === null ? '' : state.engine.text
-    this.store.applyGate({
-      title: state.messages.oldEngineTitle,
-      body: `${state.messages.oldEngineBody}\n\n${engineText} → ${state.minimumEngineVersion}`,
-      action: { label: state.messages.oldEngineAction, perform: (): void => { void this.offerStores() } }
-    })
-  }
-
-  public showMissingPythonGate (): void {
-    const messages = this.store.readState().messages
-    this.store.applyGate({
-      title: messages.noPythonTitle,
-      body: messages.noPythonBody,
-      link: { label: messages.pythonLink, url: 'https://www.python.org/downloads/' }
     })
   }
 

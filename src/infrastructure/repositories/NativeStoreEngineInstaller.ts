@@ -10,19 +10,21 @@ import { asRecord, readString } from '../json/JsonRecord'
 import { HttpStatusError, type HttpTextClient } from '../http/HttpTextClient'
 
 const CONFIG_FILE_NAME = 'config.json'
-const SCRIPT_MODE = 0o755
-const PYTHON_SHEBANG = '#!/usr/bin/env python3'
 const DEFAULT_FORGE_BASE = 'https://git.teletypegames.org'
 const DEFAULT_BRANCH = 'master'
 
+/** What an install used to leave in a store home, back when the engine was a script. */
+const RETIRED_ENGINE_FILES: readonly string[] = ['desktop_store.py', 'warpstore.py']
+
 /**
- * Downloads the engine, the shared core and a store config into a store home.
+ * Setting up a store where there is none.
  *
- * The same three files, in the same folder, the shell installer would place — so
- * the CLI and this client stay one installation, and running install.sh afterwards
- * only adds the launcher script. No launcher is written here: the window is it.
+ * Since the engine moved into this application there is nothing to download but the
+ * store's own configuration, so an install is one HTTP call and one file. The store
+ * home stays where it was and keeps its name, because the state and the catalog cache
+ * beside that config are what make an existing library recognisable.
  */
-export class HttpStoreEngineInstaller implements StoreEngineInstaller {
+export class NativeStoreEngineInstaller implements StoreEngineInstaller {
   private readonly forgeBase: string
 
   public constructor (private readonly httpClient: HttpTextClient, forgeBase?: string) {
@@ -39,18 +41,10 @@ export class HttpStoreEngineInstaller implements StoreEngineInstaller {
   ): Promise<InstalledStore> {
     fs.mkdirSync(home, { recursive: true })
 
-    for (const [fileName, url] of Object.entries(this.engineSources())) {
-      progress.onLog?.(`downloading ${fileName}`)
-      const body = await this.httpClient.readText(url)
-      if (!body.startsWith(PYTHON_SHEBANG)) {
-        throw new Error(`${fileName} does not look like the store engine — refusing to install it`)
-      }
-      fs.writeFileSync(path.join(home, fileName), body, { mode: SCRIPT_MODE })
-    }
-
     const config = await this.readStoreConfig(store, progress)
     const configPath = path.join(home, CONFIG_FILE_NAME)
     fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`)
+    this.removeRetiredEngine(home, progress)
 
     progress.onLog?.(`${store.name} is set up in ${home}`)
     const configStore = asRecord(config['store'])
@@ -58,18 +52,25 @@ export class HttpStoreEngineInstaller implements StoreEngineInstaller {
       id: configStore === null ? deriveStoreId(store) : readString(configStore, 'id', deriveStoreId(store)),
       name: store.name,
       home,
-      scriptPath: path.join(home, DESKTOP_STORE_ENGINE.scriptFileName),
       configPath,
       engine: DESKTOP_STORE_ENGINE.id
     }
   }
 
-  /** Where the engine itself comes from: this client's own machinery, not the registry's. */
-  private engineSources (): Readonly<Record<string, string>> {
-    return {
-      [DESKTOP_STORE_ENGINE.scriptFileName]:
-        `${this.forgeBase}/stores/warp-engine-desktop-store/raw/branch/${DEFAULT_BRANCH}/${DESKTOP_STORE_ENGINE.scriptFileName}`,
-      'warpstore.py': `${this.forgeBase}/engines/warpstore/raw/branch/${DEFAULT_BRANCH}/warpstore.py`
+  /**
+   * Clear out the scripts an older client downloaded here.
+   *
+   * A store home provisioned by 1.5.0 or by the shell installer holds two Python
+   * files that nothing reads any more. They are harmless, but a directory that still
+   * looks like it holds the engine invites someone to run it against a state file
+   * this application is also writing.
+   */
+  private removeRetiredEngine (home: string, progress: EngineProgressListener): void {
+    for (const fileName of RETIRED_ENGINE_FILES) {
+      const filePath = path.join(home, fileName)
+      if (!fs.existsSync(filePath)) continue
+      fs.rmSync(filePath, { force: true })
+      progress.onLog?.(`removed the retired ${fileName}`)
     }
   }
 
@@ -85,10 +86,10 @@ export class HttpStoreEngineInstaller implements StoreEngineInstaller {
    *   - **no repository at all** — the same defaults, without the round trip.
    *
    * The engine's built-in defaults already cover the host-to-asset mapping, the
-   * modes, the platforms and the behaviour, so what a store actually has to supply
-   * is identity: a slug, a name and a catalog. That is exactly what a registry
-   * record carries, which is why a store needs no repository of its own. The
-   * registry always wins on those three, whatever a config file says.
+   * modes, the platforms and the behaviour, so what a store actually has to supply is
+   * identity: a slug, a name and a catalog. That is exactly what a registry record
+   * carries, which is why a store needs no repository of its own. The registry always
+   * wins on those three, whatever a config file says.
    */
   private async readStoreConfig (
     store: RegistryStore,
@@ -132,8 +133,8 @@ export class HttpStoreEngineInstaller implements StoreEngineInstaller {
    * What a store gets when nothing else says otherwise.
    *
    * Two fields, on top of the identity added by the caller. The subfolder keeps two
-   * stores on one machine out of each other's files, and it is the prune boundary,
-   * so it must be the store's own. Demo titles are listed because a catalog that
+   * stores on one machine out of each other's files, and it is the prune boundary, so
+   * it must be the store's own. Demo titles are listed because a catalog that
    * publishes them means them to be played — the engine defaults to released and
    * archived only, which is the safer default for a store nobody configured.
    */

@@ -85,7 +85,11 @@ body.nav-closed .side { margin-left: calc(-1 * var(--side-width)); }
   padding-top: 12px;
   border-top: 1px solid var(--line);
   gap: 8px;
+  flex-direction: row;
+  align-items: center;
 }
+/* The icons sit at the end of the footer row, away from the log toggle. */
+.side-tools { display: flex; align-items: center; gap: 4px; margin-left: auto; }
 .side-head {
   font-size: 11px;
   font-weight: 700;
@@ -167,8 +171,51 @@ body.nav-closed .side { margin-left: calc(-1 * var(--side-width)); }
   padding: 8px 10px 2px;
 }
 
-.side-lang { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-dim); }
-.side-lang .select { margin-left: auto; }
+/*
+ * An icon-only control: a square the size of its glyph, quiet until pointed at.
+ * `position: relative` is what lets the language picker put its <select> on top.
+ */
+.icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+.icon-btn:hover:not(:disabled) { color: var(--ink); background: var(--panel-2); border-color: var(--line); }
+.icon-btn:active:not(:disabled) { transform: scale(.94); }
+.icon-btn:disabled { opacity: .4; cursor: default; }
+/* The select swallows focus, so the ring has to be drawn on the label around it. */
+.icon-btn:focus-visible,
+.icon-btn:focus-within { color: var(--ink); border-color: var(--accent); outline: none; }
+
+.icon { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5;
+  stroke-linecap: round; stroke-linejoin: round; }
+
+/*
+ * The real <select>, stretched over the icon and invisible. It keeps the native
+ * dropdown — and its keyboard and screen-reader behaviour — while only the glyph shows.
+ */
+.locale-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+  appearance: none;
+  font: inherit;
+}
 
 /* --- top bar ------------------------------------------------------------ */
 .bar {
@@ -223,7 +270,7 @@ body.nav-closed .side { margin-left: calc(-1 * var(--side-width)); }
 }
 .link { color: var(--accent); cursor: pointer; text-decoration: underline; }
 
-/* --- gate (no python, or no store yet) ---------------------------------- */
+/* --- gate (no store yet) ---------------------------------- */
 .gate {
   margin: auto;
   max-width: 520px;

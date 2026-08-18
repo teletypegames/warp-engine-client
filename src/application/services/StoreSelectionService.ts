@@ -1,8 +1,6 @@
 import { StoreMissingError } from '../../domain/errors/StoreMissingError'
-import type { EngineVersion } from '../../domain/models/EngineVersion'
 import type { InstalledStore } from '../../domain/models/InstalledStore'
 import type { InstalledStoreRepository } from '../../domain/ports/InstalledStoreRepository'
-import type { StoreCatalogGateway } from '../../domain/ports/StoreCatalogGateway'
 import type { PreferencesService } from './PreferencesService'
 
 /**
@@ -18,7 +16,6 @@ export class StoreSelectionService {
 
   public constructor (
     private readonly stores: InstalledStoreRepository,
-    private readonly catalogGateway: StoreCatalogGateway,
     private readonly preferences: PreferencesService
   ) {}
 
@@ -56,15 +53,6 @@ export class StoreSelectionService {
     this.current = store
     this.preferences.updateStoreHome(store.home)
     return store
-  }
-
-  /**
-   * The engine version of a store, checked per store rather than once: two stores
-   * on one machine can be at different versions, and the one being switched to may
-   * be the older one.
-   */
-  public findEngineVersion (store: InstalledStore): EngineVersion | null {
-    return this.catalogGateway.readEngineVersion(store)
   }
 
   public readDefaultStoreRoot (): string {

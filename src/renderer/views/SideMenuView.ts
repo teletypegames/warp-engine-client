@@ -21,14 +21,14 @@ export interface SideMenuViewCallbacks {
  */
 export class SideMenuView {
   private readonly storesHead = requireElement('head-stores', HTMLElement)
-  private readonly actionsHead = requireElement('head-actions', HTMLElement)
   private readonly categoriesHead = requireElement('head-cats', HTMLElement)
-  private readonly languageHead = requireElement('head-lang', HTMLElement)
   private readonly storeList = requireElement('store-list', HTMLElement)
   private readonly addStore = requireElement('add-store', HTMLButtonElement)
   private readonly refresh = requireElement('refresh', HTMLButtonElement)
   private readonly categories = requireElement('cats', HTMLElement)
   private readonly locale = requireElement('locale', HTMLSelectElement)
+  /** The square around the select: it is what a pointer hovers, so the tooltip is its. */
+  private readonly localeControl = requireElement('locale-control', HTMLElement)
 
   public constructor (private readonly callbacks: SideMenuViewCallbacks) {
     this.addStore.addEventListener('click', callbacks.onAddStore)
@@ -38,11 +38,15 @@ export class SideMenuView {
 
   public render (state: AppState): void {
     setText(this.storesHead, state.messages.stores)
-    setText(this.actionsHead, state.messages.actions)
     setText(this.categoriesHead, state.messages.categories)
-    setText(this.languageHead, state.messages.language)
     setText(this.addStore, state.messages.addStore)
-    setText(this.refresh, state.messages.refresh)
+    // Refresh and the language picker are icons: naming them is all the view does, and
+    // writing text into them would replace the glyph.
+    describeControl(this.refresh, state.messages.refresh)
+    // The picker is two elements: the invisible select takes the focus and the reader's
+    // name, the square around it takes the hover and the tooltip.
+    describeControl(this.locale, state.messages.language)
+    this.localeControl.title = state.messages.language
 
     this.renderStores(state)
     this.renderCategories(state)
@@ -116,4 +120,15 @@ export class SideMenuView {
     this.addStore.disabled = state.busy
     for (const row of this.storeList.querySelectorAll('button')) row.disabled = state.busy
   }
+}
+
+/**
+ * Name an icon-only control.
+ *
+ * `title` is the tooltip a mouse finds and `aria-label` is what a screen reader reads;
+ * an icon button needs both, and they are the same sentence.
+ */
+function describeControl (element: HTMLElement, name: string): void {
+  element.title = name
+  element.setAttribute('aria-label', name)
 }

@@ -36,11 +36,6 @@
         <button id="add-store" class="btn btn-ghost btn-wide"></button>
       </section>
 
-      <section class="side-block">
-        <h2 class="side-head" id="head-actions"></h2>
-        <button id="refresh" class="btn btn-wide" disabled></button>
-      </section>
-
       <section class="side-block side-cats">
         <h2 class="side-head" id="head-cats"></h2>
         <nav class="cats" id="cats"></nav>
@@ -48,10 +43,33 @@
 
       <section class="side-block side-foot">
         <button id="log-toggle" class="side-quiet" aria-expanded="false" aria-controls="log-panel"></button>
-        <label class="side-lang">
-          <span id="head-lang"></span>
-          <select id="locale" class="select" aria-label="Language"></select>
-        </label>
+        <!--
+          Two icons and nothing else. Both carry their name in `title` and `aria-label`,
+          set from the message bundle, so the tooltip and the screen reader stay
+          translated while the button stays the size of its glyph.
+        -->
+        <div class="side-tools">
+          <button id="refresh" class="icon-btn" disabled>
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path d="M13.5 8a5.5 5.5 0 1 1-1.61-3.89" />
+              <path d="M13.5 2v3h-3" />
+            </svg>
+          </button>
+          <!--
+            The select is still a real `<select>`, stretched over the icon and invisible:
+            the native dropdown knows how to open upward in a cramped window and is
+            already keyboard- and screen-reader-navigable, which a hand-rolled menu would
+            have to earn back.
+          -->
+          <label class="icon-btn side-lang" id="locale-control">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <circle cx="8" cy="8" r="6" />
+              <path d="M2 8h12" />
+              <path d="M8 2c1.8 1.6 2.8 3.8 2.8 6S9.8 12.4 8 14C6.2 12.4 5.2 10.2 5.2 8S6.2 3.6 8 2Z" />
+            </svg>
+            <select id="locale" class="locale-select"></select>
+          </label>
+        </div>
       </section>
     </aside>
 

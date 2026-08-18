@@ -20,23 +20,14 @@ say() { echo "[release] $*"; }
 die() { echo "[release] error: $*" >&2; exit 1; }
 
 command -v tea >/dev/null 2>&1 || die "tea is not installed — see the devarea repo, 'make tea'"
-command -v python3 >/dev/null 2>&1 || die "python3 is required"
+command -v node >/dev/null 2>&1 || die "node is required"
 [ -f package.json ] || die "run this from the repository root"
 
-# Version and title in one go, through a heredoc rather than a quoted one-liner:
-# nesting python quoting inside shell quoting inside a command substitution is how
-# this produced an empty title on its first outing.
-VERSION="$(python3 - <<'PY'
-import json
-print(json.load(open("package.json"))["version"])
-PY
-)"
-TITLE="$(python3 - <<'PY'
-import json
-d = json.load(open("package.json"))
-print((d.get("productName") or d["name"]) + " " + d["version"])
-PY
-)"
+# Version and title from package.json, read with node. This project needs no interpreter
+# beyond the one it already builds with — the app itself carries no Python any more, and
+# neither should the script that ships it.
+VERSION="$(node -p 'require("./package.json").version')"
+TITLE="$(node -p 'const d = require("./package.json"); (d.productName || d.name) + " " + d.version')"
 TAG="${TAG:-v$VERSION}"
 [ -n "$VERSION" ] || die "cannot read the version from package.json"
 [ -n "$TITLE" ] || die "cannot work out a release title"
@@ -71,12 +62,12 @@ say "$REPO $TAG (version $VERSION), login $LOGIN"
 # The release id, or empty when there is no such tag. `tea api` exits 0 even for a
 # 404 — it answers {"message":"not found"} — so the body is what has to be read.
 release_id() {
-  tea api "/repos/$REPO/releases/tags/$TAG" 2>/dev/null | python3 -c '
-import json, sys
-try:
-    print(json.load(sys.stdin).get("id") or "")
-except Exception:
-    pass
+  tea api "/repos/$REPO/releases/tags/$TAG" 2>/dev/null | node -e '
+try {
+  console.log(JSON.parse(require("fs").readFileSync(0, "utf8")).id || "")
+} catch {
+  // Not JSON, or no such release: an empty answer is the "no release yet" case.
+}
 '
 }
 
@@ -103,13 +94,12 @@ RELEASE_ID="$(release_id)"
 # refusing is what makes a rebuild-and-upload repeatable. Called before every
 # attempt, so a retry cannot leave two copies behind.
 drop_existing() {
-  ids="$(tea api "/repos/$REPO/releases/$RELEASE_ID/assets" | python3 -c "
-import json, sys
-name = sys.argv[1]
-for a in json.load(sys.stdin):
-    if a['name'] == name:
-        print(a['id'])
-" "$1")"
+  ids="$(tea api "/repos/$REPO/releases/$RELEASE_ID/assets" | node -e '
+const name = process.argv[1]
+for (const asset of JSON.parse(require("fs").readFileSync(0, "utf8"))) {
+  if (asset.name === name) console.log(asset.id)
+}
+' -- "$1")"
   for id in $ids; do
     say "replacing $1"
     tea api -X DELETE "/repos/$REPO/releases/$RELEASE_ID/assets/$id" >/dev/null
@@ -120,7 +110,7 @@ while IFS= read -r asset; do
   [ -n "$asset" ] || continue
   [ -f "$asset" ] || die "no such file: $asset"
   name="$(basename "$asset")"
-  size="$(python3 -c "import os,sys; print(f'{os.path.getsize(sys.argv[1])/1e6:.0f} MB')" "$asset")"
+  size="$(node -e 'console.log((require("fs").statSync(process.argv[1]).size / 1e6).toFixed(0) + " MB")' -- "$asset")"
 
   # Retried, because a 100 MB upload does fail on its own: publishing 1.2.0 got
   # "invalid username, password or token" on the second package while the first
@@ -140,9 +130,10 @@ while IFS= read -r asset; do
 done < "$LIST"
 
 say "done:"
-tea api "/repos/$REPO/releases/$RELEASE_ID" | python3 -c "
-import json, sys
-r = json.load(sys.stdin)
-for a in r.get('assets') or []:
-    print(f\"  {a['name']}  {a['size']/1e6:.0f} MB\")
-print(f\"  {r['html_url']}\")"
+tea api "/repos/$REPO/releases/$RELEASE_ID" | node -e '
+const release = JSON.parse(require("fs").readFileSync(0, "utf8"))
+for (const asset of release.assets || []) {
+  console.log(`  ${asset.name}  ${(asset.size / 1e6).toFixed(0)} MB`)
+}
+console.log(`  ${release.html_url}`)
+'

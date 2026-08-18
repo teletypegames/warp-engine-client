@@ -7,14 +7,12 @@ import { StoreProvisioningService } from '../../application/services/StoreProvis
 import { StoreSelectionService } from '../../application/services/StoreSelectionService'
 import { ElectronApplicationEnvironment } from '../../infrastructure/electron/ElectronApplicationEnvironment'
 import { ElectronGameLauncher } from '../../infrastructure/electron/ElectronGameLauncher'
+import { NativeStoreCatalogGateway } from '../../infrastructure/engine/NativeStoreCatalogGateway'
 import { HttpTextClient } from '../../infrastructure/http/HttpTextClient'
-import { PythonEngineProcessRunner } from '../../infrastructure/process/PythonEngineProcessRunner'
-import { SystemPythonRuntimeLocator } from '../../infrastructure/process/SystemPythonRuntimeLocator'
 import { FileSystemInstalledStoreRepository } from '../../infrastructure/repositories/FileSystemInstalledStoreRepository'
-import { HttpStoreEngineInstaller } from '../../infrastructure/repositories/HttpStoreEngineInstaller'
+import { NativeStoreEngineInstaller } from '../../infrastructure/repositories/NativeStoreEngineInstaller'
 import { HttpStoreRegistryRepository } from '../../infrastructure/repositories/HttpStoreRegistryRepository'
 import { JsonFilePreferencesRepository } from '../../infrastructure/repositories/JsonFilePreferencesRepository'
-import { PythonStoreCatalogGateway } from '../../infrastructure/repositories/PythonStoreCatalogGateway'
 import { AppIpcController } from '../ipc/AppIpcController'
 import { CatalogIpcController } from '../ipc/CatalogIpcController'
 import { IpcRouter } from '../ipc/IpcRouter'
@@ -46,22 +44,20 @@ export class ServiceContainer {
 
     const environment = new ElectronApplicationEnvironment(app)
     const httpClient = new HttpTextClient()
-    const pythonLocator = new SystemPythonRuntimeLocator()
-    const engineRunner = new PythonEngineProcessRunner(pythonLocator)
 
     const stores = new FileSystemInstalledStoreRepository()
-    const catalogGateway = new PythonStoreCatalogGateway(engineRunner)
+    const catalogGateway = new NativeStoreCatalogGateway()
     const registry = new HttpStoreRegistryRepository(httpClient)
-    const installer = new HttpStoreEngineInstaller(httpClient)
+    const installer = new NativeStoreEngineInstaller(httpClient)
     const preferencesRepository = new JsonFilePreferencesRepository(environment)
 
     const preferences = new PreferencesService(preferencesRepository, environment)
-    this.selection = new StoreSelectionService(stores, catalogGateway, preferences)
+    this.selection = new StoreSelectionService(stores, preferences)
     this.catalog = new CatalogService(catalogGateway, this.selection)
     this.provisioning = new StoreProvisioningService(registry, installer, stores, this.selection)
     this.launching = new GameLaunchService(new ElectronGameLauncher(shell), this.catalog)
     this.state = new ApplicationStateService(
-      preferences, this.selection, this.provisioning, pythonLocator, environment
+      preferences, this.selection, this.provisioning, environment
     )
 
     this.controllers = [

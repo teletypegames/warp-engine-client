@@ -12,9 +12,9 @@ that reaches the window is a safety question, not a style one.
 
 ```
 shared      ← contracts and strings both sides need (no logic, no I/O)
-domain      ← models, ports, errors. Knows nothing about Electron, Node or Python
+domain      ← models, ports, errors. Knows nothing about Electron or Node
 application ← services and DTO mappers. Orchestrates the domain through its ports
-infrastructure ← adapters: the Python CLI, HTTP, the filesystem, Electron itself
+infrastructure ← adapters: the store engine, HTTP, the filesystem, Electron itself
 main        ← the Electron host: window, IPC controllers, composition root
 preload     ← the bridge, and only the bridge
 renderer    ← the window: state store, views, controllers
@@ -57,10 +57,13 @@ src/
     services/                 CatalogService, StoreSelectionService, …
     mappers/                  domain → DTO
   infrastructure/
-    process/                  Python: locating it, running it, reading its streams
+    engine/                   the store engine: catalog, releases, install, state
+      dialects/               one per WarpEngine version's catalog shape
+      launchers/              .desktop, .app bundle, .lnk — the three hosts
+    archive/                  ZipArchive: a zip reader over node:zlib
+    files/                    StoreFileSystem: atomic writes and the delete guard
     repositories/             the port implementations
-    mappers/                  engine JSON → domain
-    http/                     HttpTextClient, HttpStatusError
+    http/                     HttpTextClient, StoreHttpClient, HttpStatusError
     json/                     JsonRecord: reading data that came from elsewhere
     config/                   BuildConfiguration: what was decided when this was packaged
     electron/                 ApplicationEnvironment and GameLauncher adapters
@@ -95,9 +98,13 @@ on this list, it belongs on this list.
 ### Ports and adapters
 
 `domain/ports/*` are interfaces; `infrastructure/*` implements them; the composition
-root is the only file that knows which implementation is in use. This is what makes
-the Python CLI, the registry HTTP call and Electron's `shell` replaceable — by a stub
-in a test, by a local endpoint in development, by a second engine later.
+root is the only file that knows which implementation is in use. This is what makes the
+store engine, the registry HTTP call and Electron's `shell` replaceable — by a stub in a
+test, by a local endpoint in development, by a second host's engine later.
+
+It has already paid for itself once: the engine used to be a Python CLI driven as a child
+process, and replacing it with one that runs in process was a new adapter behind the same
+port. Nothing in `application`, `main` or `renderer` changed shape for it.
 
 ### Repository and Gateway
 
@@ -105,8 +112,10 @@ Both are ports; the distinction is what is behind them.
 
 - **Repository** — a store of records this application owns the shape of:
   `InstalledStoreRepository`, `PreferencesRepository`, `StoreRegistryRepository`.
-- **Gateway** — another program or service with its own protocol:
-  `StoreCatalogGateway` (the engine).
+- **Gateway** — something with a protocol of its own, whether or not it is another
+  process: `StoreCatalogGateway` (the store engine), which today is
+  `NativeStoreCatalogGateway` in this application and was a Python CLI before it. The port
+  stays async because the work is: it downloads and unpacks.
 
 ### Service
 
@@ -119,8 +128,11 @@ controller or a view.
 Data crossing a boundary is a DTO, and a mapper converts. Two boundaries, two
 directions:
 
-- `infrastructure/mappers/Engine*Mapper` — engine JSON (snake_case) → domain model.
-  These are the only files that know the engine's field names.
+- `infrastructure/engine/dialects/*` — catalog JSON → typed catalog records. These are
+  the only files that know a WarpEngine version's field names.
+- `infrastructure/engine/StoreConfigurationReader`, `StoreStateRepository` — the two
+  snake_case files on disk → domain models. These are the only files that know the on-disk
+  field names, which are the shell engine's and stay that way.
 - `application/mappers/*DtoMapper` — domain model → DTO for the bridge. Decisions the
   window must not make live here: the absolute box-art URL, whether a title can be
   launched at all.
@@ -176,8 +188,8 @@ never calls the bridge.
 ### Error hierarchy with codes
 
 `DomainError` is abstract with a `code`; subclasses name a single failure
-(`PythonMissingError`, `StoreMissingError`, `EngineInvocationError`,
-`RegistryUnavailableError`, `BusyError`). The code is what crosses the bridge.
+(`StoreMissingError`, `EngineInvocationError`, `RegistryUnavailableError`, `BusyError`).
+The code is what crosses the bridge.
 
 ### Frozen constant tables
 
@@ -195,7 +207,8 @@ trying it out, someone shipping a client for another site, us.
 
 ### Untrusted-data readers
 
-Anything parsed from outside — engine stdout, the registry — goes through
+Anything parsed from outside — the catalog, a store's config, the state file, the
+registry — goes through
 `infrastructure/json/JsonRecord.ts`: `unknown` in, a typed value with a stated
 fallback out. No `as` casts on foreign data.
 
@@ -219,7 +232,7 @@ The names are a pattern, not a preference, and are checked by
 |---|---|---|
 | Domain model | plain noun, no suffix | `Game`, `InstalledStore` |
 | Port | `<Subject>Repository` / `Gateway` / `Locator` / `Installer` / `Launcher` | `StoreCatalogGateway` |
-| Adapter | `<Technology><Port>` | `PythonStoreCatalogGateway`, `HttpStoreRegistryRepository`, `FileSystemInstalledStoreRepository` |
+| Adapter | `<Technology><Port>` | `NativeStoreCatalogGateway`, `HttpStoreRegistryRepository`, `FileSystemInstalledStoreRepository` |
 | Service | `<Area>Service` | `CatalogService` |
 | Mapper | `<Subject>Mapper` / `<Subject>DtoMapper` | `EngineGameMapper`, `GameDtoMapper` |
 | Wire type | `<Subject>Dto` | `CatalogListingDto` |
@@ -227,7 +240,7 @@ The names are a pattern, not a preference, and are checked by
 | Renderer controller | `<Area>Controller` | `StoreController` |
 | View | `<Region>View` | `SideMenuView`, `GameCardView` |
 | Factory | `<Product>Factory` | `MainWindowFactory` |
-| Error | `<Cause>Error` | `PythonMissingError` |
+| Error | `<Cause>Error` | `StoreMissingError` |
 | Callback bag | `<Owner>Callbacks` | `SideMenuViewCallbacks` |
 | Type parameter | `T`-prefixed | `TResult`, `TElement` |
 
@@ -281,12 +294,18 @@ dependencies are declared here, and that is worth more than being strippable by
 the implementation to `preload.ts`, a `handle…` method to the right controller, and the
 behaviour to a service. The compiler names every file you missed.
 
-**A new engine (e.g. RetroArch).** Add an entry to `STORE_ENGINES`. The store
-discovery, the home suffix and the launcher name all read from that table; the CLI has
-the same command shape, so `PythonStoreCatalogGateway` is unchanged.
+**A new engine (e.g. RetroArch).** Add an entry to `STORE_ENGINES` — the store discovery,
+the home suffix and the launcher name all read from that table — and a `StoreCatalogGateway`
+implementation for that host. Everything above the port is unchanged.
 
-**A new field from the engine.** `EngineGameMapper` reads it into the model, `GameDto`
-and `GameDtoMapper` carry it across if the window needs it, and a view renders it.
+**A new WarpEngine version.** Add it to `SUPPORTED_WARP_ENGINE_VERSIONS`. The build then
+fails in `selectCatalogDialect` until the switch says which `CatalogDialect` reads it:
+either an existing one, when the catalog's shape did not change, or a new one beside
+`SoftwareListCatalogDialect`.
+
+**A new field from the catalog.** The dialect reads it into `CatalogSoftware`,
+`CatalogRelease` or `CatalogAsset`; `SelectedGame` and `Game` carry it if the survey or the
+window needs it; `GameDto` and `GameDtoMapper` take it across the bridge.
 
 **A new language.** Add `<Language>Messages.ts` typed as `MessageBundle`, add the code
 to `LOCALES` and the bundle to `TranslationCatalog`. A missing key will not compile.
