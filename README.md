@@ -174,6 +174,16 @@ Release notes come from `RELEASE_NOTES.md` when the file is present, otherwise t
 release gets a one-line note. The repository is read from `origin`, so a fork
 publishes to the fork.
 
+Each upload is retried up to three times, and the existing attachment is dropped
+before every attempt so a retry cannot leave two copies. A 100 MB upload does fail
+on its own: publishing 1.2.0 got *"invalid username, password or token"* on the
+second package while the first had just gone up with the same token, and the same
+command succeeded immediately afterwards.
+
+Package names contain a space — `WarpEngine Store-1.2.0-arm64.dmg` — so the list of
+files is passed one path per line rather than as one string; splitting it on
+whitespace is what broke the first attempt at publishing 1.1.0.
+
 It needs `tea` installed and logged in — the devarea repo has `make tea` for that.
 Overridable: `TAG`, `REPO`, `TEA_LOGIN`, `NOTES`, `DIST`.
 

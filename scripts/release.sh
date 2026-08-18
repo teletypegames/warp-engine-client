@@ -99,27 +99,44 @@ RELEASE_ID="$(release_id)"
 [ -n "$RELEASE_ID" ] || die "the release $TAG could not be created or found"
 
 # --- the attachments -------------------------------------------------------
-while IFS= read -r asset; do
-  [ -n "$asset" ] || continue
-  [ -f "$asset" ] || die "no such file: $asset"
-  name="$(basename "$asset")"
-
-  # Replacing rather than refusing: a second run after a rebuild should land.
-  old="$(tea api "/repos/$REPO/releases/$RELEASE_ID/assets" | python3 -c "
+# Anything already attached under this name, dropped: replacing rather than
+# refusing is what makes a rebuild-and-upload repeatable. Called before every
+# attempt, so a retry cannot leave two copies behind.
+drop_existing() {
+  ids="$(tea api "/repos/$REPO/releases/$RELEASE_ID/assets" | python3 -c "
 import json, sys
 name = sys.argv[1]
 for a in json.load(sys.stdin):
     if a['name'] == name:
         print(a['id'])
-" "$name")"
-  for id in $old; do
-    say "replacing $name"
+" "$1")"
+  for id in $ids; do
+    say "replacing $1"
     tea api -X DELETE "/repos/$REPO/releases/$RELEASE_ID/assets/$id" >/dev/null
   done
+}
 
+while IFS= read -r asset; do
+  [ -n "$asset" ] || continue
+  [ -f "$asset" ] || die "no such file: $asset"
+  name="$(basename "$asset")"
   size="$(python3 -c "import os,sys; print(f'{os.path.getsize(sys.argv[1])/1e6:.0f} MB')" "$asset")"
-  say "uploading $name ($size) — large packages take a few minutes"
-  tea releases assets create --login "$LOGIN" --repo "$REPO" "$TAG" "$asset" >/dev/null
+
+  # Retried, because a 100 MB upload does fail on its own: publishing 1.2.0 got
+  # "invalid username, password or token" on the second package while the first
+  # had just gone up with the same token, and the identical command succeeded on
+  # the next run. One flake should not cost a rebuild.
+  attempt=1
+  while :; do
+    drop_existing "$name"
+    say "uploading $name ($size) — large packages take a few minutes"
+    if tea releases assets create --login "$LOGIN" --repo "$REPO" "$TAG" "$asset" >/dev/null; then
+      break
+    fi
+    [ "$attempt" -lt 3 ] || die "$name could not be uploaded after $attempt attempts"
+    attempt=$((attempt + 1))
+    say "that failed — attempt $attempt of 3"
+  done
 done < "$LIST"
 
 say "done:"
