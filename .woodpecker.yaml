@@ -58,9 +58,13 @@ steps:
   # from the Mac that can sign them.
   - name: release
     image: alpine
-    # No secret: the step authenticates with the forge credential Woodpecker already
-    # hands every step, which belongs to the repository's owner. To publish as someone
-    # else instead, add a `gitea_token` repository secret and map it here as GITEA_TOKEN.
+    environment:
+      # Needed. Woodpecker does hand steps a forge credential — a manual build printed
+      # one — but a build started by the tag webhook does not get it: the first tag build
+      # died here with no credential at all. So the token is a repository secret, and the
+      # script still falls back to the forge credential when it is there.
+      GITEA_TOKEN:
+        from_secret: gitea_token
     commands:
       - apk add --no-cache curl jq
       # No globs on the command line: the package names have spaces in them.

@@ -204,11 +204,20 @@ So the whole of a release is:
 
 The window test is local as well: it needs a display and a store on the machine.
 
-The `release` step needs **no secret**. It authenticates with the forge credential
-Woodpecker hands every step for cloning, which is an access token of the repository's
-owner; Gitea takes it as `token …` or `Bearer …` depending on how Woodpecker was set up,
-so `scripts/ci-upload.sh` probes which of the two works instead of assuming. To publish
-as somebody else, add a `gitea_token` repository secret and map it into the step.
+The `release` step needs a **`gitea_token`** repository secret — a Gitea token with
+write access to this repository:
+
+```sh
+woodpecker-cli repo secret add --repository stores/warp-engine-client \
+  --name gitea_token --value <token> --event tag
+```
+
+Woodpecker does hand steps a forge credential of its own, and the script uses it when the
+secret is absent, but that is not something to rely on: a **manual** build has it and a
+build started by the **tag webhook** does not, which is how the first tag build failed —
+after building all four packages. Gitea takes either credential as `token …` or
+`Bearer …` depending on how it was issued, so the script probes which of the two `/user`
+accepts instead of assuming, and logs which one it used.
 
 There are two publishers on purpose: `scripts/release.sh` drives `tea`, which is logged
 in on a workstation, and `scripts/ci-upload.sh` speaks the API with whatever credential
