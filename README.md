@@ -24,6 +24,9 @@ catalog it serves and where its configuration lives.
 - Nothing else at runtime. No Node, no package manager, no admin rights: the
   store installs under your own user account.
 
+To *develop* it you also need **Node 22 or newer** — see below — and nothing else: the
+toolchain (TypeScript, ESLint, esbuild, electron-builder) installs with `make setup`.
+
 ## Install
 
 Grab the package for your machine from the
@@ -145,19 +148,24 @@ names. `make` on its own lists everything.
 | Target | What it does |
 |---|---|
 | `make setup` | install the dependencies (checks the Node version first) |
+| `make build` | compile TypeScript, bundle the preload and the renderer |
+| `make typecheck` | type-check everything, emitting nothing |
+| `make lint` | the strict rule set (`lint-fix` fixes what it can) |
+| `make check` | **typecheck, lint and both test suites** — the gate |
 | `make start` | run the app against whatever store is installed |
-| `make smoke` | drive the store bridge with no window at all |
+| `make smoke` | drive the store with no window and no Electron at all |
 | `make uitest` | load the window once and report what rendered |
 | `SELFTEST_SHOT=shot.png npm run uitest` | the same, and the window photographs itself into that file |
-| `make test` | both checks |
+| `make test` | both test suites |
 | `make dist` | package for this machine (`dist-mac`, `dist-win`, `dist-linux` to pick) |
 | `make publish` | upload the packages already in `dist/` to the Gitea release |
 | `make release` | **package and publish in one go** |
-| `make clean` | remove the built packages (`distclean` also drops `node_modules`) |
+| `make clean` | remove `build/` and the packages (`distclean` also drops `node_modules`) |
 | `make version` | the versions involved, including whether `tea` is there |
 
 The npm scripts still work directly (`npm start`, `npm run dist:mac`) — the
-Makefile adds no logic of its own beyond the release step.
+Makefile adds no logic of its own beyond the release step. Every script that runs the
+app builds first, so there is no way to test a stale bundle.
 
 ### Publishing a release
 
@@ -210,32 +218,51 @@ SMOKE_HOME=/tmp/sandbox-root/ttg-desktop npm run smoke
 
 ### How it is put together
 
-| File | What it does |
+TypeScript, in layers, with the dependency rule pointing inward. **[STRUCTURE.md](STRUCTURE.md)
+is the map** — the layers, every pattern in use, and the naming rules. The short version:
+
+| Layer | What lives there |
 |---|---|
-| `main.js` | the window, the IPC, and the one-call-at-a-time guard |
-| `preload.js` | the entire surface the renderer gets — no Node reaches it |
-| `lib/store.js` | finds the store and Python, runs the CLI, parses its JSON |
-| `lib/bootstrap.js` | reads the registry, then downloads the engine, the core and a config |
-| `lib/i18n.js` | the two string tables |
-| `renderer/` | plain HTML, CSS and JS — no framework, no build step |
-| `Makefile` | the named sequences; no logic of its own beyond the release |
+| `src/shared/` | the IPC channel table, the bridge contract, the DTOs, the two message bundles |
+| `src/domain/` | models, ports and errors — no Electron, no Node, no Python |
+| `src/application/` | services and the domain → DTO mappers |
+| `src/infrastructure/` | the adapters: the Python CLI, HTTP, the filesystem, Electron itself |
+| `src/main/` | the window, the IPC controllers, the composition root, the self-test |
+| `src/preload/` | the bridge, bundled into one file — a sandboxed preload cannot require modules |
+| `src/renderer/` | the state store, the views and the renderer controllers |
+| `src/scripts/` | the smoke test: the same services with no window at all |
 | `scripts/release.sh` | creates the Gitea release and replaces its attachments |
 | `scripts/after-pack.js` | ad-hoc signs the macOS bundle during packaging |
+| `scripts/build-assets.mjs` | bundles the preload and the renderer, copies the page |
 
-`contextIsolation` is on, `nodeIntegration` off, `sandbox` on, and the page
-carries a CSP that allows only its own script and stylesheet plus images over
-HTTPS. Links open in the real browser; the window itself never navigates.
+Two properties are worth stating because they are what the layers buy:
 
-`lib/store.js` talks to the CLI through `--json`, which puts data on stdout and
-the human-readable log on stderr. That flag arrived with engine **1.1.0**, and the
-client checks: an older store is met with an offer to refresh it rather than a
-failed call.
+- **The catalog can be driven without a window.** `make smoke` assembles the same
+  services against the same ports with no Electron in the process at all.
+- **The window never receives a filesystem path.** A `GameDto` carries no paths; the
+  window asks to launch a title *by name* and the main process resolves what that means
+  from the store's own state.
 
-The bridge keeps an `ENGINES` list with one entry today. The RetroArch store has
-the same command shape, so a second entry is the whole change needed to drive it
-too — that is why the indirection is there.
+`contextIsolation` is on, `nodeIntegration` off, `sandbox` on, and the page carries a
+CSP that allows only its own script and stylesheet plus images over HTTPS. Links open
+in the real browser; the window itself never navigates.
+
+`PythonStoreCatalogGateway` is the only class that knows the store is a Python
+program. It talks to the CLI through `--json`, which puts data on stdout and the
+human-readable log on stderr. That flag arrived with engine **1.1.0**, and the client
+checks: an older store is met with an offer to refresh it rather than a failed call.
+
+`STORE_ENGINES` has one entry today. The RetroArch store has the same command shape,
+so a second entry is the whole change needed to drive it too — that is why the table is
+there.
 
 ## Verified, and not
+
+The 1.3.0 refactor was measured rather than trusted: `make check` is clean — no type
+errors, no lint findings, both test suites green — the window was photographed before
+and after and the two are the same picture, and the packaged 1.3.0 bundle was run from
+`dist/` and drove the real store. The published package contains `build/` and
+`package.json` and nothing else: 111 entries, no sources, no toolchain.
 
 Exercised on macOS (arm64), with the packaged app from the release rather than a
 dev run: the store is discovered, the catalog lists, a sync installs, the window

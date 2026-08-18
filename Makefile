@@ -7,6 +7,7 @@
 #
 #   make            list the targets
 #   make setup      install the dependencies
+#   make check      typecheck, lint and both test suites
 #   make dist       package for this machine
 #   make release    package and publish to Gitea
 #
@@ -23,8 +24,8 @@ TAG ?= v$(VERSION)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help setup node-check start smoke uitest test dist dist-mac dist-win dist-linux \
-        release publish clean distclean version
+.PHONY: help setup node-check build typecheck lint lint-fix check start smoke uitest test \
+        dist dist-mac dist-win dist-linux release publish clean distclean version
 
 help: ## List available targets
 	@echo "WarpEngine Store GUI $(VERSION) — usage: make <target>"
@@ -44,6 +45,22 @@ node-check: ## Check the Node version Electron's installer needs
 
 setup: node-check ## Install the dependencies
 	npm install
+
+build: ## Compile TypeScript and bundle the preload and the renderer
+	npm run build
+
+typecheck: ## Type-check everything, emitting nothing
+	npm run typecheck
+
+lint: ## Lint with the strict rule set
+	npm run lint
+
+lint-fix: ## Lint and fix what can be fixed automatically
+	npm run lint:fix
+
+# The order is deliberate: a type error explains a lint error, and both explain a
+# failing test, so the cheapest check that can fail runs first.
+check: typecheck lint test ## Type-check, lint, and run both test suites
 
 start: ## Run the app against whatever store is installed
 	npm start
@@ -75,8 +92,8 @@ publish: ## Upload the packages already in dist/ to the Gitea release
 # what this version produced.
 release: clean dist publish ## Package for this machine and publish it
 
-clean: ## Remove the built packages
-	rm -rf dist
+clean: ## Remove the compiled output and the built packages
+	rm -rf build dist
 
 distclean: clean ## Remove the packages and the dependencies
 	rm -rf node_modules
@@ -86,5 +103,7 @@ version: ## Show the versions involved
 	@printf "node       "; node --version 2>/dev/null || echo "missing"
 	@printf "npm        "; npm --version 2>/dev/null || echo "missing"
 	@printf "electron   "; node -p "require('./package.json').devDependencies.electron" 2>/dev/null || echo "missing"
+	@printf "typescript "; npx tsc --version 2>/dev/null || echo "missing"
+	@printf "eslint     "; npx eslint --version 2>/dev/null || echo "missing"
 	@printf "tea        "; tea --version 2>/dev/null | head -1 || echo "missing — devarea: make tea"
 	@printf "python3    "; python3 --version 2>/dev/null || echo "missing"
