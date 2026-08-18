@@ -66,12 +66,46 @@ your launcher, Dock or Start menu — the app does not have to be running to pla
 
 ## Development
 
+`make` is the front door; it wraps the npm scripts so the useful sequences have
+names. `make` on its own lists everything.
+
+| Target | What it does |
+|---|---|
+| `make setup` | install the dependencies (checks the Node version first) |
+| `make start` | run the app against whatever store is installed |
+| `make smoke` | drive the store bridge with no window at all |
+| `make uitest` | load the window once and report what rendered |
+| `make test` | both checks |
+| `make dist` | package for this machine (`dist-mac`, `dist-win`, `dist-linux` to pick) |
+| `make publish` | upload the packages already in `dist/` to the Gitea release |
+| `make release` | **package and publish in one go** |
+| `make clean` | remove the built packages (`distclean` also drops `node_modules`) |
+| `make version` | the versions involved, including whether `tea` is there |
+
+The npm scripts still work directly (`npm start`, `npm run dist:mac`) — the
+Makefile adds no logic of its own beyond the release step.
+
+### Publishing a release
+
 ```sh
-npm install
-npm start                  # the window, against whatever store is installed
-npm run smoke              # the bridge only: no window, no Electron
-npm run uitest             # loads the window once and reports what rendered
-npm run dist:mac           # or dist:win / dist:linux
+make release
+```
+
+The tag comes from `package.json`, so `npm version patch` is the only place a
+version is set. The release is created if it is not there yet, and an attachment
+whose name is already on it is **replaced** rather than refused — so a rebuild and
+a second `make publish` lands rather than erroring.
+
+Release notes come from `RELEASE_NOTES.md` when the file is present, otherwise the
+release gets a one-line note. The repository is read from `origin`, so a fork
+publishes to the fork.
+
+It needs `tea` installed and logged in — the devarea repo has `make tea` for that.
+Overridable: `TAG`, `REPO`, `TEA_LOGIN`, `NOTES`, `DIST`.
+
+```sh
+make publish TAG=v1.0.2                 # a tag other than package.json's
+scripts/release.sh dist/one-file.dmg    # just one package
 ```
 
 **Node 22 or newer is needed to install**, not to run: Electron's own installer
@@ -100,6 +134,9 @@ SMOKE_HOME=/tmp/sandbox-root/ttg-desktop npm run smoke
 | `lib/bootstrap.js` | downloads the engine, the shared core and a config |
 | `lib/i18n.js` | the two string tables |
 | `renderer/` | plain HTML, CSS and JS — no framework, no build step |
+| `Makefile` | the named sequences; no logic of its own beyond the release |
+| `scripts/release.sh` | creates the Gitea release and replaces its attachments |
+| `scripts/after-pack.js` | ad-hoc signs the macOS bundle during packaging |
 
 `contextIsolation` is on, `nodeIntegration` off, `sandbox` on, and the page
 carries a CSP that allows only its own script and stylesheet plus images over
