@@ -1,9 +1,10 @@
-# warp-engine-desktop-gui — a window for the desktop store
+# warp-engine-client — the WarpEngine Store app
 
-A graphical client for
-[`warp-engine-desktop-store`](https://git.teletypegames.org/stores/warp-engine-desktop-store):
-the catalog as a grid of cards, one click to install a title into your own
-application menu, one to play it, one to remove it. Linux, macOS and Windows.
+The graphical client for a WarpEngine store — the app is called **WarpEngine
+Store** — driving
+[`warp-engine-desktop-store`](https://git.teletypegames.org/stores/warp-engine-desktop-store)
+underneath: the catalog as a grid of cards, one click to install a title into your
+own application menu, one to play it, one to remove it. Linux, macOS and Windows.
 
 The CLI stays the product; this is its front door. Every action here runs
 `desktop_store.py`, so there is one catalog logic, one state file and one delete
@@ -30,7 +31,7 @@ toolchain (TypeScript, ESLint, esbuild, electron-builder) installs with `make se
 ## Install
 
 Grab the package for your machine from the
-[releases](https://git.teletypegames.org/stores/warp-engine-desktop-gui/releases)
+[releases](https://git.teletypegames.org/stores/warp-engine-client/releases)
 and open it. On first run, if there is no store on the machine yet, the window
 offers to download one — that is the whole setup.
 
@@ -63,28 +64,39 @@ and there is nothing to decide; several and the setup screen shows a picker.
 
 ```json
 [
+  { "name": "Teletype Games", "catalogUrl": "https://teletypegames.org", "storeRepositoryUrl": null },
   {
-    "name": "Teletype Games",
-    "catalogUrl": "https://teletypegames.org",
-    "storeRepositoryUrl": "https://git.teletypegames.org/stores/ttg-desktop-store"
+    "name": "Some Other Store",
+    "catalogUrl": "https://games.example.org",
+    "storeRepositoryUrl": "https://git.example.org/stores/other-desktop-store"
   }
 ]
 ```
 
+**A store needs no repository of its own.** A name and a catalog are enough: the
+store engine's built-in defaults already cover the host-to-asset mapping, the
+install modes, the platforms and the behaviour, so what is actually missing from
+them is identity — a slug, a name and a catalog URL — and that is exactly what a
+registry record carries. With `storeRepositoryUrl` null the client writes a
+three-section config and the store installs.
+
 From a record the client works out the rest:
 
-- **`storeRepositoryUrl`** → the store's `config.json`, read from
-  `…/raw/branch/master/config.json`. That file is the authority on how the store
-  behaves: which platforms, which statuses, where things land.
+- **the store id** — which names the store home and the folder games land in —
+  comes from the repository name when there is one (`ttg-desktop-store` becomes
+  `ttg`), otherwise from the catalog host (`teletypegames.org` becomes
+  `teletypegames`), otherwise from the display name. A `config.json` that sets its
+  own id keeps it.
 - **`catalogUrl` and `name`** override the config's own `store.base_url` and
   `store.name`. The registry says which catalog this store is *for*, so it wins.
-- **the store id** — which names the store home and the folder games land in —
-  comes from the repository name: `ttg-desktop-store` becomes `ttg`. A
-  `config.json` that sets its own id keeps it.
+- **`storeRepositoryUrl`**, when given → the store's `config.json`, read from
+  `…/raw/branch/master/config.json`. That file stays the authority on how the store
+  behaves: which platforms, which statuses, where things land. A repository
+  **without** a `config.json` is treated as no repository at all.
 
-A repository **without** a `config.json` still works. The engine merges whatever
-it is handed onto its own defaults, so the client writes a three-field config and
-the store behaves like the default one pointed at that catalog.
+What the defaults produce, for a record with no repository: the games land in a
+folder named after the store id, and released, archived **and demo** titles are
+listed — a catalog that publishes a demo means it to be played.
 
 The registry address is the single thing about a particular site left in the
 client, and `STORES_API` overrides it:
@@ -107,8 +119,8 @@ Everything that is not a title lives in the **side menu** on the left, and the
   catalog into different folders show their folder instead of their id, because
   the id would not tell them apart. **Add a store…** brings up the registry
   picker, the same one the first run offers.
-- **Actions** holds **Install all**, which fetches everything the catalog offers
-  for this machine, and **Refresh**, which re-reads the catalog.
+- **Actions** holds **Refresh**, which re-reads the catalog. Titles are installed
+  one at a time from their own cards; there is no install-everything button.
 - **Categories** narrows the grid, one category at a time, with the count next to
   each: *Everything*, *Installed*, *Updates*, *Not installed*, then a row per
   **platform** (`godot`, `tic80`, `love`, …) and per **kind** (native or hosted).
@@ -116,6 +128,9 @@ Everything that is not a title lives in the **side menu** on the left, and the
   titles is not listed, and a category that disappears under you falls back to
   *Everything* rather than leaving an empty grid. There is no genre in a
   WarpEngine catalog, so these are the categories there are.
+- **Log** opens the store's own output — its words, verbatim — together with the two
+  folders everything lands in. Off screen until asked for: the window has no footer,
+  because a permanent bar of absolute paths is not what a store is for.
 - **Language** follows the system and can be switched; **English and Hungarian**.
 
 In the grid, a card's button is **Install**, **Update**, or **Play** / **Open**
@@ -123,9 +138,6 @@ once it is there. **Remove** takes a title back out. Each card says whether it i
 **native** — unpacked and run locally, works offline — or **hosted**: a browser
 build the catalog serves rather than packages, so its entry opens a page and needs
 the network.
-
-The **Log** drawer at the bottom carries the store's own output verbatim, and next
-to it are buttons that open the two folders everything lands in.
 
 Every card carries a band of box art the same height — the first letter of the
 title when the catalog has no image — so titles and buttons line up across a row.
@@ -166,6 +178,45 @@ names. `make` on its own lists everything.
 The npm scripts still work directly (`npm start`, `npm run dist:mac`) — the
 Makefile adds no logic of its own beyond the release step. Every script that runs the
 app builds first, so there is no way to test a stale bundle.
+
+### Continuous integration
+
+`.woodpecker.yaml` builds the **Linux and Windows** packages, and on a tag attaches
+them to the Gitea release. The pipeline is in this repository rather than served by the
+update server's `/build/config` extension: that extension serves game-platform
+pipelines, which build a cartridge and publish it into the site's catalog, and this
+builds an application and publishes to a release.
+
+| Step | Image | What it does |
+|---|---|---|
+| `check` | `electronuserland/builder:22` | `npm ci`, type-check, lint, and the smoke test |
+| `linux` | `electronuserland/builder:22` | AppImage and deb |
+| `windows` | `electronuserland/builder:22-wine` | the NSIS installer and the portable exe, built through Wine |
+| `release` | `alpine` | on a tag only: attaches what this pipeline built |
+
+**macOS stays a local build.** Apple's toolchain and its signing only exist on a Mac,
+so a full release is `make release` here for the macOS package plus this pipeline for
+the other two. The window test is local too: it needs a display and a store on the
+machine.
+
+The `release` step needs a **`gitea_token`** repository secret in Woodpecker, with
+write access to this repository — CI has a token where a workstation has a `tea`
+login, which is why `scripts/ci-upload.sh` exists alongside `scripts/release.sh`
+instead of one script with two ways to authenticate.
+
+Both build steps end by checking what they produced: a package under 10 MB did not
+finish. That check exists because a half-finished Wine build leaves a stub *named* like
+the real installer — 162 KB of it — and `ls` is perfectly happy with that.
+
+**The Windows step cannot be rehearsed on an Apple Silicon Mac.** Wine assumes 4 KB
+memory pages and this host has 16 KB ones, so an emulated amd64 container dies with
+`anon_mmap_fixed: Assertion failed`. It is a property of the machine, not of the
+pipeline; the x86_64 runner is where that step is proven. The Linux step was rehearsed
+locally in the same image and produced both packages.
+
+The Windows installer is **not signed**: Windows will warn about an unknown publisher
+until there is a code-signing certificate. Linux packages carry no signature by
+convention.
 
 ### Publishing a release
 
@@ -257,6 +308,21 @@ so a second entry is the whole change needed to drive it too — that is why the
 there.
 
 ## Verified, and not
+
+The pipeline's commands were run in the same containers it uses, before the pipeline was
+committed: `electronuserland/builder:22` installs, type-checks, lints, passes the smoke
+test (registry reached, store skipped as it should be on a machine that has none) and
+produces the AppImage (128 MB) and the deb (100 MB). The Wine step could not be
+rehearsed here — see above — and the size check that guards it was tested against both
+outcomes: it rejects the 162 KB stub the failed Wine build left and accepts the two real
+Linux packages.
+
+A store with no repository was installed end to end from a local registry serving
+one record with `storeRepositoryUrl: null`: the id came out as `teletypegames`, the
+engine and the shared core downloaded, the written config had the three sections,
+engine 1.1.0 accepted it, and it listed the same ten titles the configured store
+does — then a hosted title synced into a sandbox and its menu entry appeared. The
+setup gate was also photographed on a machine with no store at all.
 
 The 1.3.0 refactor was measured rather than trusted: `make check` is clean — no type
 errors, no lint findings, both test suites green — the window was photographed before

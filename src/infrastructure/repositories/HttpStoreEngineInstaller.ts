@@ -76,30 +76,26 @@ export class HttpStoreEngineInstaller implements StoreEngineInstaller {
   /**
    * The store's configuration.
    *
-   * Its repository is the authority on how the store behaves — which platforms,
-   * which statuses, where things land. A repository without a config.json still
-   * works: the engine merges whatever it is given onto its own defaults, so a
-   * three-field config is a complete one. The registry wins on identity and on
-   * which catalog to read.
+   * Three cases, and all of them install:
+   *
+   *   - **a repository with a config.json** — that file is the authority on how the
+   *     store behaves: which platforms it offers, which statuses it shows, where
+   *     things land;
+   *   - **a repository without one** (404) — the engine's defaults, as below;
+   *   - **no repository at all** — the same defaults, without the round trip.
+   *
+   * The engine's built-in defaults already cover the host-to-asset mapping, the
+   * modes, the platforms and the behaviour, so what a store actually has to supply
+   * is identity: a slug, a name and a catalog. That is exactly what a registry
+   * record carries, which is why a store needs no repository of its own. The
+   * registry always wins on those three, whatever a config file says.
    */
   private async readStoreConfig (
     store: RegistryStore,
     progress: EngineProgressListener
   ): Promise<Record<string, unknown>> {
     const storeId = deriveStoreId(store)
-    let config: Record<string, unknown>
-    try {
-      progress.onLog?.(`reading the store config from ${store.storeRepositoryUrl}`)
-      const body = await this.httpClient.readText(this.configUrl(store.storeRepositoryUrl))
-      config = { ...(asRecord(JSON.parse(body)) ?? {}) }
-    } catch (error: unknown) {
-      if (!(error instanceof HttpStatusError) || error.statusCode !== 404) throw error
-      progress.onLog?.('no config.json in the store repository — using the engine defaults')
-      config = {
-        paths: { subfolder: storeId },
-        catalog: { statuses: ['released', 'archived', 'demo'] }
-      }
-    }
+    const config = await this.readPublishedConfig(store, storeId, progress)
 
     const existing = asRecord(config['store']) ?? {}
     config['store'] = {
@@ -109,6 +105,43 @@ export class HttpStoreEngineInstaller implements StoreEngineInstaller {
       base_url: store.catalogUrl
     }
     return config
+  }
+
+  private async readPublishedConfig (
+    store: RegistryStore,
+    storeId: string,
+    progress: EngineProgressListener
+  ): Promise<Record<string, unknown>> {
+    const repositoryUrl = store.storeRepositoryUrl
+    if (repositoryUrl === null) {
+      progress.onLog?.(`${store.name} has no store repository — using the engine defaults`)
+      return this.defaultConfig(storeId)
+    }
+    try {
+      progress.onLog?.(`reading the store config from ${repositoryUrl}`)
+      const body = await this.httpClient.readText(this.configUrl(repositoryUrl))
+      return { ...(asRecord(JSON.parse(body)) ?? {}) }
+    } catch (error: unknown) {
+      if (!(error instanceof HttpStatusError) || error.statusCode !== 404) throw error
+      progress.onLog?.('no config.json in the store repository — using the engine defaults')
+      return this.defaultConfig(storeId)
+    }
+  }
+
+  /**
+   * What a store gets when nothing else says otherwise.
+   *
+   * Two fields, on top of the identity added by the caller. The subfolder keeps two
+   * stores on one machine out of each other's files, and it is the prune boundary,
+   * so it must be the store's own. Demo titles are listed because a catalog that
+   * publishes them means them to be played — the engine defaults to released and
+   * archived only, which is the safer default for a store nobody configured.
+   */
+  private defaultConfig (storeId: string): Record<string, unknown> {
+    return {
+      paths: { subfolder: storeId },
+      catalog: { statuses: ['released', 'archived', 'demo'] }
+    }
   }
 
   private configUrl (repositoryUrl: string, branch: string = DEFAULT_BRANCH): string {

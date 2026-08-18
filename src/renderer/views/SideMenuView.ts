@@ -9,7 +9,6 @@ import type { AppState } from '../state/AppStore'
 export interface SideMenuViewCallbacks {
   readonly onSelectStore: (home: string) => void
   readonly onAddStore: () => void
-  readonly onSyncAll: () => void
   readonly onRefresh: () => void
   readonly onSelectCategory: (filter: CategoryFilter) => void
   readonly onSelectLocale: (locale: string) => void
@@ -27,14 +26,12 @@ export class SideMenuView {
   private readonly languageHead = requireElement('head-lang', HTMLElement)
   private readonly storeList = requireElement('store-list', HTMLElement)
   private readonly addStore = requireElement('add-store', HTMLButtonElement)
-  private readonly syncAll = requireElement('sync-all', HTMLButtonElement)
   private readonly refresh = requireElement('refresh', HTMLButtonElement)
   private readonly categories = requireElement('cats', HTMLElement)
   private readonly locale = requireElement('locale', HTMLSelectElement)
 
   public constructor (private readonly callbacks: SideMenuViewCallbacks) {
     this.addStore.addEventListener('click', callbacks.onAddStore)
-    this.syncAll.addEventListener('click', callbacks.onSyncAll)
     this.refresh.addEventListener('click', callbacks.onRefresh)
     this.locale.addEventListener('change', (): void => { callbacks.onSelectLocale(this.locale.value) })
   }
@@ -45,7 +42,6 @@ export class SideMenuView {
     setText(this.categoriesHead, state.messages.categories)
     setText(this.languageHead, state.messages.language)
     setText(this.addStore, state.messages.addStore)
-    setText(this.syncAll, state.messages.syncAll)
     setText(this.refresh, state.messages.refresh)
 
     this.renderStores(state)
@@ -116,7 +112,6 @@ export class SideMenuView {
    */
   private renderEnabled (state: AppState): void {
     const hasStore = state.currentStore !== null
-    this.syncAll.disabled = state.busy || !hasStore
     this.refresh.disabled = state.busy || !hasStore
     this.addStore.disabled = state.busy
     for (const row of this.storeList.querySelectorAll('button')) row.disabled = state.busy

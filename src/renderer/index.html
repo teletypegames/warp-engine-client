@@ -36,7 +36,6 @@
 
       <section class="side-block">
         <h2 class="side-head" id="head-actions"></h2>
-        <button id="sync-all" class="btn btn-primary btn-wide" disabled></button>
         <button id="refresh" class="btn btn-wide" disabled></button>
       </section>
 
@@ -46,6 +45,7 @@
       </section>
 
       <section class="side-block side-foot">
+        <button id="log-toggle" class="side-quiet" aria-expanded="false" aria-controls="log-panel"></button>
         <label class="side-lang">
           <span id="head-lang"></span>
           <select id="locale" class="select" aria-label="Language"></select>
@@ -72,11 +72,11 @@
 
       <section id="empty" class="empty" hidden></section>
 
-      <footer class="log">
-        <button id="log-toggle" class="log-toggle" aria-expanded="false"></button>
-        <div class="log-lines" id="log-lines" hidden></div>
+      <!-- Only on screen while the log is open; the window has no permanent footer. -->
+      <section class="log-panel" id="log-panel" hidden>
+        <div class="log-lines" id="log-lines"></div>
         <div class="log-paths" id="log-paths"></div>
-      </footer>
+      </section>
     </div>
   </div>
 

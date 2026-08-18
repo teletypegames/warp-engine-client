@@ -1,7 +1,6 @@
 import type { BridgeApi } from '../../shared/contracts/BridgeApi'
 import type { RegistryStoreDto } from '../../shared/contracts/dto/RegistryStoreDto'
 import type { AppStore } from '../state/AppStore'
-import type { GateView } from '../views/GateView'
 import type { LogDrawerView } from '../views/LogDrawerView'
 import type { CatalogController } from './CatalogController'
 
@@ -16,7 +15,6 @@ export class StoreController {
   public constructor (
     private readonly bridge: BridgeApi,
     private readonly store: AppStore,
-    private readonly gate: GateView,
     private readonly log: LogDrawerView,
     private readonly catalog: CatalogController
   ) {}
@@ -31,7 +29,7 @@ export class StoreController {
         this.showOutdatedEngineGate()
         return
       }
-      this.gate.hide()
+      this.store.applyGate(null)
       await this.catalog.refresh()
     } catch (error: unknown) {
       this.log.appendLine(`${messages.switchFailed}: ${error instanceof Error ? error.message : String(error)}`)
@@ -48,23 +46,23 @@ export class StoreController {
     const result = await this.bridge.listRegistryStores()
 
     if (result.error !== null) {
-      this.gate.show({
+      this.store.applyGate({
         title: messages.registryFailed,
         body: `${result.sourceUrl}\n\n${result.error}`,
         action: { label: messages.registryRetry, perform: (): void => { void this.offerStores() } }
-      }, messages)
+      })
       return
     }
 
     if (result.stores.length === 0) {
-      this.gate.show({
+      this.store.applyGate({
         title: messages.setupTitle,
         body: `${messages.registryEmpty}\n\n${result.sourceUrl}`
-      }, messages)
+      })
       return
     }
 
-    this.gate.show({
+    this.store.applyGate({
       title: messages.setupTitle,
       body: `${messages.setupBody}\n\n${state.defaultStoreRoot}`,
       action: {
@@ -74,26 +72,26 @@ export class StoreController {
         }
       },
       choices: result.stores
-    }, messages)
+    })
   }
 
   public showOutdatedEngineGate (): void {
     const state = this.store.readState()
     const engineText = state.engine === null ? '' : state.engine.text
-    this.gate.show({
+    this.store.applyGate({
       title: state.messages.oldEngineTitle,
       body: `${state.messages.oldEngineBody}\n\n${engineText} → ${state.minimumEngineVersion}`,
       action: { label: state.messages.oldEngineAction, perform: (): void => { void this.offerStores() } }
-    }, state.messages)
+    })
   }
 
   public showMissingPythonGate (): void {
     const messages = this.store.readState().messages
-    this.gate.show({
+    this.store.applyGate({
       title: messages.noPythonTitle,
       body: messages.noPythonBody,
       link: { label: messages.pythonLink, url: 'https://www.python.org/downloads/' }
-    }, messages)
+    })
   }
 
   private async installStore (chosen: RegistryStoreDto): Promise<void> {
@@ -102,7 +100,7 @@ export class StoreController {
     try {
       await this.bridge.installStore(chosen)
       this.store.applyAppState(await this.bridge.readState())
-      this.gate.hide()
+      this.store.applyGate(null)
       await this.catalog.refresh()
       await this.catalog.syncGames([])
     } catch (error: unknown) {

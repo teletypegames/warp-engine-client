@@ -1,0 +1,69 @@
+# The pipeline lives in the repository rather than in the update server's
+# `/build/config` extension. That extension serves game-platform pipelines, which
+# build a cartridge and publish it into the site's catalog; this one builds a desktop
+# application and publishes it to a Gitea release. Different product, different target.
+#
+# What CI can and cannot do here: Linux and Windows packages are built in containers —
+# Windows through Wine — while the **macOS package stays a local build**, because
+# Apple's toolchain and its signing exist only on a Mac. A release therefore gets its
+# Linux and Windows assets from this pipeline and its macOS assets from `make release`.
+when:
+  - event: [push, manual]
+    branch: master
+  - event: tag
+
+variables:
+  # The official electron-builder images: Node with the packaging tools, and the same
+  # image plus Wine, which is what lets a Windows installer be built on Linux.
+  - &node_image 'electronuserland/builder:22'
+  - &wine_image 'electronuserland/builder:22-wine'
+
+steps:
+  - name: check
+    image: *node_image
+    commands:
+      - node --version
+      - npm ci
+      - npm run typecheck
+      - npm run lint
+      # The window test wants a display and a store on the machine; that check belongs
+      # where there is one. The bridge check is worth running here: it exercises the
+      # registry and the message bundles.
+      - |
+        if command -v python3 >/dev/null 2>&1; then
+          npm run smoke
+        else
+          echo "no python3 in the image — the smoke test needs it, skipping"
+        fi
+
+  # A quarter of a gigabyte of packages is not worth building on every push, so the
+  # two builds run when a release is being cut — or when asked for by hand.
+  - name: linux
+    image: *node_image
+    commands:
+      - npm run dist:linux
+      - scripts/ci-verify-packages.sh '*.AppImage' '*.deb'
+    when:
+      - event: [tag, manual]
+
+  - name: windows
+    image: *wine_image
+    commands:
+      - npm run dist:win
+      - scripts/ci-verify-packages.sh '*.exe'
+    when:
+      - event: [tag, manual]
+
+  # Only on a tag, and only what this pipeline built: the macOS assets are uploaded
+  # from the Mac that can sign them.
+  - name: release
+    image: alpine
+    environment:
+      GITEA_TOKEN:
+        from_secret: gitea_token
+    commands:
+      - apk add --no-cache curl jq
+      # No globs on the command line: the package names have spaces in them.
+      - scripts/ci-upload.sh
+    when:
+      - event: tag

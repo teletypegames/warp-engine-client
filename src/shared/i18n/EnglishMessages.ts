@@ -6,7 +6,6 @@
  */
 export const ENGLISH_MESSAGES = {
   appName: 'WarpEngine Store',
-  syncAll: 'Install all',
   refresh: 'Refresh',
   install: 'Install',
   update: 'Update',

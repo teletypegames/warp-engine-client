@@ -161,6 +161,11 @@ after what it changes and notifies afterwards; `RendererApplication` re-renders 
 view from the new state. Views never read each other and never hold state, so a
 listing can be thrown away and rebuilt.
 
+Screens are state, not calls. The setup screen lives in the state as
+`gate: GatePresentation | null`, and that one field decides whether the gate or the
+grid is drawn. While it was two imperative calls the two disagreed: the gate went up
+and the empty-catalog line stayed on screen underneath it.
+
 ### Passive view
 
 `renderer/views/*` — a view takes its DOM nodes and callbacks in the constructor and

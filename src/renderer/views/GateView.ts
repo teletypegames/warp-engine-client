@@ -1,25 +1,7 @@
 import type { RegistryStoreDto } from '../../shared/contracts/dto/RegistryStoreDto'
 import { createElement, requireElement, setHidden, setText } from '../dom/Dom'
 import type { MessageBundle } from '../../shared/i18n/MessageBundle'
-
-/** A button on the gate, and what choosing it does. */
-export interface GateAction {
-  readonly label: string
-  readonly perform: (chosen: RegistryStoreDto | null) => void
-}
-
-export interface GateLink {
-  readonly label: string
-  readonly url: string
-}
-
-export interface GatePresentation {
-  readonly title: string
-  readonly body: string
-  readonly action?: GateAction
-  readonly link?: GateLink
-  readonly choices?: readonly RegistryStoreDto[]
-}
+import type { GateLink, GatePresentation } from '../state/GatePresentation'
 
 /**
  * The screen shown instead of the grid when there is nothing to drive: no Python, no
@@ -48,10 +30,6 @@ export class GateView {
 
   public hide (): void {
     setHidden(this.section, true)
-  }
-
-  public get visible (): boolean {
-    return !this.section.hidden
   }
 
   /** Only shown when the registry offers more than one store; with a single one there is nothing to decide. */

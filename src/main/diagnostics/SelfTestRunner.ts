@@ -65,10 +65,13 @@ export class SelfTestRunner {
 
     if (this.shotPath !== null) await this.captureShot(this.shotPath)
 
+    // A gate passes on having something to do, not on having a picker: the picker
+    // only appears when the registry offers more than one store, and one store is
+    // the ordinary case. Requiring choices here failed a perfectly good window.
     const rendered = report.locales.length > 1 && (
       (report.cards > 0 && !report.gateVisible && report.stores.length > 0 &&
         report.categories.length > 0 && report.activeCategory !== null) ||
-      (report.gateVisible && report.gateChoices.length > 0 && report.gateAction.length > 0))
+      (report.gateVisible && report.gateAction.length > 0))
     const switchedWell = switched === null || (
       switched.storeId.length > 0 && switched.storeId !== report.storeId &&
       switched.cards > 0 && switched.categories > 0)

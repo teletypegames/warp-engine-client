@@ -18,6 +18,8 @@ export class TopBarView {
 
   public render (state: AppState): void {
     setText(this.appName, state.messages.appName)
+    // The badge is a bordered pill: empty, it renders as a stub next to the title.
+    setHidden(this.storeId, state.currentStore === null)
     setText(this.storeId, state.currentStore === null ? '' : state.currentStore.id)
     this.navToggle.title = state.messages.menu
     this.navToggle.setAttribute('aria-label', state.messages.menu)

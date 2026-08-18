@@ -3,7 +3,7 @@ import https from 'node:https'
 
 const REQUEST_TIMEOUT_MS = 60_000
 const MAX_REDIRECTS = 5
-const USER_AGENT = 'warp-engine-desktop-gui'
+const USER_AGENT = 'warp-engine-client'
 
 /** A response that arrived but said no. The status matters: 404 is not a failure everywhere. */
 export class HttpStatusError extends Error {

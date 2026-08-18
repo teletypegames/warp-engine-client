@@ -1,11 +1,11 @@
 {
-  "name": "warp-engine-desktop-gui",
+  "name": "warp-engine-client",
   "productName": "WarpEngine Store",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Graphical client for a WarpEngine desktop store: install the catalog into your own application menu.",
   "license": "MIT",
   "author": "Teletype Games <games@teletype.hu>",
-  "homepage": "https://git.teletypegames.org/stores/warp-engine-desktop-gui",
+  "homepage": "https://git.teletypegames.org/stores/warp-engine-client",
   "main": "build/main/main.js",
   "engines": {
     "node": ">=22"

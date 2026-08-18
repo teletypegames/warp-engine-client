@@ -14,6 +14,11 @@
 
 * { box-sizing: border-box; }
 
+/* An explicit `display` beats the browser's own [hidden] rule, and most of the
+   regions here have one — the gate's store picker showed as an empty stub because
+   of exactly that. This makes `hidden` mean hidden everywhere. */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   background: var(--bg);
@@ -60,7 +65,11 @@ body.nav-closed .side { margin-left: calc(-1 * var(--side-width)); }
 
 .side-block { display: flex; flex-direction: column; gap: 6px; flex: none; }
 .side-cats { flex: 1; min-height: 0; }
-.side-foot { padding-top: 12px; border-top: 1px solid var(--line); }
+.side-foot {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  gap: 8px;
+}
 .side-head {
   font-size: 11px;
   font-weight: 700;
@@ -279,23 +288,29 @@ body.nav-closed .side { margin-left: calc(-1 * var(--side-width)); }
 }
 .actions { display: flex; gap: 8px; margin-top: auto; }
 
-/* --- log ---------------------------------------------------------------- */
-.log {
+/* --- log ----------------------------------------------------------------
+   No permanent footer: the panel is in the flow only while it is open, and the
+   switch for it sits in the side menu with everything else that is not a title. */
+.log-panel {
   flex: none;
   background: var(--panel);
   border-top: 1px solid var(--line);
   padding: 8px 18px 10px;
 }
-.log-toggle {
+.side-quiet {
   font: inherit;
   font-size: 12px;
-  font-weight: 600;
   color: var(--ink-dim);
   background: none;
   border: 0;
-  padding: 0 0 4px;
+  border-radius: 6px;
+  padding: 4px 6px;
+  margin-left: -6px;
+  text-align: left;
   cursor: pointer;
 }
+.side-quiet:hover { color: var(--ink); background: var(--panel-2); }
+.side-quiet.is-active { color: var(--accent); }
 .log-lines {
   max-height: 150px;
   overflow-y: auto;

@@ -6,6 +6,7 @@ import type { StorePathsDto } from '../../shared/contracts/dto/StorePathsDto'
 import { ENGLISH_MESSAGES } from '../../shared/i18n/EnglishMessages'
 import type { Locale, MessageBundle } from '../../shared/i18n/MessageBundle'
 import { ALL_CATEGORIES, type CategoryFilter } from './CategoryFilter'
+import type { GatePresentation } from './GatePresentation'
 
 /** How far a running sync has got, for the counter in the bar. */
 export interface SyncProgress {
@@ -32,6 +33,8 @@ export interface AppState {
   readonly filter: CategoryFilter
   readonly busy: boolean
   readonly progress: SyncProgress | null
+  /** Non-null while the setup screen is up, which is also what hides the grid. */
+  readonly gate: GatePresentation | null
 }
 
 const INITIAL_STATE: AppState = {
@@ -50,7 +53,8 @@ const INITIAL_STATE: AppState = {
   paths: null,
   filter: ALL_CATEGORIES,
   busy: false,
-  progress: null
+  progress: null,
+  gate: null
 }
 
 export type AppStateListener = (state: AppState) => void
@@ -109,6 +113,11 @@ export class AppStore {
 
   public applySelectedStore (store: InstalledStoreDto, engine: EngineVersionDto | null): void {
     this.state = { ...this.state, currentStore: store, engine, games: [], paths: null, filter: ALL_CATEGORIES }
+    this.notify()
+  }
+
+  public applyGate (gate: GatePresentation | null): void {
+    this.state = { ...this.state, gate }
     this.notify()
   }
 

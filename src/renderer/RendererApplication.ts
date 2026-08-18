@@ -41,7 +41,7 @@ export class RendererApplication {
     })
     this.gate = new GateView((url: string): void => { void this.bridge.openUrl(url) })
     this.catalog = new CatalogController(this.bridge, this.store, this.log)
-    this.stores = new StoreController(this.bridge, this.store, this.gate, this.log, this.catalog)
+    this.stores = new StoreController(this.bridge, this.store, this.log, this.catalog)
     this.preferences = new PreferencesController(this.bridge, this.store)
     this.streams = new EngineStreamController(this.bridge, this.store, this.log)
 
@@ -56,7 +56,6 @@ export class RendererApplication {
     this.sideMenu = new SideMenuView({
       onSelectStore: (home: string): void => { void this.stores.selectStore(home) },
       onAddStore: (): void => { void this.stores.offerStores() },
-      onSyncAll: (): void => { void this.catalog.syncGames([]) },
       onRefresh: (): void => { void this.catalog.refresh() },
       onSelectCategory: (filter: CategoryFilter): void => { this.store.applyFilter(filter) },
       onSelectLocale: (locale: string): void => { void this.preferences.selectLocale(locale) }
@@ -83,7 +82,7 @@ export class RendererApplication {
       this.stores.showOutdatedEngineGate()
       return
     }
-    this.gate.hide()
+    this.store.applyGate(null)
     await this.catalog.refresh()
   }
 
@@ -100,7 +99,15 @@ export class RendererApplication {
     this.topBar.render(state)
     this.sideMenu.render(state)
     this.log.render(state)
-    if (this.gate.visible) this.grid.hide()
-    else this.grid.render(state)
+
+    // The gate and the grid are alternatives, decided by one field, so they cannot
+    // both be on screen — which is what happened while this was two imperative calls.
+    if (state.gate === null) {
+      this.gate.hide()
+      this.grid.render(state)
+    } else {
+      this.gate.show(state.gate, state.messages)
+      this.grid.hide()
+    }
   }
 }

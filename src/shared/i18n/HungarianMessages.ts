@@ -6,7 +6,6 @@ import type { MessageBundle } from './MessageBundle'
  */
 export const HUNGARIAN_MESSAGES: MessageBundle = {
   appName: 'WarpEngine Store',
-  syncAll: 'Mind telepítése',
   refresh: 'Frissítés',
   install: 'Telepítés',
   update: 'Frissítés',

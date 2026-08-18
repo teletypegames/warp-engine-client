@@ -40,7 +40,7 @@ class SmokeTest {
   private readonly gameMapper = new GameDtoMapper()
 
   public async run (): Promise<number> {
-    console.log('warp-engine-desktop-gui smoke test')
+    console.log('warp-engine-client smoke test')
 
     if (!this.checkPython()) return 1
     this.checkMessages()
@@ -89,10 +89,14 @@ class SmokeTest {
   }
 
   /**
-   * A store repository without a config.json still installs — the engine merges what
-   * it is given onto its defaults — so an absent file is reported, not failed.
+   * A store needs no repository, and a repository needs no config.json: either way
+   * the engine's defaults carry it. So both absences are reported, not failed.
    */
   private async checkStoreConfig (store: RegistryStore): Promise<void> {
+    if (store.storeRepositoryUrl === null) {
+      this.reportOk('  config', 'no repository — the engine defaults would be used')
+      return
+    }
     const url = `${store.storeRepositoryUrl.replace(/\/+$/, '')}/raw/branch/master/config.json`
     try {
       const config: unknown = JSON.parse(await this.httpClient.readText(url))
