@@ -9,14 +9,17 @@
 #   GITEA_TOKEN=… scripts/ci-upload.sh                  every package in dist/
 #   GITEA_TOKEN=… scripts/ci-upload.sh dist/one.deb     just these
 #
-# Assumes the release for the tag exists. It does: the tag is cut on the machine that
-# builds and publishes the macOS package, and that is what creates the release.
+# Creates the release when the tag has none, with RELEASE_NOTES.md as its body. That is
+# the flow: a `vX.Y.Z` tag starts this pipeline, which publishes the release with the
+# Linux and Windows packages in it, and the macOS package is pushed on top afterwards by
+# `make release` from a Mac.
 set -eu
 
 FORGE="${FORGE_API:-https://git.teletypegames.org/api/v1}"
 REPO="${REPO:-${CI_REPO:-}}"
 TAG="${TAG:-${CI_COMMIT_TAG:-}}"
 DIST="${DIST:-dist}"
+NOTES="${NOTES:-RELEASE_NOTES.md}"
 
 say() { echo "[ci-upload] $*"; }
 die() { echo "[ci-upload] error: $*" >&2; exit 1; }
@@ -46,8 +49,27 @@ fi
 [ -s "$LIST" ] || die "no Linux or Windows packages in $DIST"
 
 say "$REPO $TAG"
-release_id="$(api GET "/repos/$REPO/releases/tags/$TAG" | jq -r '.id // empty')"
-[ -n "$release_id" ] || die "no release for $TAG — cut the release first, then re-run this build"
+
+# `curl -f` fails on the 404 a missing release answers, so the lookup is allowed to
+# fail and judged by what came back rather than by its exit status.
+release_id="$(curl -sS -H "Authorization: token $GITEA_TOKEN" \
+  "$FORGE/repos/$REPO/releases/tags/$TAG" | jq -r '.id // empty')"
+
+if [ -z "$release_id" ]; then
+  say "no release for $TAG yet — creating it"
+  title="$(jq -r '(.productName // .name) + " " + (.version)' package.json)"
+  notes=''
+  [ -f "$NOTES" ] && notes="$(cat "$NOTES")"
+  # The body goes through jq rather than string concatenation: release notes are
+  # markdown with quotes and newlines in them.
+  payload="$(jq -n --arg tag "$TAG" --arg title "$title" --arg body "$notes" \
+    '{tag_name: $tag, name: $title, body: $body, draft: false, prerelease: false}')"
+  release_id="$(api POST "/repos/$REPO/releases" \
+    -H 'Content-Type: application/json' -d "$payload" | jq -r '.id // empty')"
+  [ -n "$release_id" ] || die "the release for $TAG could not be created"
+else
+  say "the release already exists"
+fi
 
 while IFS= read -r asset; do
   [ -n "$asset" ] || continue

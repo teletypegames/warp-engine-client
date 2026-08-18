@@ -23,6 +23,9 @@ steps:
     image: *node_image
     commands:
       - node --version
+      # One-off diagnostic: does Woodpecker hand steps a forge credential of their own?
+      # If it does, the release step needs no secret at all.
+      - 'echo "netrc user: ${CI_NETRC_USERNAME:+present}, password: ${CI_NETRC_PASSWORD:+present}"'
       - npm ci
       - npm run typecheck
       - npm run lint
