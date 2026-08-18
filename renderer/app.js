@@ -203,18 +203,34 @@ async function runRemove (name) {
 
 // --- gate: no python, or no store yet -------------------------------------
 
-function showGate (title, body, action, link) {
+function showGate (title, body, action, link, choices) {
   el('grid').hidden = true
   el('empty').hidden = true
   const gate = el('gate')
   gate.hidden = false
   text(el('gate-title'), title)
   text(el('gate-body'), body)
+
+  // Only shown when the registry offers more than one store; with a single one
+  // there is nothing to decide.
+  const choice = el('gate-choice')
+  const select = el('gate-select')
+  choice.hidden = !choices || choices.length < 2
+  if (!choice.hidden) {
+    text(el('gate-choice-label'), T.setupChoose)
+    select.replaceChildren(...choices.map((store, index) => {
+      const option = document.createElement('option')
+      option.value = String(index)
+      option.textContent = store.name
+      return option
+    }))
+  }
+
   const button = el('gate-action')
   button.hidden = !action
   if (action) {
     text(button, action.label)
-    button.onclick = action.onClick
+    button.onclick = () => action.onClick(choices ? choices[Number(select.value) || 0] : undefined)
   }
   const anchor = el('gate-link')
   anchor.hidden = !link
@@ -263,10 +279,10 @@ async function boot () {
     return
   }
 
-  const setUpStore = async () => {
+  const setUpStore = async (chosen) => {
     showProgress(T.setupWorking)
     try {
-      await api.bootstrap()
+      await api.bootstrap(chosen)
       hideGate()
       await refresh()
     } catch (err) {
@@ -274,16 +290,35 @@ async function boot () {
     }
   }
 
+  // Which stores exist is the site's answer, not this client's: the registry is
+  // asked for it, and its records carry the catalog and the config repository.
+  const offerStores = async () => {
+    const result = await api.registry()
+    if (result.error) {
+      showGate(`${T.registryFailed}`, `${result.url}\n\n${result.error}`,
+        { label: T.registryRetry, onClick: offerStores })
+      return
+    }
+    if (!result.stores.length) {
+      showGate(T.setupTitle, `${T.registryEmpty}\n\n${result.url}`, null)
+      return
+    }
+    showGate(T.setupTitle,
+      `${T.setupBody}\n\n${state.storeRoot}`,
+      { label: T.setupAction, onClick: async (chosen) => { await setUpStore(chosen); await runSync([]) } },
+      null,
+      result.stores)
+  }
+
   if (!state.store) {
-    showGate(T.setupTitle, `${T.setupBody}\n\n${state.defaultHome}`,
-      { label: T.setupAction, onClick: async () => { await setUpStore(); await runSync([]) } })
+    await offerStores()
     return
   }
 
   if (state.engine && !state.engine.ok) {
     showGate(T.oldEngineTitle,
       `${T.oldEngineBody}\n\n${state.engine.text} → ${state.minEngine}`,
-      { label: T.oldEngineAction, onClick: setUpStore })
+      { label: T.oldEngineAction, onClick: offerStores })
     return
   }
 

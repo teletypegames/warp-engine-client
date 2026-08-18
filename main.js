@@ -74,6 +74,8 @@ async function selftest () {
     buttons: document.querySelectorAll('.card .actions button').length,
     gateVisible: !document.getElementById('gate').hidden,
     gateTitle: document.getElementById('gate-title').textContent,
+    gateChoices: [...document.getElementById('gate-select').options].map((o) => o.text),
+    gateAction: document.getElementById('gate-action').textContent,
     appName: document.getElementById('app-name').textContent,
     storeId: document.getElementById('store-id').textContent,
     paths: document.getElementById('log-paths').textContent.slice(0, 120),
@@ -81,7 +83,11 @@ async function selftest () {
     locales: [...document.getElementById('locale').options].map((o) => o.value)
   }))()`)
   console.log(JSON.stringify(result, null, 2))
-  const good = result.cards > 0 && !result.gateVisible && result.locales.length > 1
+  // Either outcome is a pass: a grid when a store is installed, or the setup gate
+  // with something to choose from when there is none.
+  const good = result.locales.length > 1 && (
+    (result.cards > 0 && !result.gateVisible) ||
+    (result.gateVisible && result.gateChoices.length > 0 && result.gateAction))
   console.log(good ? 'SELFTEST OK' : 'SELFTEST FAILED')
   app.exit(good ? 0 : 1)
 }
@@ -151,7 +157,8 @@ ipcMain.handle('app:state', () => {
     store: current ? { id: current.id, home: current.home } : null,
     engine: engine ? { text: engine.text, ok: engine.ok } : null,
     minEngine: store.MIN_ENGINE.join('.'),
-    defaultHome: store.defaultHome(),
+    registryUrl: bootstrap.REGISTRY_URL,
+    storeRoot: store.storeRoots()[0],
     version: app.getVersion()
   }
 })
@@ -172,11 +179,23 @@ ipcMain.handle('store:sync', (_event, names) =>
 ipcMain.handle('store:remove', (_event, name) =>
   guarded(() => store.remove(current, String(name), hooks())))
 
-ipcMain.handle('store:bootstrap', () => guarded(async () => {
-  const home = store.defaultHome()
-  const result = await bootstrap.install(home, { onLog: (line) => send('store:log', line) })
-  current = { engine: 'desktop', id: path.basename(home).replace(/-desktop$/, ''), ...result }
-  return { id: current.id, home: current.home }
+// The stores this client can install, from the site's registry rather than from
+// anything baked in here. A separate call because it needs the network: the first
+// window paints without waiting for it.
+ipcMain.handle('store:registry', async () => {
+  try {
+    return { stores: await bootstrap.registry() }
+  } catch (err) {
+    return { stores: [], error: err.message, url: bootstrap.REGISTRY_URL }
+  }
+})
+
+ipcMain.handle('store:bootstrap', (_event, chosen) => guarded(async () => {
+  if (!chosen) throw new Error('no store was chosen')
+  const home = bootstrap.homeFor(chosen, store.storeRoots()[0])
+  const result = await bootstrap.install(home, chosen, { onLog: (line) => send('store:log', line) })
+  current = { engine: 'desktop', ...result }
+  return { id: current.id, home: current.home, name: chosen.name }
 }))
 
 /**

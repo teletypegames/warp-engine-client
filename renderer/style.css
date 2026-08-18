@@ -87,7 +87,8 @@ body {
 }
 .gate h1 { font-size: 20px; margin: 0 0 10px; }
 .gate p { color: var(--ink-dim); white-space: pre-line; margin: 0 0 20px; word-break: break-all; }
-.gate-actions { display: flex; gap: 14px; justify-content: center; align-items: center; }
+.gate-actions { display: flex; gap: 14px; justify-content: center; align-items: center; flex-wrap: wrap; }
+.gate-choice { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-dim); font-size: 13px; }
 
 /* --- the grid ----------------------------------------------------------- */
 .grid {

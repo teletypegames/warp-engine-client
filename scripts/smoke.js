@@ -10,6 +10,7 @@
 const path = require('node:path')
 const fs = require('node:fs')
 const store = require('../lib/store')
+const bootstrap = require('../lib/bootstrap')
 const i18n = require('../lib/i18n')
 
 function ok (label, value) {
@@ -32,6 +33,30 @@ async function main () {
     const missing = Object.keys(i18n.STRINGS[i18n.FALLBACK]).filter((k) => !dict[k])
     if (missing.length) bad(`strings:${lang}`, `missing ${missing.join(', ')}`)
     else ok(`strings:${lang}`, `${Object.keys(dict).length} keys`)
+  }
+
+  // The registry is what decides which stores exist, so it is checked before
+  // anything that depends on one being installed.
+  try {
+    const stores = await bootstrap.registry()
+    if (!stores.length) bad('registry', `${bootstrap.REGISTRY_URL} returned no stores`)
+    else {
+      ok('registry', `${stores.length} store(s) from ${bootstrap.REGISTRY_URL}`)
+      for (const store of stores) {
+        ok(`  ${store.name}`, `${store.catalogUrl} · ${bootstrap.storeId(store)}`)
+        const url = bootstrap.configUrl(store.storeRepositoryUrl)
+        try {
+          const config = JSON.parse(await bootstrap.fetchText(url))
+          ok('  config.json', `${Object.keys(config).length} sections`)
+        } catch (err) {
+          // Not fatal: the engine merges onto its defaults, so a store without a
+          // config file still installs.
+          ok('  config.json', `absent (${err.statusCode || err.message}) — defaults would be used`)
+        }
+      }
+    }
+  } catch (err) {
+    bad('registry', `${bootstrap.REGISTRY_URL}: ${err.message}`)
   }
 
   let target = null

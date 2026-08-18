@@ -12,7 +12,8 @@ contextBridge.exposeInMainWorld('storeApi', {
   paths: () => ipcRenderer.invoke('store:paths'),
   sync: (names) => ipcRenderer.invoke('store:sync', names),
   remove: (name) => ipcRenderer.invoke('store:remove', name),
-  bootstrap: () => ipcRenderer.invoke('store:bootstrap'),
+  registry: () => ipcRenderer.invoke('store:registry'),
+  bootstrap: (store) => ipcRenderer.invoke('store:bootstrap', store),
   launch: (game) => ipcRenderer.invoke('store:launch', game),
 
   openFolder: (dir) => ipcRenderer.invoke('app:openFolder', dir),
