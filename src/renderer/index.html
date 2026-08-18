@@ -6,7 +6,7 @@
        runs: the app ships its own script and stylesheet. -->
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; font-src 'self'; connect-src 'none'">
-  <title>WarpEngine Store</title>
+  <title>WarpEngine Client</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -16,8 +16,10 @@
     </button>
     <div class="bar-title">
       <span class="logo" aria-hidden="true">▚</span>
-      <span id="app-name">WarpEngine Store</span>
-      <span class="store-id" id="store-id"></span>
+      <span id="app-name">WarpEngine Client</span>
+      <!-- Kept for the window check, which reads it to see which store is open; the
+           side menu is where a person reads that. -->
+      <span class="store-id" id="store-id" hidden></span>
     </div>
     <div class="bar-actions">
       <span class="progress" id="progress" hidden></span>

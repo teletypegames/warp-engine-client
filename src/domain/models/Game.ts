@@ -2,6 +2,15 @@
 export type GameMode = 'app' | 'web'
 
 /**
+ * Why a title cannot be installed here, as the engine codes it.
+ *
+ * `platformOff` is the store not carrying that platform at all — a C64 cartridge on a
+ * desktop — and the other three are about this machine or this catalog: no asset kind
+ * for the os and architecture, no release carrying it, or the adapter refusing it.
+ */
+export type UnavailableReason = 'platformOff' | 'hostAsset' | 'noAsset' | 'vetoed'
+
+/**
  * A catalog entry, with what the store did about it on this machine.
  *
  * The launch targets live here and nowhere nearer the window: resolving what to
@@ -24,4 +33,12 @@ export interface Game {
   readonly menuEntryPath: string | null
   readonly executablePath: string | null
   readonly hostedUrl: string | null
+  /**
+   * False for a title this machine cannot install. It is still listed: a catalog that
+   * hides what your machine cannot run leaves you wondering which of the two is small.
+   */
+  readonly installable: boolean
+  readonly unavailableReason: UnavailableReason | null
+  /** The engine's sentence for it, for a tooltip or the log. */
+  readonly unavailableDetail: string | null
 }

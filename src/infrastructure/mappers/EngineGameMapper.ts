@@ -1,4 +1,4 @@
-import type { Game, GameMode } from '../../domain/models/Game'
+import type { Game, GameMode, UnavailableReason } from '../../domain/models/Game'
 import {
   readBoolean, readOptionalString, readString, type JsonRecord
 } from '../json/JsonRecord'
@@ -26,11 +26,27 @@ export class EngineGameMapper {
       installedVersion: readOptionalString(record, 'installed_version'),
       menuEntryPath: readOptionalString(record, 'menu_entry'),
       executablePath: readOptionalString(record, 'exe'),
-      hostedUrl: readOptionalString(record, 'url')
+      hostedUrl: readOptionalString(record, 'url'),
+      // Absent means installable: engines older than 1.2.0 list only what they can
+      // install, and treating their silence as "unavailable" would empty the window.
+      installable: readBoolean(record, 'installable', true),
+      unavailableReason: this.toReason(readOptionalString(record, 'unavailable_reason')),
+      unavailableDetail: readOptionalString(record, 'unavailable_detail')
     }
   }
 
   private toMode (value: string): GameMode {
     return value === 'web' ? 'web' : 'app'
+  }
+
+  /** The engine's snake_case codes, which are its wire format and not ours. */
+  private toReason (value: string | null): UnavailableReason | null {
+    const codes: Readonly<Record<string, UnavailableReason>> = {
+      platform_off: 'platformOff',
+      host_asset: 'hostAsset',
+      no_asset: 'noAsset',
+      vetoed: 'vetoed'
+    }
+    return value === null ? null : codes[value] ?? null
   }
 }

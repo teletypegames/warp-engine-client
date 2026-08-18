@@ -167,9 +167,22 @@ class SmokeTest {
   }
 
   private reportListing (games: readonly GameDto[]): void {
-    const native = games.filter((game: GameDto): boolean => game.mode === 'app').length
-    const hosted = games.length - native
-    this.reportOk('list', `${String(games.length)} titles (app:${String(native)}, web:${String(hosted)})`)
+    const installable = games.filter((game: GameDto): boolean => game.installable)
+    const native = installable.filter((game: GameDto): boolean => game.mode === 'app').length
+    const hosted = installable.length - native
+    this.reportOk('list', `${String(games.length)} titles ` +
+      `(app:${String(native)}, web:${String(hosted)}, unavailable:${String(games.length - installable.length)})`)
+
+    // The listing is supposed to carry what it cannot install, with a reason on each.
+    const unavailable = games.filter((game: GameDto): boolean => !game.installable)
+    const unexplained = unavailable.filter((game: GameDto): boolean => game.unavailableReason === null)
+    if (unexplained.length > 0) this.reportBad('unavailable', `${String(unexplained.length)} have no reason`)
+    else if (unavailable.length > 0) {
+      const first = unavailable[0]
+      if (first !== undefined) {
+        this.reportOk('unavailable', `${String(unavailable.length)}, e.g. ${first.name}: ${first.unavailableReason ?? ''}`)
+      }
+    }
 
     const withoutTitle = games.filter((game: GameDto): boolean =>
       game.name.length === 0 || game.title.length === 0 || game.platform.length === 0)

@@ -2,6 +2,7 @@ import { RegistryUnavailableError } from '../../domain/errors/RegistryUnavailabl
 import type { RegistryStore } from '../../domain/models/RegistryStore'
 import type { StoreRegistryRepository } from '../../domain/ports/StoreRegistryRepository'
 import { asRecord, readString, type JsonRecord } from '../json/JsonRecord'
+import { BuildConfiguration } from '../config/BuildConfiguration'
 import type { HttpTextClient } from '../http/HttpTextClient'
 
 const DEFAULT_REGISTRY_URL = 'https://teletypegames.org/api/stores'
@@ -9,8 +10,10 @@ const DEFAULT_REGISTRY_URL = 'https://teletypegames.org/api/stores'
 /**
  * The registry: `GET /api/stores` on the site.
  *
- * The one address this client knows, and even that is overridable — `STORES_API`
- * points it at another site or at a local endpoint.
+ * The one address this client knows, and it is decided in three places, most specific
+ * first: a runtime `STORES_API` (for trying something out), the `warpEngine.registryUrl`
+ * field a build was packaged with (for shipping a client for another site), and finally
+ * the address of ours.
  *
  * A record needs a name and a catalog URL; those two make a store. The repository
  * is optional and arrives as null when absent — a store configured by nothing but
@@ -20,11 +23,16 @@ const DEFAULT_REGISTRY_URL = 'https://teletypegames.org/api/stores'
 export class HttpStoreRegistryRepository implements StoreRegistryRepository {
   public readonly sourceUrl: string
 
-  public constructor (private readonly httpClient: HttpTextClient, sourceUrl?: string) {
-    const configured = process.env['STORES_API']
-    this.sourceUrl = sourceUrl ?? (configured !== undefined && configured.length > 0
-      ? configured
-      : DEFAULT_REGISTRY_URL)
+  public constructor (
+    private readonly httpClient: HttpTextClient,
+    sourceUrl?: string,
+    buildConfiguration: BuildConfiguration = new BuildConfiguration()
+  ) {
+    const fromEnvironment = process.env['STORES_API']
+    this.sourceUrl = sourceUrl
+      ?? (fromEnvironment !== undefined && fromEnvironment.length > 0 ? fromEnvironment : null)
+      ?? buildConfiguration.readRegistryUrl()
+      ?? DEFAULT_REGISTRY_URL
   }
 
   public async listStores (): Promise<readonly RegistryStore[]> {

@@ -7,7 +7,7 @@ const WINDOW_OPTIONS: BrowserWindowConstructorOptions = {
   minWidth: 760,
   minHeight: 520,
   backgroundColor: '#11151c',
-  title: 'WarpEngine Store'
+  title: 'WarpEngine Client'
 }
 
 /**

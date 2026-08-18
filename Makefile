@@ -1,4 +1,4 @@
-# WarpEngine Store GUI — the front door to the npm scripts.
+# WarpEngine Client — the front door to the npm scripts.
 #
 # Everything here is a thin wrapper: the app is an Electron project, so npm still
 # does the work. The Makefile exists so the useful sequences have names, and so
@@ -22,13 +22,23 @@ NODE_MIN := 22
 VERSION := $(shell python3 -c 'import json; print(json.load(open("package.json"))["version"])')
 TAG ?= v$(VERSION)
 
+# Which site's store registry a packaged build reads. Empty means the default in
+# package.json (ours); set it to build a client for somebody else's catalog:
+#
+#   make dist STORES_API=https://games.example.org/api/stores
+#
+# It is baked into the package's own package.json, so the built app carries it. A runtime
+# STORES_API still overrides it, which is for trying something out rather than shipping.
+STORES_API ?=
+BUILDER_ARGS := $(if $(STORES_API),-- --config.extraMetadata.warpEngine.registryUrl=$(STORES_API),)
+
 .DEFAULT_GOAL := help
 
 .PHONY: help setup node-check build typecheck lint lint-fix check start smoke uitest test \
         dist dist-mac dist-win dist-linux release publish clean distclean version
 
 help: ## List available targets
-	@echo "WarpEngine Store GUI $(VERSION) — usage: make <target>"
+	@echo "WarpEngine Client $(VERSION) — usage: make <target>"
 	@echo
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -74,16 +84,16 @@ uitest: ## Load the window once and report what rendered
 test: smoke uitest ## Both checks
 
 dist: node-check ## Package for this machine
-	npm run dist
+	npm run dist $(BUILDER_ARGS)
 
 dist-mac: node-check ## Package for macOS (ad-hoc signed, see the README)
-	npm run dist:mac
+	npm run dist:mac $(BUILDER_ARGS)
 
 dist-win: node-check ## Package for Windows
-	npm run dist:win
+	npm run dist:win $(BUILDER_ARGS)
 
 dist-linux: node-check ## Package for Linux
-	npm run dist:linux
+	npm run dist:linux $(BUILDER_ARGS)
 
 publish: ## Upload the packages already in dist/ to the Gitea release
 	@TAG=$(TAG) $(SCRIPTS)/release.sh
@@ -107,3 +117,5 @@ version: ## Show the versions involved
 	@printf "eslint     "; npx eslint --version 2>/dev/null || echo "missing"
 	@printf "tea        "; tea --version 2>/dev/null | head -1 || echo "missing — devarea: make tea"
 	@printf "python3    "; python3 --version 2>/dev/null || echo "missing"
+	@printf "registry   "; python3 -c 'import json; print(json.load(open("package.json"))["warpEngine"]["registryUrl"])'
+	@if [ -n "$(STORES_API)" ]; then printf "  build override: %s\n" "$(STORES_API)"; fi

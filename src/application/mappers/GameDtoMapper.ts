@@ -26,7 +26,10 @@ export class GameDtoMapper {
       installed: game.installed,
       updateAvailable: game.updateAvailable,
       installedVersion: game.installedVersion,
-      launchable: this.isLaunchable(game)
+      launchable: this.isLaunchable(game),
+      installable: game.installable,
+      unavailableReason: game.unavailableReason,
+      unavailableDetail: game.unavailableDetail
     }
   }
 

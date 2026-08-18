@@ -1,8 +1,8 @@
 {
   "name": "warp-engine-client",
-  "productName": "WarpEngine Store",
-  "version": "1.4.0",
-  "description": "Graphical client for a WarpEngine desktop store: install the catalog into your own application menu.",
+  "productName": "WarpEngine Client",
+  "version": "1.5.0",
+  "description": "Graphical client for WarpEngine stores: install a catalog into your own application menu.",
   "license": "MIT",
   "author": "Teletype Games <games@teletype.hu>",
   "homepage": "https://git.teletypegames.org/stores/warp-engine-client",
@@ -34,7 +34,7 @@
   },
   "build": {
     "appId": "org.teletypegames.warpstore.gui",
-    "productName": "WarpEngine Store",
+    "productName": "WarpEngine Client",
     "files": [
       "build/**/*",
       "package.json"
@@ -64,5 +64,8 @@
   "allowScripts": {
     "electron@43.4.0": true,
     "esbuild@0.28.2": true
+  },
+  "warpEngine": {
+    "registryUrl": "https://teletypegames.org/api/stores"
   }
 }

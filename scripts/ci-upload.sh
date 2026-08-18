@@ -53,7 +53,7 @@ api() {
   curl -fsS -X "$method" -H "$AUTH" "$FORGE$path" "$@"
 }
 
-# Package names contain spaces — "WarpEngine Store Setup 1.4.0.exe" does — so the list
+# Package names contain spaces — "WarpEngine Client Setup 1.5.0.exe" does — so the list
 # lives one path per line in a file and is read with `while IFS= read -r`. A single
 # variable looped over with $list splits on the space and uploads nothing.
 LIST="$(mktemp)"

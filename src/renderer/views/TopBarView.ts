@@ -18,8 +18,9 @@ export class TopBarView {
 
   public render (state: AppState): void {
     setText(this.appName, state.messages.appName)
-    // The badge is a bordered pill: empty, it renders as a stub next to the title.
-    setHidden(this.storeId, state.currentStore === null)
+    // The bar names the app, not the store: which store is open is what the switcher in
+    // the side menu says, and saying it twice made the title read like a breadcrumb. The
+    // element stays in the page, hidden, because the window check reads it.
     setText(this.storeId, state.currentStore === null ? '' : state.currentStore.id)
     this.navToggle.title = state.messages.menu
     this.navToggle.setAttribute('aria-label', state.messages.menu)

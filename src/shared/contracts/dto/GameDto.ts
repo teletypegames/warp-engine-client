@@ -1,6 +1,9 @@
 /** How a title runs: unpacked on this machine, or served as a web build. */
 export type GameModeDto = 'app' | 'web'
 
+/** Why a title cannot be installed on this machine. */
+export type UnavailableReasonDto = 'platformOff' | 'hostAsset' | 'noAsset' | 'vetoed'
+
 /**
  * A catalog entry as the window needs it.
  *
@@ -23,4 +26,8 @@ export interface GameDto {
   readonly updateAvailable: boolean
   readonly installedVersion: string | null
   readonly launchable: boolean
+  /** False for a title this machine cannot install; it is listed all the same. */
+  readonly installable: boolean
+  readonly unavailableReason: UnavailableReasonDto | null
+  readonly unavailableDetail: string | null
 }

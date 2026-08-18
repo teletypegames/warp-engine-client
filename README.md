@@ -1,4 +1,4 @@
-# warp-engine-client — the WarpEngine Store app
+# warp-engine-client — the WarpEngine Client app
 
 The graphical client for a WarpEngine store — the app is called **WarpEngine
 Store** — driving
@@ -41,7 +41,7 @@ The build is ad-hoc signed but **not notarised**, so macOS asks before running a
 copy that came from a browser. The reliable way through:
 
 ```sh
-xattr -dr com.apple.quarantine "/Applications/WarpEngine Store.app"
+xattr -dr com.apple.quarantine "/Applications/WarpEngine Client.app"
 ```
 
 If macOS offers *Open Anyway* under **System Settings ▸ Privacy & Security** after
@@ -98,12 +98,18 @@ What the defaults produce, for a record with no repository: the games land in a
 folder named after the store id, and released, archived **and demo** titles are
 listed — a catalog that publishes a demo means it to be played.
 
-The registry address is the single thing about a particular site left in the
-client, and `STORES_API` overrides it:
+The registry address is the single thing about a particular site left in the client,
+and it is decided in three places, most specific first:
 
 ```sh
-STORES_API=http://127.0.0.1:8731/stores npm start
+STORES_API=http://127.0.0.1:8731/stores npm start   # runtime: for trying something out
+make dist STORES_API=https://games.example.org/api/stores   # build: for shipping it
 ```
+
+The build variant is baked into the packaged app's own `package.json`
+(`warpEngine.registryUrl`, written by `electron-builder --config.extraMetadata`), so a
+client built for somebody else's catalog needs no source change and no environment on the
+user's machine. With neither set, the address is ours.
 
 Adding a store is therefore a database row on the site — see its ActiveAdmin
 panel — and not a release of this app.
@@ -138,6 +144,14 @@ once it is there. **Remove** takes a title back out. Each card says whether it i
 **native** — unpacked and run locally, works offline — or **hosted**: a browser
 build the catalog serves rather than packages, so its entry opens a page and needs
 the network.
+
+**Everything in the catalog is listed, including what this machine cannot install.**
+Those cards are dimmed, carry an *unsupported platform* or *no build for this machine*
+badge with the engine's own explanation under it, and have nothing to press. A store
+that hides them leaves you wondering whether the catalog is small or your machine is
+unusual; this way it says which. They have a category of their own — *Not for this
+machine* — and they are left out of the native/hosted counts, because a title with no
+build has no mode to be counted under.
 
 Every card carries a band of box art the same height — the first letter of the
 title when the catalog has no image — so titles and buttons line up across a row.
@@ -261,7 +275,7 @@ on its own: publishing 1.2.0 got *"invalid username, password or token"* on the
 second package while the first had just gone up with the same token, and the same
 command succeeded immediately afterwards.
 
-Package names contain a space — `WarpEngine Store-1.2.0-arm64.dmg` — so the list of
+Package names contain a space — `WarpEngine Client-1.5.0-arm64.dmg` — so the list of
 files is passed one path per line rather than as one string; splitting it on
 whitespace is what broke the first attempt at publishing 1.1.0.
 

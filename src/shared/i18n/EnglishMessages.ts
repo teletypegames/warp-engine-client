@@ -5,7 +5,7 @@
  * translation is a compile error rather than a blank label at runtime.
  */
 export const ENGLISH_MESSAGES = {
-  appName: 'WarpEngine Store',
+  appName: 'WarpEngine Client',
   refresh: 'Refresh',
   install: 'Install',
   update: 'Update',
@@ -18,6 +18,8 @@ export const ENGLISH_MESSAGES = {
   hostedHint: 'Opens in your browser — needs the network',
   nativeHint: 'Installed on this machine — works offline',
   updateAvailable: 'update available',
+  unsupportedPlatform: 'unsupported platform',
+  unsupportedBuild: 'no build for this machine',
   log: 'Log',
   menu: 'Menu',
   stores: 'Stores',
@@ -29,6 +31,7 @@ export const ENGLISH_MESSAGES = {
   catInstalled: 'Installed',
   catUpdates: 'Updates',
   catAvailable: 'Not installed',
+  catUnsupported: 'Not for this machine',
   catPlatform: 'Platform',
   catMode: 'Kind',
   language: 'Language',

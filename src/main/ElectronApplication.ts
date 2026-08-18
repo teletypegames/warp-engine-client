@@ -6,7 +6,7 @@ import { SelfTestRunner } from './diagnostics/SelfTestRunner'
 
 const SELFTEST_FLAG = '--selftest'
 const SELFTEST_USER_DATA_DIRECTORY = 'warpstore-gui-selftest'
-const PRODUCT_NAME = 'WarpEngine Store'
+const PRODUCT_NAME = 'WarpEngine Client'
 
 /**
  * The application's lifecycle.

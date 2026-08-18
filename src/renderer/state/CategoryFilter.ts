@@ -30,7 +30,9 @@ export function matchesFilter (game: GameDto, filter: CategoryFilter): boolean {
     case 'platform':
       return game.platform === filter.value
     case 'mode':
-      return game.mode === filter.value
+      // A title this machine cannot install has no mode worth filtering on: the engine
+      // sends none, and counting it as native would put a C64 cartridge under "native".
+      return game.installable && game.mode === filter.value
     case 'group':
       return matchesGroup(game, filter.value)
   }
@@ -43,7 +45,9 @@ function matchesGroup (game: GameDto, group: string): boolean {
     case 'updates':
       return game.updateAvailable
     case 'available':
-      return !game.installed
+      return game.installable && !game.installed
+    case 'unsupported':
+      return !game.installable
     default:
       return true
   }
@@ -68,7 +72,8 @@ export function buildCategorySections (
     { kind: 'group', value: 'all', label: messages.catAll, count: games.length },
     { kind: 'group', value: 'installed', label: messages.catInstalled, count: count((game: GameDto): boolean => game.installed) },
     { kind: 'group', value: 'updates', label: messages.catUpdates, count: count((game: GameDto): boolean => game.updateAvailable) },
-    { kind: 'group', value: 'available', label: messages.catAvailable, count: count((game: GameDto): boolean => !game.installed) }
+    { kind: 'group', value: 'available', label: messages.catAvailable, count: count((game: GameDto): boolean => game.installable && !game.installed) },
+    { kind: 'group', value: 'unsupported', label: messages.catUnsupported, count: count((game: GameDto): boolean => !game.installable) }
   ]
   sections.push({
     title: null,
@@ -90,7 +95,8 @@ export function buildCategorySections (
     })
   }
 
-  const modes = [...new Set(games.map((game: GameDto): string => game.mode))]
+  const installable = games.filter((game: GameDto): boolean => game.installable)
+  const modes = [...new Set(installable.map((game: GameDto): string => game.mode))]
   if (modes.length > 1) {
     sections.push({
       title: messages.catMode,
@@ -98,7 +104,7 @@ export function buildCategorySections (
         kind: 'mode',
         value: mode,
         label: mode === 'web' ? messages.hosted : messages.native,
-        count: count((game: GameDto): boolean => game.mode === mode)
+        count: count((game: GameDto): boolean => game.installable && game.mode === mode)
       }))
     })
   }

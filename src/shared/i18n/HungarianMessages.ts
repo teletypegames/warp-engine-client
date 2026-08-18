@@ -5,7 +5,7 @@ import type { MessageBundle } from './MessageBundle'
  * arrives from the store as it was published.
  */
 export const HUNGARIAN_MESSAGES: MessageBundle = {
-  appName: 'WarpEngine Store',
+  appName: 'WarpEngine Client',
   refresh: 'Frissítés',
   install: 'Telepítés',
   update: 'Frissítés',
@@ -18,6 +18,8 @@ export const HUNGARIAN_MESSAGES: MessageBundle = {
   hostedHint: 'A böngészőben nyílik meg — internet kell hozzá',
   nativeHint: 'Erre a gépre telepítve — internet nélkül is megy',
   updateAvailable: 'frissítés elérhető',
+  unsupportedPlatform: 'nem támogatott platform',
+  unsupportedBuild: 'ehhez a géphez nincs build',
   log: 'Napló',
   menu: 'Menü',
   stores: 'Store-ok',
@@ -29,6 +31,7 @@ export const HUNGARIAN_MESSAGES: MessageBundle = {
   catInstalled: 'Telepítve',
   catUpdates: 'Frissítés',
   catAvailable: 'Nincs telepítve',
+  catUnsupported: 'Erre a gépre nem',
   catPlatform: 'Platform',
   catMode: 'Fajta',
   language: 'Nyelv',

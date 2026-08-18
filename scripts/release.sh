@@ -52,7 +52,7 @@ REPO="${REPO:-$(git remote get-url origin 2>/dev/null |
 #
 #   - the version filter, because dist/ keeps whatever earlier builds left there
 #     and a release would quietly get the previous version's files attached;
-#   - the spaces. "WarpEngine Store-1.1.0-arm64.dmg" has one, so the list lives one
+#   - the spaces. "WarpEngine Client-1.5.0-arm64.dmg" has one, so the list lives one
 #     path per line in a file and is read with `while IFS= read -r`. Holding it in
 #     a single variable and looping over $list splits it on the space.
 LIST="$(mktemp)"

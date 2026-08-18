@@ -20,6 +20,7 @@ export class GameCardView {
   public createCard (game: GameDto, messages: MessageBundle, busy: boolean): HTMLElement {
     const card = createElement('article', 'card')
     if (game.installed) card.classList.add('is-installed')
+    if (!game.installable) card.classList.add('is-unavailable')
     card.appendChild(this.createArt(game))
     card.appendChild(this.createBody(game, messages, busy))
     return card
@@ -54,10 +55,21 @@ export class GameCardView {
 
   private createMeta (game: GameDto, messages: MessageBundle): HTMLElement {
     const meta = createElement('div', 'meta')
-    const mode = createElement('span', `badge badge-${game.mode}`,
-      game.mode === 'web' ? messages.hosted : messages.native)
-    mode.title = game.mode === 'web' ? messages.hostedHint : messages.nativeHint
-    meta.appendChild(mode)
+    if (game.installable) {
+      const mode = createElement('span', `badge badge-${game.mode}`,
+        game.mode === 'web' ? messages.hosted : messages.native)
+      mode.title = game.mode === 'web' ? messages.hostedHint : messages.nativeHint
+      meta.appendChild(mode)
+    } else {
+      // Which of the two it is matters: a platform this store does not carry is a
+      // different disappointment from a game with no build for your machine.
+      const label = game.unavailableReason === 'platformOff'
+        ? messages.unsupportedPlatform
+        : messages.unsupportedBuild
+      const badge = createElement('span', 'badge badge-unavailable', label)
+      badge.title = game.unavailableDetail ?? label
+      meta.appendChild(badge)
+    }
     meta.appendChild(createElement('span', 'badge badge-plain', game.platform))
     meta.appendChild(createElement('span', 'version',
       game.installed && game.installedVersion !== null
@@ -68,6 +80,15 @@ export class GameCardView {
 
   private createActions (game: GameDto, messages: MessageBundle, busy: boolean): HTMLElement {
     const actions = createElement('div', 'actions')
+
+    // Nothing to offer, so nothing to press: a disabled Install would invite a click
+    // that can never work. The badge above says why.
+    if (!game.installable) {
+      actions.appendChild(createElement('span', 'actions-note',
+        game.unavailableDetail ?? messages.unsupportedPlatform))
+      return actions
+    }
+
     const primary = createElement('button', 'btn btn-primary')
     primary.disabled = busy
 

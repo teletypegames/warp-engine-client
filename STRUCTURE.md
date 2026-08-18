@@ -62,6 +62,7 @@ src/
     mappers/                  engine JSON → domain
     http/                     HttpTextClient, HttpStatusError
     json/                     JsonRecord: reading data that came from elsewhere
+    config/                   BuildConfiguration: what was decided when this was packaged
     electron/                 ApplicationEnvironment and GameLauncher adapters
   main/
     main.ts                   the entry point: one line of work
@@ -183,6 +184,14 @@ never calls the bridge.
 `IPC_CHANNELS`, `STORE_ENGINES`, the message bundles: `as const` tables with a derived
 type, so a typo is a compile error and adding an entry is the whole change. This is
 the extension point for a second engine.
+
+### Build-time configuration
+
+`infrastructure/config/BuildConfiguration.ts` reads the packaged `package.json`, which is
+where a build records the registry it was made for (`warpEngine.registryUrl`, set by
+`make dist STORES_API=…`). Precedence is runtime environment, then build, then the
+built-in default — most specific first, and each one is a different audience: someone
+trying it out, someone shipping a client for another site, us.
 
 ### Untrusted-data readers
 
