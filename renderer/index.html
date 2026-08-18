@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!-- Nothing is loaded from the network except box art, and no inline code
+       runs: the app ships its own script and stylesheet. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; font-src 'self'; connect-src 'none'">
+  <title>WarpEngine Store</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="bar">
+    <div class="bar-title">
+      <span class="logo" aria-hidden="true">▚</span>
+      <span id="app-name">WarpEngine Store</span>
+      <span class="store-id" id="store-id"></span>
+    </div>
+    <div class="bar-actions">
+      <span class="progress" id="progress" hidden></span>
+      <button id="sync-all" class="btn btn-primary" disabled></button>
+      <button id="refresh" class="btn" disabled></button>
+      <select id="locale" class="select" aria-label="Language"></select>
+    </div>
+  </header>
+
+  <!-- Shown instead of the grid when there is nothing to drive yet. -->
+  <section id="gate" class="gate" hidden>
+    <h1 id="gate-title"></h1>
+    <p id="gate-body"></p>
+    <div class="gate-actions">
+      <button id="gate-action" class="btn btn-primary" hidden></button>
+      <a id="gate-link" class="link" href="#" hidden></a>
+    </div>
+  </section>
+
+  <main id="grid" class="grid" hidden></main>
+
+  <section id="empty" class="empty" hidden></section>
+
+  <footer class="log">
+    <button id="log-toggle" class="log-toggle" aria-expanded="false"></button>
+    <div class="log-lines" id="log-lines" hidden></div>
+    <div class="log-paths" id="log-paths"></div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

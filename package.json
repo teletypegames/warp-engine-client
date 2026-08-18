@@ -1,0 +1,59 @@
+{
+  "name": "warp-engine-desktop-gui",
+  "productName": "WarpEngine Store",
+  "version": "1.0.0",
+  "description": "Graphical client for a WarpEngine desktop store: install the catalog into your own application menu.",
+  "license": "MIT",
+  "author": "Teletype Games <games@teletype.hu>",
+  "homepage": "https://git.teletypegames.org/stores/warp-engine-desktop-gui",
+  "main": "main.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "electron .",
+    "smoke": "node scripts/smoke.js",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux",
+    "uitest": "electron . --selftest"
+  },
+  "devDependencies": {
+    "electron": "^43.4.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "org.teletypegames.warpstore.gui",
+    "productName": "WarpEngine Store",
+    "files": [
+      "main.js",
+      "preload.js",
+      "lib/**/*",
+      "renderer/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.games",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "linux": {
+      "category": "Game",
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    }
+  },
+  "allowScripts": {
+    "electron@43.4.0": true
+  }
+}
