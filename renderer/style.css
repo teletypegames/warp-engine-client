@@ -25,18 +25,138 @@ body {
   overflow: hidden;
 }
 
+/* --- shell: the side menu and everything else --------------------------- */
+.shell {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;   /* so the collapsed menu is clipped rather than scrolled to */
+}
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.side {
+  --side-width: 244px;
+  width: var(--side-width);
+  flex: none;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  /* The menu itself does not scroll: the category list does. Letting the whole
+     column scroll made the bottom block — pinned there with margin-top: auto —
+     sit on top of the overflowing categories. */
+  overflow: hidden;
+  padding: 14px 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  transition: margin-left .16s ease-out;
+}
+body.nav-closed .side { margin-left: calc(-1 * var(--side-width)); }
+
+.side-block { display: flex; flex-direction: column; gap: 6px; flex: none; }
+.side-cats { flex: 1; min-height: 0; }
+.side-foot { padding-top: 12px; border-top: 1px solid var(--line); }
+.side-head {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin: 0 0 2px 4px;
+}
+.btn-wide { width: 100%; text-align: left; }
+
+.nav-toggle {
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--ink-dim);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.nav-toggle:hover { color: var(--ink); border-color: #3a4757; }
+
+/* Store switcher: one row per store on this machine, the open one marked. */
+.store-list { display: flex; flex-direction: column; gap: 4px; }
+.store-row {
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.store-row:hover:not(:disabled) { background: var(--panel-2); }
+.store-row.is-active {
+  background: var(--panel-2);
+  border-color: #2f5a49;
+}
+.store-row .store-row-name { font-weight: 600; }
+.store-row .store-row-id {
+  font-size: 11px;
+  color: var(--ink-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.store-row:disabled { opacity: .55; cursor: default; }
+
+/* Categories: what the catalog is filtered down to. */
+.cats { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; min-height: 0; }
+.cat {
+  font: inherit;
+  text-align: left;
+  color: var(--ink-dim);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.cat:hover { background: var(--panel-2); color: var(--ink); }
+.cat.is-active { background: var(--panel-2); color: var(--ink); font-weight: 600; }
+.cat-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cat-count { margin-left: auto; font-size: 11px; font-variant-numeric: tabular-nums; }
+.cat-group {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: #6b7d92;
+  padding: 8px 10px 2px;
+}
+
+.side-lang { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-dim); }
+.side-lang .select { margin-left: auto; }
+
 /* --- top bar ------------------------------------------------------------ */
 .bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 12px 18px;
+  gap: 12px;
+  padding: 10px 18px;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
   flex: none;
 }
-.bar-title { display: flex; align-items: baseline; gap: 10px; font-weight: 700; }
+.bar-title { display: flex; align-items: baseline; gap: 10px; font-weight: 700; margin-right: auto; }
 .logo { color: var(--accent); font-size: 18px; }
 .store-id {
   font-weight: 500;
@@ -95,12 +215,20 @@ body {
   flex: 1;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  /* Narrower than it was: the side menu takes 244px off the window, and at 260px
+     a 1040px window had room for only two columns. */
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 14px;
   padding: 18px;
+  /* Content-sized rows, spelled out. Left to `auto` the implicit rows split the
+     grid's height evenly — every card came out 94px tall with its box art
+     collapsed to nothing and its buttons clipped away, which is how the grid
+     looked before this was measured. */
+  grid-auto-rows: max-content;
   align-content: start;
 }
 .empty { margin: auto; color: var(--ink-dim); }
+.gate { overflow-y: auto; }
 
 .card {
   background: var(--panel);
@@ -113,7 +241,10 @@ body {
 .card.is-installed { border-color: #2f5a49; }
 
 .art {
-  aspect-ratio: 4 / 3;
+  /* One height for every card, art or not, so the titles and the buttons line up
+     across a row. The images are cropped anyway (object-fit: cover). */
+  height: 148px;
+  flex: none;
   background: #0d1117;
   display: flex;
   align-items: center;

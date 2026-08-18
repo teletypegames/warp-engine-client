@@ -1,15 +1,21 @@
 'use strict'
-// The whole renderer. No framework and no build step: the app is a grid of
-// cards, and every action is one call over the bridge in preload.js.
+// The whole renderer. No framework and no build step: a side menu on the left
+// decides what is shown, a grid of cards on the right shows it, and every action
+// is one call over the bridge in preload.js.
 
 const api = window.storeApi
 const el = (id) => document.getElementById(id)
 
 let T = {}                 // the active string table
+let state = null           // what the main process knows: stores, python, engine
 let games = []
 let paths = null
 let busy = false
 let plan = null            // { total, done } while a sync is running
+
+// What the grid is narrowed down to. One category at a time on purpose: a matrix
+// of filters would need explaining, and a catalog of this size does not earn it.
+let filter = { kind: 'group', value: 'all' }
 
 // --- helpers --------------------------------------------------------------
 
@@ -34,10 +40,14 @@ function logLine (line) {
   box.scrollTop = box.scrollHeight
 }
 
+// While the CLI runs, anything that would start a second call is disabled. The
+// menu toggle, the log drawer and the category filters are not among them: they
+// only change what is on screen.
 function setBusy (value) {
   busy = value
   for (const node of document.querySelectorAll('button')) {
-    if (node.id === 'log-toggle') continue
+    if (node.id === 'log-toggle' || node.id === 'nav-toggle') continue
+    if (node.classList.contains('cat')) continue
     node.disabled = value
   }
   const progress = el('progress')
@@ -51,6 +61,136 @@ function showProgress (label) {
   const progress = el('progress')
   progress.hidden = false
   text(progress, label)
+}
+
+// --- the side menu --------------------------------------------------------
+
+function setNav (open) {
+  document.body.classList.toggle('nav-closed', !open)
+  el('nav-toggle').setAttribute('aria-expanded', String(open))
+}
+
+function renderStores () {
+  const box = el('store-list')
+  const stores = (state && state.stores) || []
+  const active = state && state.store ? state.store.home : null
+  // Two stores can carry the same id in different roots — the same catalog
+  // installed twice. Then the id says nothing and the folder is what tells them
+  // apart, so that is what the row shows.
+  const ambiguous = new Set(stores
+    .filter((store, index) => stores.findIndex((other) => other.id === store.id) !== index)
+    .map((store) => store.id))
+  box.replaceChildren(...stores.map((store) => {
+    const row = document.createElement('button')
+    row.className = 'store-row'
+    if (store.home === active) row.classList.add('is-active')
+    const name = document.createElement('span')
+    name.className = 'store-row-name'
+    text(name, store.name)
+    row.appendChild(name)
+    const id = document.createElement('span')
+    id.className = 'store-row-id'
+    text(id, ambiguous.has(store.id) ? store.home : store.id)
+    row.appendChild(id)
+    row.title = store.home
+    row.addEventListener('click', () => {
+      if (store.home !== active) switchStore(store.home)
+    })
+    return row
+  }))
+  el('add-store').hidden = false
+}
+
+/**
+ * The categories, built from what the catalog actually contains.
+ *
+ * There is no genre in a WarpEngine catalog, so the useful axes are the state of
+ * a title on this machine, the platform it was built with, and whether it runs
+ * here or in a browser. Empty axes are left out rather than shown as zeroes.
+ */
+function categories () {
+  const count = (fn) => games.filter(fn).length
+  const sections = [{
+    group: null,
+    items: [
+      { kind: 'group', value: 'all', label: T.catAll, count: games.length },
+      { kind: 'group', value: 'installed', label: T.catInstalled, count: count((g) => g.installed) },
+      { kind: 'group', value: 'updates', label: T.catUpdates, count: count((g) => g.update_available) },
+      { kind: 'group', value: 'available', label: T.catAvailable, count: count((g) => !g.installed) }
+    ].filter((item) => item.value === 'all' || item.count > 0)
+  }]
+
+  const platforms = [...new Set(games.map((g) => g.platform).filter(Boolean))].sort()
+  if (platforms.length > 1) {
+    sections.push({
+      group: T.catPlatform,
+      items: platforms.map((platform) => ({
+        kind: 'platform', value: platform, label: platform, count: count((g) => g.platform === platform)
+      }))
+    })
+  }
+
+  const modes = [...new Set(games.map((g) => g.mode).filter(Boolean))]
+  if (modes.length > 1) {
+    sections.push({
+      group: T.catMode,
+      items: modes.map((mode) => ({
+        kind: 'mode', value: mode, label: mode === 'web' ? T.hosted : T.native, count: count((g) => g.mode === mode)
+      }))
+    })
+  }
+  return sections
+}
+
+function matches (game) {
+  if (filter.kind === 'platform') return game.platform === filter.value
+  if (filter.kind === 'mode') return game.mode === filter.value
+  if (filter.value === 'installed') return Boolean(game.installed)
+  if (filter.value === 'updates') return Boolean(game.update_available)
+  if (filter.value === 'available') return !game.installed
+  return true
+}
+
+function renderCats () {
+  const box = el('cats')
+  const sections = categories()
+
+  // A category can vanish under us — the last title of a platform is removed, or
+  // an update is applied — and a filter matching nothing would look like an empty
+  // catalog. Falling back to everything is the honest answer.
+  const known = sections.flatMap((section) => section.items)
+    .some((item) => item.kind === filter.kind && item.value === filter.value)
+  if (!known) filter = { kind: 'group', value: 'all' }
+
+  const nodes = []
+  for (const section of sections) {
+    if (section.group) {
+      const head = document.createElement('div')
+      head.className = 'cat-group'
+      text(head, section.group)
+      nodes.push(head)
+    }
+    for (const item of section.items) {
+      const button = document.createElement('button')
+      button.className = 'cat'
+      if (item.kind === filter.kind && item.value === filter.value) button.classList.add('is-active')
+      const label = document.createElement('span')
+      label.className = 'cat-label'
+      text(label, item.label)
+      button.appendChild(label)
+      const count = document.createElement('span')
+      count.className = 'cat-count'
+      text(count, item.count)
+      button.appendChild(count)
+      button.addEventListener('click', () => {
+        filter = { kind: item.kind, value: item.value }
+        renderCats()
+        renderGrid()
+      })
+      nodes.push(button)
+    }
+  }
+  box.replaceChildren(...nodes)
 }
 
 // --- the card grid --------------------------------------------------------
@@ -70,6 +210,8 @@ function card (game) {
     img.loading = 'lazy'
     art.appendChild(img)
   } else {
+    // No box art in the catalog: the first letter, on the same band an image
+    // would fill, so a row of cards stays aligned either way.
     const glyph = document.createElement('span')
     glyph.className = 'art-glyph'
     text(glyph, game.title.slice(0, 1).toUpperCase())
@@ -141,12 +283,14 @@ function card (game) {
 }
 
 function renderGrid () {
+  const shown = games.filter(matches)
   const grid = el('grid')
-  grid.replaceChildren(...games.map(card))
-  grid.hidden = games.length === 0
+  grid.replaceChildren(...shown.map(card))
+  grid.hidden = shown.length === 0
+  grid.scrollTop = 0
   const empty = el('empty')
-  empty.hidden = games.length !== 0
-  text(empty, T.noGames)
+  empty.hidden = shown.length !== 0
+  text(empty, games.length === 0 ? T.noGames : T.noMatch)
 }
 
 function renderPaths () {
@@ -175,6 +319,7 @@ async function refresh () {
     const result = await api.list()
     games = result.games || []
     paths = result.paths || paths
+    renderCats()
     renderGrid()
     renderPaths()
     for (const reason of result.skipped || []) logLine(`skipped ${reason}`)
@@ -201,7 +346,37 @@ async function runRemove (name) {
   await refresh()
 }
 
-// --- gate: no python, or no store yet -------------------------------------
+/** Open another store that is already on this machine. */
+async function switchStore (home) {
+  try {
+    const next = await api.use(home)
+    state.store = next.store
+    state.engine = next.engine
+    text(el('store-id'), next.store.id)
+    renderStores()
+    games = []
+    paths = null
+    filter = { kind: 'group', value: 'all' }
+    if (next.engine && !next.engine.ok) {
+      renderCats()
+      showOldEngineGate()
+      return
+    }
+    hideGate()
+    await refresh()
+  } catch (err) {
+    logLine(`${T.switchFailed}: ${err && err.message ? err.message : err}`)
+  }
+}
+
+/** Pick up a store that appeared since the window opened. */
+async function reloadState () {
+  state = await api.state()
+  text(el('store-id'), state.store ? state.store.id : '')
+  renderStores()
+}
+
+// --- gate: no python, no store yet, or an engine too old ------------------
 
 function showGate (title, body, action, link, choices) {
   el('grid').hidden = true
@@ -244,6 +419,44 @@ function hideGate () {
   el('gate').hidden = true
 }
 
+function showOldEngineGate () {
+  showGate(T.oldEngineTitle,
+    `${T.oldEngineBody}\n\n${state.engine.text} → ${state.minEngine}`,
+    { label: T.oldEngineAction, onClick: offerStores })
+}
+
+async function setUpStore (chosen) {
+  showProgress(T.setupWorking)
+  try {
+    await api.bootstrap(chosen)
+    await reloadState()
+    hideGate()
+    await refresh()
+  } catch (err) {
+    logLine(String(err && err.message ? err.message : err))
+  }
+}
+
+// Which stores exist is the site's answer, not this client's: the registry is
+// asked for it, and its records carry the catalog and the config repository.
+async function offerStores () {
+  const result = await api.registry()
+  if (result.error) {
+    showGate(`${T.registryFailed}`, `${result.url}\n\n${result.error}`,
+      { label: T.registryRetry, onClick: offerStores })
+    return
+  }
+  if (!result.stores.length) {
+    showGate(T.setupTitle, `${T.registryEmpty}\n\n${result.url}`, null)
+    return
+  }
+  showGate(T.setupTitle,
+    `${T.setupBody}\n\n${state.storeRoot}`,
+    { label: T.setupAction, onClick: async (chosen) => { await setUpStore(chosen); await runSync([]) } },
+    null,
+    result.stores)
+}
+
 // --- boot -----------------------------------------------------------------
 
 function applyStrings (strings) {
@@ -252,13 +465,26 @@ function applyStrings (strings) {
   text(el('sync-all'), T.syncAll)
   text(el('refresh'), T.refresh)
   text(el('log-toggle'), T.log)
+  text(el('head-stores'), T.stores)
+  text(el('head-actions'), T.actions)
+  text(el('head-cats'), T.categories)
+  text(el('head-lang'), T.language)
+  text(el('add-store'), T.addStore)
+  el('nav-toggle').title = T.menu
+  el('nav-toggle').setAttribute('aria-label', T.menu)
   renderPaths()
-  if (games.length) renderGrid()
+  if (state) renderStores()
+  if (games.length) {
+    renderCats()
+    renderGrid()
+  }
 }
 
 async function boot () {
-  const state = await api.state()
+  state = await api.state()
   applyStrings(state.strings)
+  setNav(state.nav !== false)
+  renderStores()
 
   const select = el('locale')
   select.replaceChildren(...state.languages.map((code) => {
@@ -279,46 +505,13 @@ async function boot () {
     return
   }
 
-  const setUpStore = async (chosen) => {
-    showProgress(T.setupWorking)
-    try {
-      await api.bootstrap(chosen)
-      hideGate()
-      await refresh()
-    } catch (err) {
-      logLine(String(err && err.message ? err.message : err))
-    }
-  }
-
-  // Which stores exist is the site's answer, not this client's: the registry is
-  // asked for it, and its records carry the catalog and the config repository.
-  const offerStores = async () => {
-    const result = await api.registry()
-    if (result.error) {
-      showGate(`${T.registryFailed}`, `${result.url}\n\n${result.error}`,
-        { label: T.registryRetry, onClick: offerStores })
-      return
-    }
-    if (!result.stores.length) {
-      showGate(T.setupTitle, `${T.registryEmpty}\n\n${result.url}`, null)
-      return
-    }
-    showGate(T.setupTitle,
-      `${T.setupBody}\n\n${state.storeRoot}`,
-      { label: T.setupAction, onClick: async (chosen) => { await setUpStore(chosen); await runSync([]) } },
-      null,
-      result.stores)
-  }
-
   if (!state.store) {
     await offerStores()
     return
   }
 
   if (state.engine && !state.engine.ok) {
-    showGate(T.oldEngineTitle,
-      `${T.oldEngineBody}\n\n${state.engine.text} → ${state.minEngine}`,
-      { label: T.oldEngineAction, onClick: offerStores })
+    showOldEngineGate()
     return
   }
 
@@ -329,6 +522,12 @@ async function boot () {
 
 el('sync-all').addEventListener('click', () => runSync([]))
 el('refresh').addEventListener('click', () => refresh())
+el('add-store').addEventListener('click', () => offerStores())
+el('nav-toggle').addEventListener('click', () => {
+  const open = document.body.classList.contains('nav-closed')
+  setNav(open)
+  api.setNav(open)
+})
 el('log-toggle').addEventListener('click', () => {
   const box = el('log-lines')
   box.hidden = !box.hidden

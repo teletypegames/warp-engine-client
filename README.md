@@ -95,15 +95,44 @@ panel — and not a release of this app.
 
 ## Use
 
-- **Install all** fetches everything the catalog offers for this machine.
-- A card's button is **Install**, **Update**, or **Play** / **Open** once it is
-  there. **Remove** takes a title back out.
-- Each card says whether it is **native** — unpacked and run locally, works
-  offline — or **hosted**: a browser build the catalog serves rather than
-  packages, so its entry opens a page and needs the network.
-- The **Log** drawer at the bottom carries the store's own output verbatim, and
-  next to it are buttons that open the two folders everything lands in.
-- The language follows the system and can be switched; **English and Hungarian**.
+Everything that is not a title lives in the **side menu** on the left, and the
+`☰` button in the bar folds it away — the state is remembered between runs.
+
+- **Stores** lists every store on this machine, the open one marked. Clicking
+  another switches to it: the grid, the categories and the folders all follow, and
+  the client reopens on that store next time. Two stores installed from the same
+  catalog into different folders show their folder instead of their id, because
+  the id would not tell them apart. **Add a store…** brings up the registry
+  picker, the same one the first run offers.
+- **Actions** holds **Install all**, which fetches everything the catalog offers
+  for this machine, and **Refresh**, which re-reads the catalog.
+- **Categories** narrows the grid, one category at a time, with the count next to
+  each: *Everything*, *Installed*, *Updates*, *Not installed*, then a row per
+  **platform** (`godot`, `tic80`, `love`, …) and per **kind** (native or hosted).
+  The axes are built from what the catalog actually contains — a platform with no
+  titles is not listed, and a category that disappears under you falls back to
+  *Everything* rather than leaving an empty grid. There is no genre in a
+  WarpEngine catalog, so these are the categories there are.
+- **Language** follows the system and can be switched; **English and Hungarian**.
+
+In the grid, a card's button is **Install**, **Update**, or **Play** / **Open**
+once it is there. **Remove** takes a title back out. Each card says whether it is
+**native** — unpacked and run locally, works offline — or **hosted**: a browser
+build the catalog serves rather than packages, so its entry opens a page and needs
+the network.
+
+The **Log** drawer at the bottom carries the store's own output verbatim, and next
+to it are buttons that open the two folders everything lands in.
+
+Every card carries a band of box art the same height — the first letter of the
+title when the catalog has no image — so titles and buttons line up across a row.
+Until this was photographed, the grid was quietly broken: the rows split the
+window's height evenly instead of following their content, which collapsed the art
+to nothing and clipped the buttons out of sight.
+
+While the store is working, only the things that would start a second call are
+disabled: the menu, the log drawer and the category filters keep working, because
+they change what is on screen and nothing on disk.
 
 Anything installed from the window is a normal menu entry, so it also shows up in
 your launcher, Dock or Start menu — the app does not have to be running to play.
@@ -119,6 +148,7 @@ names. `make` on its own lists everything.
 | `make start` | run the app against whatever store is installed |
 | `make smoke` | drive the store bridge with no window at all |
 | `make uitest` | load the window once and report what rendered |
+| `SELFTEST_SHOT=shot.png npm run uitest` | the same, and the window photographs itself into that file |
 | `make test` | both checks |
 | `make dist` | package for this machine (`dist-mac`, `dist-win`, `dist-linux` to pick) |
 | `make publish` | upload the packages already in `dist/` to the Gitea release |
@@ -202,6 +232,17 @@ dev run: the store is discovered, the catalog lists, a sync installs, the window
 renders the installed state, and `npm run uitest` passes with the grid rendered
 and both languages in the picker. The bootstrap download was run into an empty
 directory and the resulting store answered the bridge.
+
+The grid was checked by looking at it, not only by counting nodes: `SELFTEST_SHOT`
+has the window capture itself, which is how the collapsed rows were found — the DOM
+had ten cards and twenty buttons all along, and every count passed while the page
+showed neither art nor buttons. A screenshot from outside the app is not available
+here, so the window takes its own.
+
+The side menu was measured with two stores in one root — a sandbox copy alongside
+the real install — and `npm run uitest` clicks the store that is not open and
+checks that the bar, the grid and the categories follow. With a single store the
+switch is skipped, which is what the normal run reports.
 
 The registry path was exercised against a local endpoint serving the same payload
 the site returns, with two records: one store whose repository has a `config.json`

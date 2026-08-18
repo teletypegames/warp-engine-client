@@ -78,18 +78,69 @@ async function selftest () {
     gateAction: document.getElementById('gate-action').textContent,
     appName: document.getElementById('app-name').textContent,
     storeId: document.getElementById('store-id').textContent,
+    navOpen: !document.body.classList.contains('nav-closed'),
+    stores: [...document.querySelectorAll('#store-list .store-row')].map((n) => n.textContent),
+    categories: [...document.querySelectorAll('#cats .cat')].map((n) => n.textContent),
+    activeCategory: (document.querySelector('#cats .cat.is-active') || {}).textContent || null,
     paths: document.getElementById('log-paths').textContent.slice(0, 120),
     logLines: document.querySelectorAll('.log-line').length,
     locales: [...document.getElementById('locale').options].map((o) => o.value)
   }))()`)
   console.log(JSON.stringify(result, null, 2))
-  // Either outcome is a pass: a grid when a store is installed, or the setup gate
-  // with something to choose from when there is none.
+
+  // With two stores on the machine the switcher is the thing most likely to be
+  // broken without anyone noticing, so the test uses it: click the store that is
+  // not open and see whether the window follows. Skipped when there is only one,
+  // which is the normal case — a single store cannot be switched away from.
+  let switched = null
+  if (result.stores.length > 1) {
+    switched = await win.webContents.executeJavaScript(`(async () => {
+      const other = [...document.querySelectorAll('#store-list .store-row')]
+        .find((row) => !row.classList.contains('is-active'))
+      other.click()
+      await new Promise((done) => setTimeout(done, 8000))
+      return {
+        storeId: document.getElementById('store-id').textContent,
+        active: (document.querySelector('#store-list .store-row.is-active') || {}).textContent || null,
+        cards: document.querySelectorAll('.card').length,
+        categories: document.querySelectorAll('#cats .cat').length
+      }
+    })()`)
+    console.log(`switched: ${JSON.stringify(switched)}`)
+  }
+
+  // A layout mistake does not show up in the DOM counts above, so on request the
+  // window photographs itself — the terminal cannot screenshot it from outside.
+  if (process.env.SELFTEST_SHOT) {
+    // capturePage hands back the last painted frame, so a window that is behind
+    // others — or still loading box art — photographs as a half-drawn page. Focus
+    // it, wait for the images, then let one frame go by.
+    win.show()
+    win.focus()
+    await win.webContents.executeJavaScript(`(async () => {
+      await Promise.all([...document.images].map((img) => img.complete
+        ? null
+        : new Promise((done) => { img.onload = done; img.onerror = done })))
+      await new Promise((done) => requestAnimationFrame(() => setTimeout(done, 400)))
+      return document.images.length
+    })()`)
+    const image = await win.webContents.capturePage()
+    fs.writeFileSync(process.env.SELFTEST_SHOT, image.toPNG())
+    console.log(`shot: ${process.env.SELFTEST_SHOT}`)
+  }
+
+  // Either outcome is a pass: a grid when a store is installed — with the side
+  // menu populated, which is the part a blank render would silently lose — or the
+  // setup gate with something to choose from when there is none.
   const good = result.locales.length > 1 && (
-    (result.cards > 0 && !result.gateVisible) ||
+    (result.cards > 0 && !result.gateVisible &&
+      result.stores.length > 0 && result.categories.length > 0 && result.activeCategory) ||
     (result.gateVisible && result.gateChoices.length > 0 && result.gateAction))
-  console.log(good ? 'SELFTEST OK' : 'SELFTEST FAILED')
-  app.exit(good ? 0 : 1)
+  const switchGood = switched === null || (
+    switched.storeId && switched.storeId !== result.storeId &&
+    switched.cards > 0 && switched.categories > 0)
+  console.log(good && switchGood ? 'SELFTEST OK' : 'SELFTEST FAILED')
+  app.exit(good && switchGood ? 0 : 1)
 }
 
 function createWindow () {
@@ -145,7 +196,10 @@ function createWindow () {
 ipcMain.handle('app:state', () => {
   const prefs = loadPrefs()
   const python = store.findPython()
-  current = store.findStore()
+  // Every store on the machine, because the window offers a switch between them —
+  // and the remembered one wins, so reopening lands where the user left off.
+  const stores = store.findStores()
+  current = store.findStore(prefs.store)
   // An engine that predates `--json` cannot be driven from a window; the client
   // says so and offers to refresh it rather than failing on the first call.
   const engine = current ? store.engineVersion(current) : null
@@ -153,13 +207,45 @@ ipcMain.handle('app:state', () => {
     locale: i18n.pick(prefs.locale || app.getLocale()),
     languages: i18n.languages,
     strings: i18n.dict(prefs.locale || app.getLocale()),
+    nav: prefs.nav !== false,
     python: python ? python.version : null,
-    store: current ? { id: current.id, home: current.home } : null,
+    store: store.describe(current),
+    stores: stores.map(store.describe),
     engine: engine ? { text: engine.text, ok: engine.ok } : null,
     minEngine: store.MIN_ENGINE.join('.'),
     registryUrl: bootstrap.REGISTRY_URL,
     storeRoot: store.storeRoots()[0],
     version: app.getVersion()
+  }
+})
+
+// The side menu's open/closed state is worth keeping between runs; it is the one
+// preference the window sets that is not a language.
+ipcMain.handle('app:setNav', (_event, open) => {
+  const prefs = loadPrefs()
+  prefs.nav = Boolean(open)
+  savePrefs(prefs)
+  return prefs.nav
+})
+
+/**
+ * Switch to another installed store.
+ *
+ * The choice is remembered, and the engine is checked here rather than in the
+ * window: two stores on one machine can be at different versions, and the one
+ * being switched to may be the older one.
+ */
+ipcMain.handle('store:use', (_event, home) => {
+  const wanted = store.findStores().find((candidate) => candidate.home === home)
+  if (!wanted) throw new Error('that store is no longer on this machine')
+  current = wanted
+  const prefs = loadPrefs()
+  prefs.store = wanted.home
+  savePrefs(prefs)
+  const engine = store.engineVersion(current)
+  return {
+    store: store.describe(current),
+    engine: engine ? { text: engine.text, ok: engine.ok } : null
   }
 })
 
@@ -195,7 +281,10 @@ ipcMain.handle('store:bootstrap', (_event, chosen) => guarded(async () => {
   const home = bootstrap.homeFor(chosen, store.storeRoots()[0])
   const result = await bootstrap.install(home, chosen, { onLog: (line) => send('store:log', line) })
   current = { engine: 'desktop', ...result }
-  return { id: current.id, home: current.home, name: chosen.name }
+  const prefs = loadPrefs()
+  prefs.store = current.home
+  savePrefs(prefs)
+  return { ...store.describe(current), name: chosen.name }
 }))
 
 /**

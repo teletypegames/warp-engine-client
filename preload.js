@@ -7,11 +7,13 @@ const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('storeApi', {
   state: () => ipcRenderer.invoke('app:state'),
   setLocale: (locale) => ipcRenderer.invoke('app:setLocale', locale),
+  setNav: (open) => ipcRenderer.invoke('app:setNav', open),
 
   list: () => ipcRenderer.invoke('store:list'),
   paths: () => ipcRenderer.invoke('store:paths'),
   sync: (names) => ipcRenderer.invoke('store:sync', names),
   remove: (name) => ipcRenderer.invoke('store:remove', name),
+  use: (home) => ipcRenderer.invoke('store:use', home),
   registry: () => ipcRenderer.invoke('store:registry'),
   bootstrap: (store) => ipcRenderer.invoke('store:bootstrap', store),
   launch: (game) => ipcRenderer.invoke('store:launch', game),

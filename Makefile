@@ -71,7 +71,9 @@ dist-linux: node-check ## Package for Linux
 publish: ## Upload the packages already in dist/ to the Gitea release
 	@TAG=$(TAG) $(SCRIPTS)/release.sh
 
-release: dist publish ## Package for this machine and publish it
+# clean first: dist/ keeps earlier builds, and a release should be made of exactly
+# what this version produced.
+release: clean dist publish ## Package for this machine and publish it
 
 clean: ## Remove the built packages
 	rm -rf dist
