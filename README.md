@@ -272,9 +272,14 @@ on its own: publishing 1.2.0 got *"invalid username, password or token"* on the
 second package while the first had just gone up with the same token, and the same
 command succeeded immediately afterwards.
 
-Package names contain a space — `WarpEngine Client-1.5.0-arm64.dmg` — so the list of
-files is passed one path per line rather than as one string; splitting it on
-whitespace is what broke the first attempt at publishing 1.1.0.
+Package names have no spaces in them — `WarpEngineClient-2.3.0-arm64.dmg` — because a
+space in a release asset is a space in every `curl`, script and shell command that ever
+touches it. The app itself is still called **WarpEngine Client**: that name is what
+appears in the Dock and in `/Applications`, and only the file names were the problem.
+
+The list of files is still passed one path per line rather than as one string, since a
+path given on the command line can contain a space even when a built one cannot;
+splitting it on whitespace is what broke the first attempt at publishing 1.1.0.
 
 It needs `tea` installed and logged in — the devarea repo has `make tea` for that.
 Overridable: `TAG`, `REPO`, `TEA_LOGIN`, `NOTES`, `DIST`.

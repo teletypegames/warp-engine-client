@@ -53,9 +53,10 @@ api() {
   curl -fsS -X "$method" -H "$AUTH" "$FORGE$path" "$@"
 }
 
-# Package names contain spaces — "WarpEngine Client Setup 1.5.0.exe" does — so the list
-# lives one path per line in a file and is read with `while IFS= read -r`. A single
-# variable looped over with $list splits on the space and uploads nothing.
+# The list lives one path per line in a file and is read with `while IFS= read -r`. The
+# built package names have no spaces in them any more, but a path given on the command
+# line still can — and a single variable looped over with $list splits on the space and
+# uploads nothing, which is a silent way to publish a release with no assets.
 LIST="$(mktemp)"
 trap 'rm -f "$LIST"' EXIT
 if [ "$#" -gt 0 ]; then

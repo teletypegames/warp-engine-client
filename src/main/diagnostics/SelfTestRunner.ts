@@ -28,6 +28,8 @@ interface SelfTestReport {
   readonly locales: readonly string[]
   /** `<accessible name>:<glyph count>` per icon-only control in the footer. */
   readonly iconControls: readonly string[]
+  /** `<title> [current|newer] Upgrade:on|off Uninstall:on|off` per installed card. */
+  readonly cardMenus: readonly string[]
 }
 
 /** What changed after clicking a store that was not open. */
@@ -74,7 +76,11 @@ export class SelfTestRunner {
     // picker are the only way to reach those two actions now that neither has a label.
     const iconsNamed = report.iconControls.length === 2 &&
       report.iconControls.every((control: string): boolean => /^.+:1$/.test(control))
-    const rendered = report.locales.length > 1 && iconsNamed && (
+    // Every installed card offers both actions, and Upgrade is enabled exactly when the
+    // version line says there is something newer. Uninstall is always available.
+    const menusAgree = report.cardMenus.every((entry: string): boolean =>
+      /\[newer\] \S+:on \S+:on$/.test(entry) || /\[current\] \S+:off \S+:on$/.test(entry))
+    const rendered = report.locales.length > 1 && iconsNamed && menusAgree && (
       (report.cards > 0 && !report.gateVisible && report.stores.length > 0 &&
         report.categories.length > 0 && report.activeCategory !== null) ||
       (report.gateVisible && report.gateAction.length > 0))
@@ -107,6 +113,16 @@ export class SelfTestRunner {
       locales: [...document.getElementById('locale').options].map((option) => option.value),
       // The two icon-only controls: a glyph with no accessible name is a button nobody
       // can identify, and the failure is silent because the icon still draws.
+      // One entry per installed card: its title, whether the version line shows an
+      // upgrade, and the menu's two items with their disabled state. This is the only
+      // way to see that Upgrade is offered exactly when there is something newer —
+      // a screenshot shows a closed menu.
+      cardMenus: [...document.querySelectorAll('.card.is-installed')].map((card) => {
+        const items = [...card.querySelectorAll('.menu-item')]
+          .map((item) => item.textContent + (item.disabled ? ':off' : ':on'))
+        const arrow = card.querySelector('.version.has-update') === null ? 'current' : 'newer'
+        return (card.querySelector('h2') || {}).textContent + ' [' + arrow + '] ' + items.join(' ')
+      }),
       iconControls: [...document.querySelectorAll('.side-tools .icon-btn')]
         .map((control) => {
           const named = control.getAttribute('aria-label') || control.getAttribute('title') ||
@@ -132,7 +148,8 @@ export class SelfTestRunner {
       paths: readString(record, 'paths'),
       logLines: readNumber(record, 'logLines'),
       locales: readStringArray(record, 'locales'),
-      iconControls: readStringArray(record, 'iconControls')
+      iconControls: readStringArray(record, 'iconControls'),
+      cardMenus: readStringArray(record, 'cardMenus')
     }
   }
 

@@ -6,12 +6,13 @@ import type { MessageBundle } from './MessageBundle'
  */
 export const HUNGARIAN_MESSAGES: MessageBundle = {
   appName: 'WarpEngine Client',
-  refresh: 'Frissítés',
+  refresh: 'Katalógus frissítése',
   install: 'Telepítés',
-  update: 'Frissítés',
+  upgrade: 'Frissítés',
   play: 'Indítás',
   open: 'Megnyitás',
-  remove: 'Eltávolítás',
+  uninstall: 'Eltávolítás',
+  moreActions: 'További műveletek',
   installed: 'telepítve',
   native: 'natív',
   hosted: 'hosztolt',

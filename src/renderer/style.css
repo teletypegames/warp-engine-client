@@ -357,6 +357,56 @@ body.nav-closed .side { margin-left: calc(-1 * var(--side-width)); }
 }
 .actions { display: flex; gap: 8px; margin-top: auto; }
 
+/* --- the card's actions menu -------------------------------------------- */
+/*
+ * A <details> holding the two actions that are not the card's headline. The card is the
+ * positioning context, and the panel is pinned to the button's right edge so it opens
+ * inward rather than off the side of the grid.
+ */
+.menu { position: relative; margin-left: auto; }
+.menu-toggle { list-style: none; }
+/* Safari and Chrome each draw their own marker on a summary; both have to go. */
+.menu-toggle::-webkit-details-marker { display: none; }
+.menu-toggle::marker { content: ''; }
+.menu[open] .menu-toggle { color: var(--ink); background: var(--panel-2); border-color: var(--line); }
+
+.menu-items {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 20;
+  min-width: 148px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  gap: 2px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgb(0 0 0 / .45);
+}
+.menu-item {
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.menu-item:hover:not(:disabled) { background: #2b3746; }
+.menu-item:disabled { color: var(--ink-dim); opacity: .5; cursor: default; }
+
+.icon-dots { fill: currentColor; stroke: none; }
+
+/* An installed version with a newer one behind it: the arrow carries the news, so the
+   colour only has to make it findable in a grid. */
+.version.has-update { color: var(--accent); font-weight: 600; }
+
+
 /* --- log ----------------------------------------------------------------
    No permanent footer: the panel is in the flow only while it is open, and the
    switch for it sits in the side menu with everything else that is not a title. */

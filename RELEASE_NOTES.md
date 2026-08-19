@@ -1,41 +1,39 @@
-# WarpEngine Client 2.2.0
+# WarpEngine Client 2.3.0
 
-**A registry record is a name and a catalog.** Nothing else. The `config` field added in
-2.1.0 is gone, and so is `storeRepositoryUrl` — along with the two store repositories they
-pointed at, which have been deleted.
+**A card says which version you have, and offers the newer one.** Where the catalog has
+moved on, an installed title's version line reads `0.1 → 0.3` instead of just the number
+on your disk, so the card answers both questions a person came to it with: what is
+installed, and is there anything better.
 
-2.1.0 had the registry say how each store behaves. That was the wrong shape. How a store
-behaves is fixed per installed client: this application carries its own store engine and
-is the only thing that can see the machine it is running on. A copy of that on a server
-was a second authority over decisions this side had already made correctly — including
-which directories the store is allowed to delete from — and a second authority is a way
-for the two to disagree.
+Which version is installed was already recorded — that is what `state.json` has always
+been for. What was missing was somewhere to act on it.
 
-Keeping two stores on one machine out of each other's files needs none of it. It is a
-subfolder, and the client derives it:
+**The actions moved into a three-dot menu.** Installed cards now lead with **Play** (or
+**Open** for a hosted title) and put the rest behind the ⋮ button beside it:
 
 | | |
 |---|---|
-| **store id** | a slug of the catalog host — `teletypegames.org` becomes `teletypegames` |
-| **store home** | `<id>-desktop`, under the usual store root |
-| **games folder** | `<id>`, inside the OS's usual place for programs |
-| **delete boundary** | that same folder, and nothing outside it |
+| **Upgrade** | fetches whatever the catalog now has, replacing the old payload and menu entry. Greyed out when there is nothing newer |
+| **Uninstall** | as before — the payload, the icon and the menu entry, and nothing else |
 
-Derived from the *catalog* on purpose: the catalog is what a store is, so two records
-naming the same one are the same store and land in the same place. Installing the same
-store twice is idempotent rather than a way to orphan what is already there.
+Upgrade stays visible while disabled rather than appearing and disappearing: a menu whose
+items come and go makes a person hunt for the one they used last time, and greyed out
+already says "not now".
 
-**Existing installations are untouched.** A store already on the machine is recognised by
-the `config.json` in its own home and keeps the identity written there — a store installed
-as `ttg` stays `ttg`, in `ttg-desktop`, with its games where they are. Only a *new* install
-derives its id from the catalog.
+Playing stays the headline action even when an upgrade is waiting. The version on the disk
+still runs, and wanting to play it is not the same as wanting to wait for a download.
+
+**Package names have no spaces.** `WarpEngineClient-2.3.0-arm64.dmg` rather than
+`WarpEngine Client-2.3.0-arm64.dmg`, and the same for the AppImage and both Windows
+builds — a space in a release asset is a space in every `curl`, script and shell command
+that ever touches it. The app is still called **WarpEngine Client**, which is what appears
+in the Dock and in `/Applications`; only the file names changed.
 
 ### Also
 
-The public `/stores` page loses its desktop card, which advertised a `curl … | sh` for a
-repository that no longer exists; an ordinary computer is served by the app. The `/desktop`
-URL now lands on the app rather than on a device tab, so what someone typing it wants is
-what they get.
+The catalog refresh control's tooltip now says *Refresh the catalog*, because in Hungarian
+it and the new Upgrade both wanted the word "Frissítés" and only one of them reloads a
+list.
 
 ### Opening it on macOS
 
@@ -54,18 +52,21 @@ Windows (installer, portable) packages the pipeline builds when the tag is pushe
 
 `make check` is clean: typecheck, lint, the headless smoke test and the window self-test.
 
-The install path was measured end to end against a local registry serving exactly the new
-record shape. The slug came out `teletypegames`, the home `teletypegames-desktop`, the
-games subfolder `teletypegames`, and installing the same record twice landed in the same
-home. A record carrying `config` and `storeRepositoryUrl` — what a stale registry or a
-tampering renderer might still send — changed nothing on disk, because neither field exists
-in the model any more.
+The upgrade path was tested on a sandbox store rather than reasoned about. Two titles were
+installed, then one of their state records was rewritten to claim an older build — which is
+exactly what the engine compares — and the window was asked what it would offer:
 
-On this machine the check also shows both halves of the compatibility claim at once: the
-registry's new slug reads `teletypegames`, while the store that was installed before today
-is still found as `ttg` in `ttg-desktop`, listing its ten installed titles from
-`Application Support/teletypegames`.
+```
+BombExpert    [newer]   Upgrade:on  Uninstall:on
+Rabbit Roller [current] Upgrade:off Uninstall:on
+```
 
-The site side was migrated and its specs re-run, and the frontend was built — which first
-required removing a dead `engines` list that had been failing `vue-tsc` on master, so that
-page could not be built to check at all.
+Pressing Upgrade runs the same call the window makes, and the record went from `0.1` to
+`0.2` with the old payload removed first. The self-test now asserts that pairing on every
+installed card, because a closed menu photographs identically whether or not its items are
+right.
+
+The new package names were read off a real build (`WarpEngineClient-2.3.0-arm64.dmg`,
+`…-arm64-mac.zip`) and checked against the release script's own file filter, which finds
+both. The Windows names are `-Setup-` and `-Portable-` so the two `.exe` targets cannot
+resolve to one name and overwrite each other.

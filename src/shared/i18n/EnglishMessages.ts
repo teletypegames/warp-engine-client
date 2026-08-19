@@ -6,12 +6,13 @@
  */
 export const ENGLISH_MESSAGES = {
   appName: 'WarpEngine Client',
-  refresh: 'Refresh',
+  refresh: 'Refresh the catalog',
   install: 'Install',
-  update: 'Update',
+  upgrade: 'Upgrade',
   play: 'Play',
   open: 'Open',
-  remove: 'Remove',
+  uninstall: 'Uninstall',
+  moreActions: 'More actions',
   installed: 'installed',
   native: 'native',
   hosted: 'hosted',

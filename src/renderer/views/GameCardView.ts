@@ -4,6 +4,7 @@ import { createElement } from '../dom/Dom'
 
 export interface GameCardViewCallbacks {
   readonly onInstall: (name: string) => void
+  readonly onUpgrade: (name: string) => void
   readonly onLaunch: (name: string) => void
   readonly onRemove: (name: string) => void
 }
@@ -11,8 +12,11 @@ export interface GameCardViewCallbacks {
 /**
  * One card.
  *
- * A card is a function of a title and the strings: it holds no state of its own, so
- * the grid can throw the lot away and rebuild after every listing.
+ * A card is a function of a title and the strings: it holds no state of its own, so the
+ * grid can throw the lot away and rebuild after every listing. The one exception is the
+ * actions menu, whose open/closed state lives in a `<details>` element — and being
+ * thrown away is exactly what should happen to an open menu when the catalog changes
+ * under it.
  */
 export class GameCardView {
   public constructor (private readonly callbacks: GameCardViewCallbacks) {}
@@ -71,11 +75,28 @@ export class GameCardView {
       meta.appendChild(badge)
     }
     meta.appendChild(createElement('span', 'badge badge-plain', game.platform))
-    meta.appendChild(createElement('span', 'version',
-      game.installed && game.installedVersion !== null
-        ? `${game.installedVersion} · ${messages.installed}`
-        : game.version))
+    meta.appendChild(this.createVersion(game, messages))
     return meta
+  }
+
+  /**
+   * The version, and what the catalog has that this machine does not.
+   *
+   * Both numbers, when they differ: which version is installed is the thing a person
+   * came to the card to find out, and "there is a newer one" is only meaningful next to
+   * it. Where they agree, the second number would be noise.
+   */
+  private createVersion (game: GameDto, messages: MessageBundle): HTMLElement {
+    if (!game.installed || game.installedVersion === null) {
+      return createElement('span', 'version', game.version)
+    }
+    if (!game.updateAvailable) {
+      return createElement('span', 'version', `${game.installedVersion} · ${messages.installed}`)
+    }
+    const version = createElement('span', 'version has-update',
+      `${game.installedVersion} → ${game.version}`)
+    version.title = messages.updateAvailable
+    return version
   }
 
   private createActions (game: GameDto, messages: MessageBundle, busy: boolean): HTMLElement {
@@ -89,25 +110,88 @@ export class GameCardView {
       return actions
     }
 
-    const primary = createElement('button', 'btn btn-primary')
-    primary.disabled = busy
+    actions.appendChild(this.createPrimary(game, messages, busy))
+    // Only an installed title has anything in the menu: nothing to upgrade and nothing
+    // to uninstall until there is something on the disk.
+    if (game.installed) actions.appendChild(this.createMenu(game, messages, busy))
+    return actions
+  }
 
-    if (game.installed && !game.updateAvailable) {
+  /**
+   * The one action a card leads with.
+   *
+   * For an installed title that is playing it — including when an upgrade is waiting,
+   * because the version on the disk still runs and wanting to play it is not the same
+   * as wanting to wait for a download.
+   */
+  private createPrimary (game: GameDto, messages: MessageBundle, busy: boolean): HTMLElement {
+    const primary = createElement('button', 'btn btn-primary')
+    if (game.installed) {
       primary.textContent = game.mode === 'web' ? messages.open : messages.play
       primary.disabled = busy || !game.launchable
       primary.addEventListener('click', (): void => { this.callbacks.onLaunch(game.name) })
-    } else {
-      primary.textContent = game.updateAvailable ? messages.update : messages.install
-      primary.addEventListener('click', (): void => { this.callbacks.onInstall(game.name) })
+      return primary
     }
-    actions.appendChild(primary)
+    primary.textContent = messages.install
+    primary.disabled = busy
+    primary.addEventListener('click', (): void => { this.callbacks.onInstall(game.name) })
+    return primary
+  }
 
-    if (game.installed) {
-      const remove = createElement('button', 'btn btn-ghost', messages.remove)
-      remove.disabled = busy
-      remove.addEventListener('click', (): void => { this.callbacks.onRemove(game.name) })
-      actions.appendChild(remove)
+  /**
+   * The three-dot menu: upgrade, and uninstall.
+   *
+   * A `<details>` rather than a scripted popover, so the open state is the DOM's and the
+   * keyboard works without being taught to. Upgrade is present but disabled when there
+   * is nothing newer — a menu whose items appear and disappear makes a person hunt for
+   * the one they used last time, and "greyed out" already says "not now".
+   */
+  private createMenu (game: GameDto, messages: MessageBundle, busy: boolean): HTMLElement {
+    const menu = createElement('details', 'menu')
+    const toggle = createElement('summary', 'icon-btn menu-toggle')
+    toggle.title = messages.moreActions
+    toggle.setAttribute('aria-label', messages.moreActions)
+    toggle.appendChild(this.createDotsIcon())
+    menu.appendChild(toggle)
+
+    const items = createElement('div', 'menu-items')
+    items.appendChild(this.createMenuItem(messages.upgrade, busy || !game.updateAvailable,
+      (): void => { this.callbacks.onUpgrade(game.name) }))
+    items.appendChild(this.createMenuItem(messages.uninstall, busy,
+      (): void => { this.callbacks.onRemove(game.name) }))
+    menu.appendChild(items)
+    return menu
+  }
+
+  private createMenuItem (
+    label: string,
+    disabled: boolean,
+    perform: () => void
+  ): HTMLButtonElement {
+    const item = createElement('button', 'menu-item', label)
+    item.disabled = disabled
+    item.addEventListener('click', (): void => {
+      // Close before acting: the click starts work that re-renders the grid, and a menu
+      // left open would vanish mid-gesture rather than answer the press.
+      item.closest('details')?.removeAttribute('open')
+      perform()
+    })
+    return item
+  }
+
+  private createDotsIcon (): SVGSVGElement {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    svg.setAttribute('class', 'icon icon-dots')
+    svg.setAttribute('viewBox', '0 0 16 16')
+    svg.setAttribute('aria-hidden', 'true')
+    svg.setAttribute('focusable', 'false')
+    for (const y of [3.5, 8, 12.5]) {
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+      dot.setAttribute('cx', '8')
+      dot.setAttribute('cy', String(y))
+      dot.setAttribute('r', '1.35')
+      svg.appendChild(dot)
     }
-    return actions
+    return svg
   }
 }

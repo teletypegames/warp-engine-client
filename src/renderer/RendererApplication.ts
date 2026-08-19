@@ -47,6 +47,9 @@ export class RendererApplication {
 
     this.grid = new CatalogGridView(new GameCardView({
       onInstall: (name: string): void => { void this.catalog.syncGames([name]) },
+      // The same call as an install: a sync of one name fetches whatever the catalog
+      // now has for it, and the engine replaces the old payload and menu entry.
+      onUpgrade: (name: string): void => { void this.catalog.syncGames([name]) },
       onLaunch: (name: string): void => { void this.catalog.launchGame(name) },
       onRemove: (name: string): void => { void this.catalog.removeGame(name) }
     }))

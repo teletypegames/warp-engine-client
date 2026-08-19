@@ -1,7 +1,7 @@
 {
   "name": "warp-engine-client",
   "productName": "WarpEngine Client",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Graphical client for WarpEngine stores: install a catalog into your own application menu.",
   "license": "MIT",
   "author": "Teletype Games <games@teletype.hu>",
@@ -44,7 +44,11 @@
       "target": [
         "dmg",
         "zip"
-      ]
+      ],
+      "artifactName": "WarpEngineClient-${version}-${arch}-mac.${ext}"
+    },
+    "dmg": {
+      "artifactName": "WarpEngineClient-${version}-${arch}.${ext}"
     },
     "win": {
       "target": [
@@ -52,12 +56,21 @@
         "portable"
       ]
     },
+    "nsis": {
+      "artifactName": "WarpEngineClient-Setup-${version}-${arch}.${ext}"
+    },
+    "portable": {
+      "artifactName": "WarpEngineClient-Portable-${version}-${arch}.${ext}"
+    },
     "linux": {
       "category": "Game",
       "target": [
         "AppImage",
         "deb"
       ]
+    },
+    "appImage": {
+      "artifactName": "WarpEngineClient-${version}-${arch}.${ext}"
     },
     "afterPack": "scripts/after-pack.js"
   },
