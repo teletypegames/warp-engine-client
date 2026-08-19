@@ -39,7 +39,11 @@ export interface BridgeApi {
 
   listRegistryStores: () => Promise<RegistryResultDto>
   installStore: (store: RegistryStoreDto) => Promise<InstalledStoreDto>
+  /** A catalog the registry does not list; the name is derived from the address. */
+  installCatalog: (catalogUrl: string) => Promise<InstalledStoreDto>
   selectStore: (home: string) => Promise<StoreSelectionDto>
+  /** Uninstall everything the store put here, then remove the store itself. */
+  removeStore: (home: string) => Promise<void>
 
   openFolder: (directory: string) => Promise<boolean>
   openUrl: (url: string) => Promise<boolean>

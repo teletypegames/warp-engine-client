@@ -159,11 +159,16 @@ Everything that is not a title lives in the **side menu** on the left, and the
   another switches to it: the grid, the categories and the folders all follow, and
   the client reopens on that store next time. Two stores installed from the same
   catalog into different folders show their folder instead of their id, because
-  the id would not tell them apart. **Add a store…** brings up the registry
-  picker, the same one the first run offers.
+  the id would not tell them apart. Hovering a row shows a **bin**, which takes that
+  store off the machine — see below.
+- **+**, beside Refresh, brings up the picker: the stores the registry offers, and a
+  field for **any catalog address of your own**. A bare host is enough (`https` is
+  assumed) and the name is taken from it. This is the same screen the first run shows,
+  so a machine with no store yet can also start from a typed address rather than only
+  from the list.
 - **Account** appears only where the catalog offers a sign-in, and holds *Sign in…* or
   *Sign out* — see above.
-- **Actions** holds **Refresh**, which re-reads the catalog. Titles are installed
+- **Actions** holds **Refresh**, which re-reads the catalog, and **+** to add one. Titles are installed
   one at a time from their own cards; there is no install-everything button.
 - **Categories** narrows the grid, one category at a time, with the count next to
   each: *Everything*, *Installed*, *Updates*, *Not installed*, then a row per
@@ -202,6 +207,13 @@ While the store is working, only the things that would start a second call are
 disabled: the menu, the log drawer and the category filters keep working, because
 they change what is on screen and nothing on disk.
 
+**Removing a store uninstalls what it installed.** The bin on a store row asks first,
+and says how many titles will go with it. That is not a convenience — a store's
+`state.json` is the only record of which payloads, icons and menu entries belong to it,
+so leaving the games behind would leave orphans nothing could ever identify, least of
+all a later install of the same store into the same folder. The catalog cache, the
+settings and any sign-in token go too.
+
 Anything installed from the window is a normal menu entry, so it also shows up in
 your launcher, Dock or Start menu — the app does not have to be running to play.
 
@@ -216,9 +228,10 @@ names. `make` on its own lists everything.
 | `make build` | compile TypeScript, bundle the preload and the renderer |
 | `make typecheck` | type-check everything, emitting nothing |
 | `make lint` | the strict rule set (`lint-fix` fixes what it can) |
-| `make check` | **typecheck, lint and both test suites** — the gate |
+| `make check` | **typecheck, lint and every test suite** — the gate |
 | `make start` | run the app against whatever store is installed |
 | `make smoke` | drive the store with no window and no Electron at all |
+| `make storetest` | add and remove a store in a sandbox — the only code that deletes a tree |
 | `SMOKE_HOME=<dir> SMOKE_TOKEN=<bearer> npm run smoke` | the same, against a sandbox store and as a signed-in person |
 | `make uitest` | load the window once and report what rendered |
 | `SELFTEST_SHOT=shot.png npm run uitest` | the same, and the window photographs itself into that file |
@@ -340,13 +353,18 @@ own runtime.
 single-instance lock. Otherwise a copy the user already has open swallows the test
 process, which exits 0 and reads as a pass.
 
-Both test scripts accept a sandbox store instead of the real one, which is how
-this repository is tested without touching a working installation:
+The test scripts accept a sandbox store instead of the real one, which is how this
+repository is tested without touching a working installation:
 
 ```sh
 STORE_ROOT=/tmp/sandbox-root npm start
 SMOKE_HOME=/tmp/sandbox-root/ttg-desktop npm run smoke
 ```
+
+**`STORE_ROOT` replaces the search path rather than being added to the front of it.**
+It used to prepend, so a "sandboxed" run still listed the real stores and could switch
+to one; now that a store can also be *removed*, a sandbox that can reach a working
+installation is not a sandbox. `make storetest` relies on this.
 
 ### How it is put together
 

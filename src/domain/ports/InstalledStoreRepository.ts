@@ -7,4 +7,9 @@ export interface InstalledStoreRepository {
   /** The roots that are searched, in the order the shell installer would use them. */
   readRoots: () => readonly string[]
   resolveDefaultHome: (storeId: string) => string
+  /**
+   * Delete a store home. Only a directory this repository would have *found* is
+   * accepted, so a caller cannot name an arbitrary path and have it removed.
+   */
+  removeHome: (home: string) => void
 }

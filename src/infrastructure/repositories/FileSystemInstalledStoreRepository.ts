@@ -13,8 +13,10 @@ const CONFIG_FILE_NAME = 'config.json'
  * Finds stores where they were put.
  *
  * The roots are searched in the shell installers' own order — those homes are still
- * valid stores — and `STORE_ROOT` comes first so a sandbox can be driven without
- * touching a working installation, which is how this repository is tested.
+ * valid stores. `STORE_ROOT` replaces the lot: a sandbox has to be a sandbox, and it
+ * only prepended before, so a "sandboxed" run still listed the real stores, could
+ * switch to one, and — now that stores can be removed — could delete one. The README
+ * always said "instead of the real one"; this is the behaviour catching up.
  */
 export class FileSystemInstalledStoreRepository implements InstalledStoreRepository {
   public findAll (): readonly InstalledStore[] {
@@ -34,10 +36,11 @@ export class FileSystemInstalledStoreRepository implements InstalledStoreReposit
   }
 
   public readRoots (): readonly string[] {
+    const override = process.env['STORE_ROOT']
+    if (override !== undefined && override.length > 0) return [override]
+
     const home = os.homedir()
     const roots: string[] = []
-    const override = process.env['STORE_ROOT']
-    if (override !== undefined && override.length > 0) roots.push(override)
     const xdgDataHome = process.env['XDG_DATA_HOME']
     if (xdgDataHome !== undefined && xdgDataHome.length > 0) {
       roots.push(path.join(xdgDataHome, STORE_DIRECTORY_NAME))
@@ -56,6 +59,22 @@ export class FileSystemInstalledStoreRepository implements InstalledStoreReposit
   public resolveDefaultHome (storeId: string): string {
     const root = this.readRoots()[0] ?? path.join(os.homedir(), '.local', 'share', STORE_DIRECTORY_NAME)
     return path.join(root, `${storeId}${DESKTOP_STORE_ENGINE.homeSuffix}`)
+  }
+
+  /**
+   * Remove a store home, and only one this repository actually found.
+   *
+   * The check is the point. This is the one call in the application that deletes a
+   * directory tree the *window* named, and the window is the least trusted thing here;
+   * resolving the path against what a scan returns means a caller can ask for the
+   * removal of a store, never of a path.
+   */
+  public removeHome (home: string): void {
+    const known = this.findByHome(home)
+    if (known === null) {
+      throw new Error(`not a store home on this machine: ${home}`)
+    }
+    fs.rmSync(known.home, { recursive: true, force: true })
   }
 
   private readDirectories (root: string): readonly string[] {

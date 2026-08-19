@@ -56,8 +56,12 @@ const bridge: BridgeApi = {
     ipcRenderer.invoke(IPC_CHANNELS.storeListRegistry) as Promise<RegistryResultDto>,
   installStore: async (store: RegistryStoreDto): Promise<InstalledStoreDto> =>
     ipcRenderer.invoke(IPC_CHANNELS.storeInstallStore, store) as Promise<InstalledStoreDto>,
+  installCatalog: async (catalogUrl: string): Promise<InstalledStoreDto> =>
+    ipcRenderer.invoke(IPC_CHANNELS.storeInstallCatalog, catalogUrl) as Promise<InstalledStoreDto>,
   selectStore: async (home: string): Promise<StoreSelectionDto> =>
     ipcRenderer.invoke(IPC_CHANNELS.storeSelectStore, home) as Promise<StoreSelectionDto>,
+  removeStore: async (home: string): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.storeRemoveStore, home) as Promise<void>,
 
   openFolder: async (directory: string): Promise<boolean> =>
     ipcRenderer.invoke(IPC_CHANNELS.appOpenFolder, directory) as Promise<boolean>,

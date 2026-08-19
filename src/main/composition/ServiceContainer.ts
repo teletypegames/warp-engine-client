@@ -51,7 +51,7 @@ export class ServiceContainer {
 
     const stores = new FileSystemInstalledStoreRepository()
     const credentials = new SafeStorageCredentialRepository(environment)
-    const catalogGateway = new NativeStoreCatalogGateway(credentials)
+    const catalogGateway = new NativeStoreCatalogGateway(credentials, stores)
     const registry = new HttpStoreRegistryRepository(httpClient)
     const installer = new NativeStoreEngineInstaller()
     const preferencesRepository = new JsonFilePreferencesRepository(environment)
@@ -60,7 +60,9 @@ export class ServiceContainer {
     this.selection = new StoreSelectionService(stores, preferences)
     this.catalog = new CatalogService(catalogGateway, this.selection)
     this.accounts = new AccountService(catalogGateway, this.selection)
-    this.provisioning = new StoreProvisioningService(registry, installer, stores, this.selection)
+    this.provisioning = new StoreProvisioningService(
+      registry, installer, stores, this.selection, catalogGateway
+    )
     this.launching = new GameLaunchService(new ElectronGameLauncher(shell), this.catalog)
     this.state = new ApplicationStateService(
       preferences, this.selection, this.provisioning, environment

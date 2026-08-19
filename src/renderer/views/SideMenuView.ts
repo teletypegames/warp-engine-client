@@ -8,6 +8,7 @@ import type { AppState } from '../state/AppStore'
 
 export interface SideMenuViewCallbacks {
   readonly onSelectStore: (home: string) => void
+  readonly onRemoveStore: (home: string, name: string) => void
   readonly onAddStore: () => void
   readonly onRefresh: () => void
   readonly onSelectCategory: (filter: CategoryFilter) => void
@@ -57,7 +58,9 @@ export class SideMenuView {
   public render (state: AppState): void {
     setText(this.storesHead, state.messages.stores)
     setText(this.categoriesHead, state.messages.categories)
-    setText(this.addStore, state.messages.addStore)
+    // Add is an icon now, beside Refresh: naming it is all the view does, and writing
+    // text into it would replace the glyph.
+    describeControl(this.addStore, state.messages.addStoreHint)
     // Refresh and the language picker are icons: naming them is all the view does, and
     // writing text into them would replace the glyph.
     describeControl(this.refresh, state.messages.refresh)
@@ -84,15 +87,30 @@ export class SideMenuView {
       .map((store: InstalledStoreDto): string => store.id))
 
     this.storeList.replaceChildren(...state.stores.map((store: InstalledStoreDto): HTMLElement => {
-      const row = createElement('button', 'store-row')
+      // A row is a button *and* carries one; nesting them would be invalid markup and
+      // the inner click would reach the outer handler anyway. So the row is a wrapper
+      // with two buttons in it: switch, and remove.
+      const row = createElement('div', 'store-row')
       if (store.home === activeHome) row.classList.add('is-active')
-      row.appendChild(createElement('span', 'store-row-name', store.name))
-      row.appendChild(createElement('span', 'store-row-id',
+
+      const open = createElement('button', 'store-row-open')
+      open.appendChild(createElement('span', 'store-row-name', store.name))
+      open.appendChild(createElement('span', 'store-row-id',
         ambiguousIds.has(store.id) ? store.home : store.id))
-      row.title = store.home
-      row.addEventListener('click', (): void => {
+      open.title = store.home
+      open.addEventListener('click', (): void => {
         if (store.home !== activeHome) this.callbacks.onSelectStore(store.home)
       })
+      row.appendChild(open)
+
+      const remove = createElement('button', 'store-row-remove')
+      remove.appendChild(createTrashIcon())
+      describeControl(remove, state.messages.removeStore)
+      remove.addEventListener('click', (): void => {
+        this.callbacks.onRemoveStore(store.home, store.name)
+      })
+      row.appendChild(remove)
+
       return row
     }))
   }
@@ -168,6 +186,26 @@ export class SideMenuView {
  * `title` is the tooltip a mouse finds and `aria-label` is what a screen reader reads;
  * an icon button needs both, and they are the same sentence.
  */
+/**
+ * The remove glyph: a lid and a bin.
+ *
+ * Drawn rather than a character, for the same reason the other two icons are — a font
+ * that lacks the symbol shows a box, and this button has no text to fall back on.
+ */
+function createTrashIcon (): SVGSVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('class', 'icon icon-trash')
+  svg.setAttribute('viewBox', '0 0 16 16')
+  svg.setAttribute('aria-hidden', 'true')
+  svg.setAttribute('focusable', 'false')
+  for (const d of ['M3 4.5h10', 'M6.5 4.5V3h3v1.5', 'M4.5 4.5 5 13h6l.5-8.5', 'M6.8 7v3.5', 'M9.2 7v3.5']) {
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+    path.setAttribute('d', d)
+    svg.appendChild(path)
+  }
+  return svg
+}
+
 function describeControl (element: HTMLElement, name: string): void {
   element.title = name
   element.setAttribute('aria-label', name)

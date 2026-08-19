@@ -45,6 +45,18 @@ export class PreferencesService {
     this.merge({ storeHome: home })
   }
 
+  /**
+   * Stop remembering a store, for when it is no longer on the machine.
+   *
+   * The key is removed rather than blanked: an empty string would be a remembered home
+   * that matches nothing, and every reader would have to know to treat it as absent.
+   */
+  public forgetStoreHome (): void {
+    const { storeHome, ...rest } = this.repository.read()
+    void storeHome
+    this.repository.write(rest)
+  }
+
   private merge (changes: Preferences): void {
     this.repository.write({ ...this.repository.read(), ...changes })
   }

@@ -1,7 +1,7 @@
 {
   "name": "warp-engine-client",
   "productName": "WarpEngine Client",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "Graphical client for WarpEngine stores: install a catalog into your own application menu.",
   "license": "MIT",
   "author": "Teletype Games <games@teletype.hu>",
@@ -21,7 +21,9 @@
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:win": "npm run build && electron-builder --win",
-    "dist:linux": "npm run build && electron-builder --linux"
+    "dist:linux": "npm run build && electron-builder --linux",
+    "storetest": "npm run build && node build/scripts/StoreLifecycleTest.js",
+    "test": "npm run smoke && npm run storetest && npm run uitest"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

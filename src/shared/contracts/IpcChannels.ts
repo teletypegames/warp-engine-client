@@ -26,7 +26,9 @@ export const IPC_CHANNELS = {
 
   storeListRegistry: 'store:listRegistry',
   storeInstallStore: 'store:installStore',
+  storeInstallCatalog: 'store:installCatalog',
   storeSelectStore: 'store:selectStore',
+  storeRemoveStore: 'store:removeStore',
 
   /** Main to renderer, one way. */
   streamLog: 'stream:log',

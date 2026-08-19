@@ -87,9 +87,12 @@ export class SelfTestRunner {
     // A gate passes on having something to do, not on having a picker: the picker
     // only appears when the registry offers more than one store, and one store is
     // the ordinary case. Requiring choices here failed a perfectly good window.
-    // Both footer icons must be present, named and drawn: refresh and the language
-    // picker are the only way to reach those two actions now that neither has a label.
-    const iconsNamed = report.iconControls.length === 2 &&
+    // Every footer icon must be named and drawn. There are three — refresh, add a
+    // store, and the language picker — and none of them has a label, so an unnamed one
+    // is a button nobody can identify and the failure is silent because the glyph still
+    // draws. The count is a floor rather than an equality: a fourth control is somebody
+    // adding one, which this should not fail on; a missing one is what it guards.
+    const iconsNamed = report.iconControls.length >= 3 &&
       report.iconControls.every((control: string): boolean => /^.+:1$/.test(control))
     // Every installed card offers both actions, and Upgrade is enabled exactly when the
     // version line says there is something newer. Uninstall is always available.
@@ -196,9 +199,12 @@ export class SelfTestRunner {
    */
   private async switchStore (): Promise<StoreSwitchReport> {
     const record = asRecord(JSON.parse(await this.evaluate(`(async () => {
+      // The row is a wrapper now; the part that switches stores is the button inside
+      // it. Clicking the wrapper did nothing at all, and a click that does nothing is
+      // exactly the kind of silent break this test exists for.
       const other = [...document.querySelectorAll('#store-list .store-row')]
         .find((row) => !row.classList.contains('is-active'))
-      other.click()
+      other.querySelector('.store-row-open').click()
       await new Promise((done) => setTimeout(done, ${String(SWITCH_SETTLE_DELAY_MS)}))
       return JSON.stringify({
         storeId: document.getElementById('store-id').textContent,

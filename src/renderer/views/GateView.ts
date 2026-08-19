@@ -1,7 +1,7 @@
 import type { RegistryStoreDto } from '../../shared/contracts/dto/RegistryStoreDto'
 import { createElement, requireElement, setHidden, setText } from '../dom/Dom'
 import type { MessageBundle } from '../../shared/i18n/MessageBundle'
-import type { GateLink, GatePresentation } from '../state/GatePresentation'
+import type { GateCustom, GateLink, GatePresentation } from '../state/GatePresentation'
 
 /**
  * The screen shown instead of the grid when there is nothing to drive: no Python, no
@@ -15,7 +15,13 @@ export class GateView {
   private readonly choiceLabel = requireElement('gate-choice-label', HTMLElement)
   private readonly select = requireElement('gate-select', HTMLSelectElement)
   private readonly button = requireElement('gate-action', HTMLButtonElement)
+  private readonly cancel = requireElement('gate-cancel', HTMLButtonElement)
   private readonly link = requireElement('gate-link', HTMLAnchorElement)
+  private readonly custom = requireElement('gate-custom', HTMLElement)
+  private readonly customLabel = requireElement('gate-custom-label', HTMLElement)
+  private readonly customUrl = requireElement('gate-custom-url', HTMLInputElement)
+  private readonly customAction = requireElement('gate-custom-action', HTMLButtonElement)
+  private readonly customHint = requireElement('gate-custom-hint', HTMLElement)
 
   public constructor (private readonly onOpenUrl: (url: string) => void) {}
 
@@ -25,6 +31,8 @@ export class GateView {
     setText(this.body, presentation.body)
     this.renderChoices(presentation.choices ?? [], messages)
     this.renderAction(presentation)
+    this.renderCancel(presentation)
+    this.renderCustom(presentation.custom ?? null)
     this.renderLink(presentation.link ?? null)
   }
 
@@ -54,6 +62,40 @@ export class GateView {
       const choices = presentation.choices ?? []
       const index = Number(this.select.value)
       action.perform(choices[Number.isFinite(index) ? index : 0] ?? choices[0] ?? null)
+    }
+  }
+
+  private renderCancel (presentation: GatePresentation): void {
+    const cancel = presentation.cancel
+    setHidden(this.cancel, cancel === undefined)
+    if (cancel === undefined) return
+    setText(this.cancel, cancel.label)
+    this.cancel.onclick = (): void => { cancel.perform(null) }
+  }
+
+  /**
+   * The typed-address row.
+   *
+   * Enter submits as well as the button, because a single text field with a button
+   * beside it is a form, and a form that ignores Enter is a small daily annoyance.
+   */
+  private renderCustom (custom: GateCustom | null): void {
+    setHidden(this.custom, custom === null)
+    if (custom === null) return
+    setText(this.customLabel, custom.label)
+    setText(this.customHint, custom.hint)
+    setText(this.customAction, custom.actionLabel)
+
+    const submit = (): void => {
+      const value = this.customUrl.value.trim()
+      if (value.length === 0) return
+      custom.perform(value)
+    }
+    this.customAction.onclick = submit
+    this.customUrl.onkeydown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Enter') return
+      event.preventDefault()
+      submit()
     }
   }
 

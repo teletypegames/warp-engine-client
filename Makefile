@@ -36,7 +36,7 @@ BUILDER_ARGS := $(if $(STORES_API),-- --config.extraMetadata.warpEngine.registry
 
 .DEFAULT_GOAL := help
 
-.PHONY: help setup node-check build typecheck lint lint-fix check start smoke uitest test \
+.PHONY: help setup node-check build typecheck lint lint-fix check start smoke uitest storetest test \
         dist dist-mac dist-win dist-linux release publish clean distclean version
 
 help: ## List available targets
@@ -72,7 +72,7 @@ lint-fix: ## Lint and fix what can be fixed automatically
 
 # The order is deliberate: a type error explains a lint error, and both explain a
 # failing test, so the cheapest check that can fail runs first.
-check: typecheck lint test ## Type-check, lint, and run both test suites
+check: typecheck lint test ## Type-check, lint, and run every test suite
 
 start: ## Run the app against whatever store is installed
 	npm start
@@ -83,7 +83,10 @@ smoke: ## Drive the store bridge with no window at all
 uitest: ## Load the window once and report what rendered
 	npm run uitest
 
-test: smoke uitest ## Both checks
+storetest: ## Add and remove a store in a sandbox (the only code that deletes a tree)
+	npm run storetest
+
+test: smoke storetest uitest ## All three checks
 
 dist: node-check ## Package for this machine
 	npm run dist $(BUILDER_ARGS)

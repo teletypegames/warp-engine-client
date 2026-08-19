@@ -1,34 +1,30 @@
-# WarpEngine Client 2.4.0
+# WarpEngine Client 2.5.0
 
-**The catalog can now say a title is not yours, and the client can do something about
-it.** Where a store sells things, a card shows the **price** and a **Buy** button that
-opens the store's own page; where you own it, an **Install** as before. Two new
-categories go with it — **Owned** and **To buy** — because owning something is not the
-same as having installed it.
+**A store can be taken off the machine again.** Hovering a store in the side menu shows
+a bin. It asks first, and says how many titles will go with it — because removing a
+store *uninstalls what it installed*. That is not a convenience: a store's `state.json`
+is the only record of which payloads, icons and menu entries belong to it, so leaving
+the games behind would leave orphans nothing could ever identify, least of all a later
+install of the same store into the same folder. The catalog cache, the settings and any
+sign-in token go too.
 
-**Signing in, without a password ever reaching this window.** The side menu grows an
-**Account** block, and signing in shows a short code: your browser opens on the store's
-own page and you type it there. That detour is the point — a desktop application asking
-for a password is a desktop application people should not be giving one to. The token
-lives in the OS keychain (Keychain, libsecret, DPAPI), one per store, and *Sign out*
-revokes it at the server as well as forgetting it here.
+**Adding one moved to a + beside Refresh**, and it now takes a catalog address of your
+own as well as the ones the registry lists. A bare host is enough — `https` is assumed —
+and the name is taken from the address. Both are actions on the whole store rather than
+on one of them, which is why they sit together; the full-width "Add a store…" button
+under the list read as a third store.
 
-**None of this is knowledge about any particular store.** It all arrives from the
-catalog's own server: WarpEngine 0.5 answers `GET /api/service` with what it offers, and
-puts an `access` block on every entry. A client that carried those facts would work for
-exactly one shop — this one asks, which is why the same build serves any of them.
+**The picker has a way out.** Opening it with a store already installed used to be a
+trap: the grid was replaced and nothing short of installing something brought it back.
 
-**A store with no sign-in shows none.** Every WarpEngine before 0.5 has no descriptor at
-all, and a 0.5 store that sells nothing reports none either. Both read as "a plain
-catalog", which is what this client assumed for its whole life until now, and the window
-behaves accordingly: no Account block, no prices, no new categories.
+**Two things found by the new test.** `make storetest` adds and removes a store in a
+sandbox, because removal is the only code here that deletes a directory tree and the
+path it deletes is named by the window. It immediately caught that `http://` was
+accepted and became a store called *http* — the trailing slashes were being stripped
+before the scheme was checked — and that `STORE_ROOT` only *prepended* to the search
+path, so a "sandboxed" run still listed the real stores. With a delete button in the
+window, a sandbox that can reach a working installation is not a sandbox; it replaces
+the search path now.
 
-**A title nobody has bought is not dimmed.** The dimming and the dashed badge belong to
-what this *machine* cannot do — an unsupported platform, no build for this architecture
-— and there is nothing wrong with the machine when a title simply costs money.
-
-**A bearer token is never sent to a host that did not issue it.** A gated download
-answers with a redirect to signed storage, often somebody else's server, and some object
-stores refuse a request outright when an `Authorization` header rides along with the
-signature. The credential stops at the origin it belongs to; a redirect back to the
-catalog keeps it.
+**`btn-secondary` had no styling at all.** It was introduced in 2.4.0 on the card's
+sign-in button and on the sign-in panel, and rendered as a plain button in both places.

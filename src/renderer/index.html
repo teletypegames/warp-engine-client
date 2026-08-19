@@ -33,7 +33,6 @@
       <section class="side-block">
         <h2 class="side-head" id="head-stores"></h2>
         <div class="store-list" id="store-list"></div>
-        <button id="add-store" class="btn btn-ghost btn-wide"></button>
       </section>
 
       <!--
@@ -64,6 +63,17 @@
             <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
               <path d="M13.5 8a5.5 5.5 0 1 1-1.61-3.89" />
               <path d="M13.5 2v3h-3" />
+            </svg>
+          </button>
+          <!--
+            Adding a store sits beside Refresh rather than under the store list: both
+            are actions on the whole store rather than on one of them, and a full-width
+            button under the list read as a third store.
+          -->
+          <button id="add-store" class="icon-btn">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path d="M8 3v10" />
+              <path d="M3 8h10" />
             </svg>
           </button>
           <!--
@@ -111,7 +121,24 @@
             <select id="gate-select" class="select"></select>
           </label>
           <button id="gate-action" class="btn btn-primary" hidden></button>
+          <button id="gate-cancel" class="btn btn-ghost" hidden></button>
           <a id="gate-link" class="link" href="#" hidden></a>
+        </div>
+
+        <!--
+          A catalog the registry does not list. Its own row under the picker rather
+          than a third option inside it: choosing from a list and typing an address are
+          different gestures, and a <select> entry that turns into a text field is a
+          control that lies about what it is.
+        -->
+        <div id="gate-custom" class="gate-custom" hidden>
+          <span id="gate-custom-label" class="gate-custom-label"></span>
+          <div class="gate-custom-row">
+            <input id="gate-custom-url" class="input" type="url" spellcheck="false"
+                   autocapitalize="off" autocorrect="off">
+            <button id="gate-custom-action" class="btn btn-secondary"></button>
+          </div>
+          <p id="gate-custom-hint" class="gate-custom-hint"></p>
         </div>
       </section>
 

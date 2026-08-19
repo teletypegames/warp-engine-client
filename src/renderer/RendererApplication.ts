@@ -72,6 +72,7 @@ export class RendererApplication {
     })
     this.sideMenu = new SideMenuView({
       onSelectStore: (home: string): void => { void this.stores.selectStore(home) },
+      onRemoveStore: (home: string, name: string): void => { void this.stores.removeStore(home, name) },
       onAddStore: (): void => { void this.stores.offerStores() },
       onRefresh: (): void => { void this.catalog.refresh() },
       onSelectCategory: (filter: CategoryFilter): void => { this.store.applyFilter(filter) },

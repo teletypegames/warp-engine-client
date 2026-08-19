@@ -15,6 +15,7 @@ import type { SignInPrompt, StoreAccount } from '../../domain/models/StoreAccoun
 import { APP_MODE, WEB_MODE, type StoreConfiguration } from '../../domain/models/StoreConfiguration'
 import type { StorePaths } from '../../domain/models/StorePaths'
 import type { CredentialRepository } from '../../domain/ports/CredentialRepository'
+import type { InstalledStoreRepository } from '../../domain/ports/InstalledStoreRepository'
 import type { SignInPollResult, StoreCatalogGateway } from '../../domain/ports/StoreCatalogGateway'
 import { StoreFileSystem } from '../files/StoreFileSystem'
 import { CatalogClient, type FetchedCatalog } from './CatalogClient'
@@ -54,7 +55,10 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
    * The credentials are injected because they are the host's to keep: on a desktop the
    * OS keychain, in the smoke test a map in memory. Nothing here knows which.
    */
-  public constructor (private readonly credentials: CredentialRepository = NO_CREDENTIALS) {}
+  public constructor (
+    private readonly credentials: CredentialRepository = NO_CREDENTIALS,
+    private readonly stores: InstalledStoreRepository = NO_STORES
+  ) {}
 
   public async listGames (
     store: InstalledStore,
@@ -148,6 +152,34 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
     }
     engine.state.writeState(installed)
     engine.launchers.refreshMenu(engine.layout)
+    return Promise.resolve()
+  }
+
+  /**
+   * Take a whole store off this machine.
+   *
+   * The order is the whole of it. `state.json` is the only record of what this store
+   * put where — which payload, which icon, which menu entry — so the games have to go
+   * *before* the home does. Delete the home first and every one of those files is an
+   * orphan nothing will ever be able to identify, least of all a later install of the
+   * same store into the same folder.
+   *
+   * The token goes too: a credential for a store that is no longer here is a secret
+   * kept for nothing.
+   */
+  public removeStore (store: InstalledStore, progress: EngineProgressListener = {}): Promise<void> {
+    const engine = this.openStore(store, progress)
+    const installed = engine.state.readState()
+    const count = installed.size
+
+    engine.installer.purge(engine.layout, installed)
+    engine.state.writeState(installed)
+    engine.launchers.refreshMenu(engine.layout)
+    engine.log(`removed ${String(count)} installed title(s)`)
+
+    this.credentials.clearToken(store.id)
+    this.stores.removeHome(store.home)
+    engine.log(`removed the store home ${store.home}`)
     return Promise.resolve()
   }
 
@@ -373,6 +405,21 @@ interface SignInContext {
 function toAccount (descriptor: ServiceDescriptor, token: string | null): StoreAccount {
   const available = descriptor.auth !== null
   return { signInAvailable: available, signedIn: available && token !== null }
+}
+
+/**
+ * Removing a store needs the repository that found it; nothing else here does.
+ *
+ * The default refuses rather than pretending. A gateway assembled without one — the
+ * smoke test — reads catalogs perfectly well, and should say so plainly if somebody
+ * asks it to delete something, instead of silently doing nothing.
+ */
+const NO_STORES: InstalledStoreRepository = {
+  findAll: (): readonly [] => [],
+  findByHome: (): null => null,
+  readRoots: (): readonly [] => [],
+  resolveDefaultHome: (storeId: string): string => storeId,
+  removeHome: (): never => { throw new Error('this gateway was built without a store repository') }
 }
 
 /**

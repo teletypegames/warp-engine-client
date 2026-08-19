@@ -40,6 +40,13 @@ export class StoreSelectionService {
     return store
   }
 
+  /** The store at this home, or an error naming it. Does not change what is open. */
+  public requireStoreAt (home: string): InstalledStore {
+    const store = this.stores.findByHome(home)
+    if (store === null) throw new StoreMissingError(home)
+    return store
+  }
+
   public selectStore (home: string): InstalledStore {
     const store = this.stores.findByHome(home)
     if (store === null) throw new StoreMissingError(home)
@@ -53,6 +60,20 @@ export class StoreSelectionService {
     this.current = store
     this.preferences.updateStoreHome(store.home)
     return store
+  }
+
+  /**
+   * Forget a store that is no longer on the machine.
+   *
+   * The next store is not chosen here: `findCurrentStore` re-reads the disk and applies
+   * the same rule it always does, so "which store is open" has exactly one answer in
+   * one place. Clearing the remembered home first is what stops it choosing the one
+   * that has just been deleted.
+   */
+  public forgetStore (store: InstalledStore): void {
+    if (this.preferences.readStoreHome() === store.home) this.preferences.forgetStoreHome()
+    if (this.current?.home === store.home) this.current = null
+    this.findCurrentStore()
   }
 
   public readDefaultStoreRoot (): string {

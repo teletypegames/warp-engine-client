@@ -16,6 +16,15 @@ export interface StoreCatalogGateway {
   readPaths: (store: InstalledStore, progress?: EngineProgressListener) => Promise<StorePaths>
   syncGames: (store: InstalledStore, names: readonly string[], progress?: EngineProgressListener) => Promise<void>
   removeGame: (store: InstalledStore, name: string, progress?: EngineProgressListener) => Promise<void>
+  /**
+   * Take a whole store off this machine: everything it installed, then its own home.
+   *
+   * The games go first and deliberately so. A store's `state.json` is the only record
+   * of what it put where, so deleting the home first would strip the one thing that
+   * knows which payloads, icons and menu entries belong to it — leaving a library of
+   * orphans nothing can ever clean up.
+   */
+  removeStore: (store: InstalledStore, progress?: EngineProgressListener) => Promise<void>
 
   /** Whether this store offers a sign-in, and whether we are holding a token for it. */
   readAccount: (store: InstalledStore) => Promise<StoreAccount>
