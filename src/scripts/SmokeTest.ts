@@ -3,7 +3,6 @@ import path from 'node:path'
 import { GameDtoMapper } from '../application/mappers/GameDtoMapper'
 import type { CatalogListing } from '../domain/models/CatalogListing'
 import type { InstalledStore } from '../domain/models/InstalledStore'
-import type { RegistryStore } from '../domain/models/RegistryStore'
 import { DESKTOP_STORE_ENGINE } from '../domain/models/StoreEngine'
 import { deriveStoreId } from '../domain/models/StoreIdentity'
 import { NativeStoreCatalogGateway } from '../infrastructure/engine/NativeStoreCatalogGateway'
@@ -66,51 +65,15 @@ class SmokeTest {
         return
       }
       this.reportOk('registry', `${String(stores.length)} store(s) from ${this.registry.sourceUrl}`)
+      // The slug is worth printing: it names the store home and the games subfolder, and
+      // it is derived here rather than told to us, so a wrong catalog URL shows up as a
+      // wrong folder name before anything is installed.
       for (const store of stores) {
         this.reportOk(`  ${store.name}`, `${store.catalogUrl} · ${deriveStoreId(store)}`)
-        await this.checkStoreConfig(store)
       }
     } catch (error: unknown) {
       this.reportBad('registry', `${this.registry.sourceUrl}: ${this.describe(error)}`)
     }
-  }
-
-  /**
-   * Where this store's configuration would come from, in the order the installer asks.
-   *
-   * A store needs no config and no repository: either way the engine's defaults carry
-   * it, so every absence here is reported rather than failed. What is worth seeing is
-   * *which* source answered — a store still being configured by a repository is a store
-   * that has not moved over to the registry yet.
-   */
-  private async checkStoreConfig (store: RegistryStore): Promise<void> {
-    if (store.config !== null) {
-      const subfolder = this.readSubfolder(store.config)
-      this.reportOk('  config', `${String(Object.keys(store.config).length)} sections ` +
-        `from the registry${subfolder === null ? '' : `, subfolder ${subfolder}`}`)
-      return
-    }
-    if (store.storeRepositoryUrl === null) {
-      this.reportOk('  config', 'none, and no repository — the engine defaults would be used')
-      return
-    }
-    const url = `${store.storeRepositoryUrl.replace(/\/+$/, '')}/raw/branch/master/config.json`
-    try {
-      const config: unknown = JSON.parse(await this.httpClient.readText(url))
-      const sections = typeof config === 'object' && config !== null ? Object.keys(config).length : 0
-      this.reportOk('  config.json', `${String(sections)} sections from the repository ` +
-        '(not yet moved to the registry)')
-    } catch (error: unknown) {
-      this.reportOk('  config.json', `absent (${this.describe(error)}) — defaults would be used`)
-    }
-  }
-
-  /** The prune boundary, which is the field worth seeing at a glance. */
-  private readSubfolder (config: Readonly<Record<string, unknown>>): string | null {
-    const paths = config['paths']
-    if (typeof paths !== 'object' || paths === null) return null
-    const subfolder = (paths as Readonly<Record<string, unknown>>)['subfolder']
-    return typeof subfolder === 'string' ? subfolder : null
   }
 
   private findStore (): InstalledStore | null {

@@ -27,12 +27,9 @@ export function requireStringArray (value: unknown, name: string): readonly stri
 export function requireRegistryStore (value: unknown): RegistryStoreDto {
   const record = asRecord(value)
   if (record === null) throw new TypeError('a store record is required')
-  const repository = readString(record, 'storeRepositoryUrl')
   const store: RegistryStoreDto = {
     name: readString(record, 'name'),
     catalogUrl: readString(record, 'catalogUrl'),
-    // Optional: a store with no repository installs on the engine's defaults.
-    storeRepositoryUrl: repository.length > 0 ? repository : null,
     storeId: readString(record, 'storeId')
   }
   if (store.name.length === 0 || store.catalogUrl.length === 0) {

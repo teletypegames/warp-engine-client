@@ -48,7 +48,7 @@ export class ServiceContainer {
     const stores = new FileSystemInstalledStoreRepository()
     const catalogGateway = new NativeStoreCatalogGateway()
     const registry = new HttpStoreRegistryRepository(httpClient)
-    const installer = new NativeStoreEngineInstaller(httpClient)
+    const installer = new NativeStoreEngineInstaller()
     const preferencesRepository = new JsonFilePreferencesRepository(environment)
 
     const preferences = new PreferencesService(preferencesRepository, environment)

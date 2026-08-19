@@ -1,24 +1,15 @@
 /**
- * A store the site's registry offers.
+ * A store the site's registry offers: a name and a catalog.
  *
- * A name and a catalog are what make a store; the other two fields are optional.
+ * That is the whole record, and it is enough. How a store behaves is not the registry's
+ * business — this client carries its own store engine, whose defaults cover the
+ * host-to-asset mapping, the install modes, the platforms and the behaviour — so what
+ * was actually missing from those defaults is identity, and identity is all this is.
  *
- * `config` is how that store behaves — which platforms it offers, which release
- * statuses it shows, where its games land — in the same shape a store's `config.json`
- * had, because it is the same thing moved into the registry. With none, the engine's
- * defaults cover all of it and this record covers the identity, which is why a store
- * needs nothing of its own to be installable.
- *
- * `storeRepositoryUrl` is where the store's own repository is, when it has one. It is
- * still read as a config source for a registry that has not moved its stores over yet.
+ * Keeping two stores on one machine out of each other's files is a subfolder, derived
+ * here from the store's own slug rather than told to us by a server.
  */
 export interface RegistryStore {
   readonly name: string
   readonly catalogUrl: string
-  readonly storeRepositoryUrl: string | null
-  /**
-   * Deliberately not `JsonRecord`: `domain` imports nothing from `infrastructure`, and
-   * a JSON object is describable without it.
-   */
-  readonly config: Readonly<Record<string, unknown>> | null
 }

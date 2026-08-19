@@ -1,7 +1,7 @@
 import { RegistryUnavailableError } from '../../domain/errors/RegistryUnavailableError'
 import type { RegistryStore } from '../../domain/models/RegistryStore'
 import type { StoreRegistryRepository } from '../../domain/ports/StoreRegistryRepository'
-import { asRecord, readRecord, readString, type JsonRecord } from '../json/JsonRecord'
+import { asRecord, readString, type JsonRecord } from '../json/JsonRecord'
 import { BuildConfiguration } from '../config/BuildConfiguration'
 import type { HttpTextClient } from '../http/HttpTextClient'
 
@@ -15,10 +15,10 @@ const DEFAULT_REGISTRY_URL = 'https://teletypegames.org/api/stores'
  * field a build was packaged with (for shipping a client for another site), and finally
  * the address of ours.
  *
- * A record needs a name and a catalog URL; those two make a store. The config and the
- * repository are both optional and arrive as null when absent — a store configured by
- * nothing but this record installs on the engine's defaults. Records missing either of
- * the two required fields are dropped rather than half-used.
+ * A name and a catalog URL make a store, and are all a record carries. Anything else it
+ * happens to say is ignored: how a store behaves is this client's own business, decided
+ * by the engine it ships with. Records missing either field are dropped rather than
+ * half-used.
  */
 export class HttpStoreRegistryRepository implements StoreRegistryRepository {
   public readonly sourceUrl: string
@@ -44,19 +44,12 @@ export class HttpStoreRegistryRepository implements StoreRegistryRepository {
     return parsed
       .map((row: unknown): JsonRecord | null => asRecord(row))
       .filter((row: JsonRecord | null): row is JsonRecord => row !== null)
-      .map((row: JsonRecord): RegistryStore => {
-        // Both spellings, because a registry is someone else's API: ours answers
-        // camelCase, and a hand-rolled one may not.
-        const repository = (
-          readString(row, 'storeRepositoryUrl') || readString(row, 'store_repository_url')
-        ).trim()
-        return {
-          name: readString(row, 'name').trim(),
-          catalogUrl: (readString(row, 'catalogUrl') || readString(row, 'catalog_url')).trim(),
-          storeRepositoryUrl: repository.length > 0 ? repository : null,
-          config: readRecord(row, 'config')
-        }
-      })
+      // Both spellings, because a registry is someone else's API: ours answers
+      // camelCase, and a hand-rolled one may not.
+      .map((row: JsonRecord): RegistryStore => ({
+        name: readString(row, 'name').trim(),
+        catalogUrl: (readString(row, 'catalogUrl') || readString(row, 'catalog_url')).trim()
+      }))
       .filter((store: RegistryStore): boolean =>
         store.name.length > 0 && store.catalogUrl.length > 0)
   }

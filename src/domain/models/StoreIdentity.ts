@@ -3,28 +3,22 @@ import type { RegistryStore } from './RegistryStore'
 /**
  * A store id, from whatever the registry gave us.
  *
- * The id names the store home, the folder games land in and the launcher files, so
- * it has to be short and filesystem-safe. Three sources, in order of how much they
- * were meant to be a name:
+ * The id names the store home, the folder games land in and the launcher files, so it
+ * has to be short and filesystem-safe. Two sources, in order of how much they were
+ * meant to be a name:
  *
- *   1. the repository name — `ttg-desktop-store` becomes `ttg`;
- *   2. the catalog host — `https://teletypegames.org` becomes `teletypegames`;
- *   3. the display name, slugged, as a last resort.
+ *   1. the catalog host — `https://teletypegames.org` becomes `teletypegames`;
+ *   2. the display name, slugged, as a last resort.
  *
- * The store's own config.json overrides all of it whenever one exists.
+ * Derived rather than carried, and derived from the catalog: the catalog is what a store
+ * *is*, so two records naming the same catalog are the same store and land in the same
+ * place, which is what keeps a reinstall from orphaning what is already there.
  */
 export function deriveStoreId (store: RegistryStore): string {
-  const fromRepository = store.storeRepositoryUrl === null
-    ? ''
-    : (lastSegment(store.storeRepositoryUrl).replace(/-(desktop-)?store$/, ''))
-  return toSlug(fromRepository) || toSlug(readHostLabel(store.catalogUrl)) || toSlug(store.name) || 'store'
+  return toSlug(readHostLabel(store.catalogUrl)) || toSlug(store.name) || 'store'
 }
 
-function lastSegment (url: string): string {
-  return url.replace(/\/+$/, '').split('/').pop() ?? ''
-}
-
-/** `https://www.teletypegames.org/x` → `teletypegames`. */
+/** `https://www.teletypegames.org/x` -> `teletypegames`. */
 function readHostLabel (catalogUrl: string): string {
   try {
     const host = new URL(catalogUrl).hostname.replace(/^www\./, '')

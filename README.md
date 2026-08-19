@@ -62,49 +62,34 @@ and there is nothing to decide; several and the setup screen shows a picker.
 
 ```json
 [
-  {
-    "name": "Teletype Games",
-    "catalogUrl": "https://teletypegames.org",
-    "storeRepositoryUrl": "https://git.teletypegames.org/stores/ttg-desktop-store",
-    "config": { "store": { "id": "ttg" }, "paths": { "subfolder": "teletypegames" } }
-  },
-  { "name": "Some Other Store", "catalogUrl": "https://games.example.org",
-    "storeRepositoryUrl": null, "config": null }
+  { "name": "Teletype Games", "catalogUrl": "https://teletypegames.org" },
+  { "name": "Some Other Store", "catalogUrl": "https://games.example.org" }
 ]
 ```
 
-**A store needs nothing of its own.** A name and a catalog are enough: the store
-engine's built-in defaults already cover the host-to-asset mapping, the install modes,
-the platforms and the behaviour, so what is actually missing from them is identity — a
-slug, a name and a catalog URL — and that is exactly what a registry record carries.
-With `config` and `storeRepositoryUrl` both null the client writes a three-section
-config and the store installs.
+**A name and a catalog are the whole record.** The store engine's built-in defaults
+already cover the host-to-asset mapping, the install modes, the platforms and the
+behaviour, so what is actually missing from them is identity — and identity is all a
+registry says. Nothing a record carries decides where files go: how a store behaves is
+fixed per installed client, which knows its own machine, and a copy of that on a server
+would be a second authority over decisions this side has already made.
 
-Where a store's configuration comes from, in the order the client asks:
+From a record the client works out the rest:
 
-1. **`config` on the registry record** — the store's own configuration, in the same
-   shape a store's `config.json` had, because it is that file moved into the registry.
-   It costs no request: it arrived with the store list.
-2. **`storeRepositoryUrl` → `…/raw/branch/master/config.json`** — the same thing in its
-   older home, read for a registry whose stores have not moved over yet. A repository
-   **without** a `config.json` is treated as no repository at all.
-3. **the engine's defaults** — when there is neither.
+- **the store id** — which names the store home and the folder games land in — is a slug
+  of the catalog host (`teletypegames.org` becomes `teletypegames`), or of the display
+  name if that fails. Derived from the *catalog* on purpose: the catalog is what a store
+  is, so two records naming the same one are the same store and land in the same place.
+  Reinstalling therefore never orphans what is already installed.
+- **the games folder** is that same slug inside the OS's usual place for programs, and it
+  is the only subtree this store will ever delete from. That is the whole of how two
+  stores on one machine stay out of each other's files: a subfolder, derived here.
+- **released, archived and demo** titles are listed, where the engine alone would show
+  released and archived only — a catalog that publishes a demo means it to be played.
 
-Two fields the record always decides, whatever the config says:
-
-- **`catalogUrl` and `name`** override the config's own `store.base_url` and
-  `store.name`. The registry says which catalog this store is *for*, so it wins.
-- **the store id** — which names the store home and the folder games land in — comes
-  from the config's `store.id` when it sets one; otherwise from the repository name
-  (`ttg-desktop-store` becomes `ttg`), then the catalog host (`teletypegames.org`
-  becomes `teletypegames`), then the display name.
-
-**The window never supplies a config.** It is handed stores to show and hands one back
-to install, but only as an identity: `RegistryStoreDtoMapper.toModel` drops the config,
-and `StoreProvisioningService` reads the record again from the registry before
-installing. A config decides where files are written and which subtree the store may
-later delete from, so it must not be something the renderer can set — the same rule as
-`GameDto` carrying no paths.
+Because a record has no paths in it and no config, there is nothing for the window to
+tamper with: `RegistryStoreDtoMapper.toModel` can take its choice at face value, and the
+config that lands on disk is written by the installer from the engine's own defaults.
 
 What the defaults produce, for a record with no repository: the games land in a
 folder named after the store id, and released, archived **and demo** titles are
@@ -389,6 +374,18 @@ Three versions share one dialect today, because the catalog's shape has not chan
 across them. One class serving three versions is the honest way to say that.
 
 ## Verified, and not
+
+**2.2.0** — the registry record was cut back to a name and a catalog, so the whole
+install path was measured again against a local registry serving exactly that. The slug
+came out `teletypegames` from the catalog host, the home `teletypegames-desktop`, the
+games subfolder `teletypegames`, and installing the same record twice landed in the same
+home. A record carrying `config` and `storeRepositoryUrl` — the fields a stale client or a
+tampering renderer might still send — changed nothing, because neither exists in the model
+any more. The site side was migrated and its specs re-run; the frontend was built, which
+first required removing a dead `engines` list that had been failing `vue-tsc` on master.
+
+Older entries below describe what was verified for the version they name, and some of
+them predate the store engine moving into this application.
 
 The pipeline's commands were run in the same containers it uses, before the pipeline was
 committed: `electronuserland/builder:22` installs, type-checks, lints, passes the smoke

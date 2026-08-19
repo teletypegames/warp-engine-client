@@ -7,7 +7,6 @@ export class RegistryStoreDtoMapper {
     return {
       name: store.name,
       catalogUrl: store.catalogUrl,
-      storeRepositoryUrl: store.storeRepositoryUrl,
       storeId: deriveStoreId(store)
     }
   }
@@ -16,20 +15,8 @@ export class RegistryStoreDtoMapper {
     return stores.map((store: RegistryStore): RegistryStoreDto => this.toDto(store))
   }
 
-  /**
-   * The window hands a record back when asking for an install — as an identity only.
-   *
-   * There is no `config` here on purpose. A store's config decides where files are
-   * written and which subtree the store may delete from, so it must not be something
-   * the window can supply; `StoreProvisioningService` reads the real record from the
-   * registry instead. That is the same rule as `GameDto` carrying no paths.
-   */
+  /** The window hands a record straight back when asking for an install. */
   public toModel (dto: RegistryStoreDto): RegistryStore {
-    return {
-      name: dto.name,
-      catalogUrl: dto.catalogUrl,
-      storeRepositoryUrl: dto.storeRepositoryUrl,
-      config: null
-    }
+    return { name: dto.name, catalogUrl: dto.catalogUrl }
   }
 }
