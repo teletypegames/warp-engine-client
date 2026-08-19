@@ -31,6 +31,8 @@ export const ENGLISH_MESSAGES = {
   catInstalled: 'Installed',
   catUpdates: 'Updates',
   catAvailable: 'Not installed',
+  catOwned: 'Owned',
+  catPurchasable: 'To buy',
   catUnsupported: 'Not for this machine',
   catPlatform: 'Platform',
   catMode: 'Kind',
@@ -52,7 +54,27 @@ export const ENGLISH_MESSAGES = {
   failed: 'failed',
   removed: 'removed',
   upToDate: 'Everything is up to date.',
-  of: 'of'
+  of: 'of',
+  owned: 'owned',
+  ownedHint: 'This account owns it — install it on this machine',
+  purchase: 'Buy',
+  purchaseHint: 'Opens the store page in your browser',
+  signInToInstall: 'Sign in to install',
+  signInToInstallHint: 'This title needs an account; the catalog will say whether you own it',
+  account: 'Account',
+  signIn: 'Sign in…',
+  signOut: 'Sign out',
+  signedIn: 'Signed in',
+  signInTitle: 'Sign in to %{store}',
+  signInBody: 'Your browser is opening the sign-in page. Type this code there:',
+  signInOpenAgain: 'Open the page again',
+  signInWaiting: 'Waiting for you to approve it…',
+  signInCancel: 'Cancel',
+  signInDone: 'Signed in.',
+  signInDenied: 'That sign-in was refused.',
+  signInExpired: 'That code expired. Try again.',
+  signInCancelled: 'Sign-in cancelled.',
+  signInFailed: 'Signing in did not work.'
 } as const
 
 /** Every string the window can show, by key. */

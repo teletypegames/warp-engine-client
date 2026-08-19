@@ -1,6 +1,19 @@
 /** How a title runs: unpacked on this machine, or served as a web build. */
 export type GameModeDto = 'app' | 'web'
 
+/**
+ * Whether this person can install this title.
+ *
+ * Separate from `installable`, which is about the machine. A title can have a perfectly
+ * good build for this architecture and still not be yours.
+ *
+ *   - `open`           — nothing to own; install it
+ *   - `entitled`       — owned; install it
+ *   - `purchasable`    — not owned, and here is the price
+ *   - `signInRequired` — the catalog would say, if it knew who was asking
+ */
+export type AccessVerdictDto = 'open' | 'entitled' | 'purchasable' | 'signInRequired'
+
 /** Why a title cannot be installed on this machine. */
 export type UnavailableReasonDto = 'platformOff' | 'hostAsset' | 'noAsset' | 'vetoed'
 
@@ -30,4 +43,9 @@ export interface GameDto {
   readonly installable: boolean
   readonly unavailableReason: UnavailableReasonDto | null
   readonly unavailableDetail: string | null
+  readonly accessVerdict: AccessVerdictDto
+  /** Already formatted for the window's locale; null where there is no price to show. */
+  readonly priceLabel: string | null
+  /** Opened in the person's own browser. Null where the catalog named none. */
+  readonly purchaseUrl: string | null
 }

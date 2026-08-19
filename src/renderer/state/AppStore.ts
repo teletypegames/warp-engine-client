@@ -1,3 +1,4 @@
+import type { AccountDto, SignInPromptDto } from '../../shared/contracts/dto/AccountDto'
 import type { AppStateDto } from '../../shared/contracts/dto/AppStateDto'
 import type { GameDto } from '../../shared/contracts/dto/GameDto'
 import type { InstalledStoreDto } from '../../shared/contracts/dto/InstalledStoreDto'
@@ -31,6 +32,10 @@ export interface AppState {
   readonly progress: SyncProgress | null
   /** Non-null while the setup screen is up, which is also what hides the grid. */
   readonly gate: GatePresentation | null
+  /** Where this machine stands with the open store. */
+  readonly account: AccountDto
+  /** Non-null while a code is on screen waiting to be typed into a browser. */
+  readonly signIn: SignInPromptDto | null
 }
 
 const INITIAL_STATE: AppState = {
@@ -47,7 +52,9 @@ const INITIAL_STATE: AppState = {
   filter: ALL_CATEGORIES,
   busy: false,
   progress: null,
-  gate: null
+  gate: null,
+  account: { signInAvailable: false, signedIn: false },
+  signIn: null
 }
 
 export type AppStateListener = (state: AppState) => void
@@ -96,13 +103,38 @@ export class AppStore {
     this.notify()
   }
 
-  public applyCatalog (games: readonly GameDto[], paths: StorePathsDto | null): void {
-    this.state = { ...this.state, games, paths: paths ?? this.state.paths }
+  public applyCatalog (
+    games: readonly GameDto[],
+    paths: StorePathsDto | null,
+    account: AccountDto
+  ): void {
+    this.state = { ...this.state, games, paths: paths ?? this.state.paths, account }
+    this.notify()
+  }
+
+  public applyAccount (account: AccountDto): void {
+    this.state = { ...this.state, account }
+    this.notify()
+  }
+
+  public applySignIn (prompt: SignInPromptDto | null): void {
+    this.state = { ...this.state, signIn: prompt }
     this.notify()
   }
 
   public applySelectedStore (store: InstalledStoreDto): void {
-    this.state = { ...this.state, currentStore: store, games: [], paths: null, filter: ALL_CATEGORIES }
+    // A new store means a new account: whether we are signed in is per store, and
+    // carrying the old answer over would show somebody as signed in to a shop they
+    // have never visited.
+    this.state = {
+      ...this.state,
+      currentStore: store,
+      games: [],
+      paths: null,
+      filter: ALL_CATEGORIES,
+      account: { signInAvailable: false, signedIn: false },
+      signIn: null
+    }
     this.notify()
   }
 

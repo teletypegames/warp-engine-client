@@ -12,6 +12,8 @@ export interface SideMenuViewCallbacks {
   readonly onRefresh: () => void
   readonly onSelectCategory: (filter: CategoryFilter) => void
   readonly onSelectLocale: (locale: string) => void
+  readonly onSignIn: () => void
+  readonly onSignOut: () => void
 }
 
 /**
@@ -26,6 +28,10 @@ export class SideMenuView {
   private readonly addStore = requireElement('add-store', HTMLButtonElement)
   private readonly refresh = requireElement('refresh', HTMLButtonElement)
   private readonly categories = requireElement('cats', HTMLElement)
+  private readonly accountBlock = requireElement('account-block', HTMLElement)
+  private readonly accountHead = requireElement('head-account', HTMLElement)
+  private readonly accountState = requireElement('account-state', HTMLElement)
+  private readonly accountAction = requireElement('account-action', HTMLButtonElement)
   private readonly locale = requireElement('locale', HTMLSelectElement)
   /** The square around the select: it is what a pointer hovers, so the tooltip is its. */
   private readonly localeControl = requireElement('locale-control', HTMLElement)
@@ -34,7 +40,19 @@ export class SideMenuView {
     this.addStore.addEventListener('click', callbacks.onAddStore)
     this.refresh.addEventListener('click', callbacks.onRefresh)
     this.locale.addEventListener('change', (): void => { callbacks.onSelectLocale(this.locale.value) })
+    this.accountAction.addEventListener('click', (): void => {
+      if (this.signedIn) this.callbacks.onSignOut()
+      else this.callbacks.onSignIn()
+    })
   }
+
+  /**
+   * Which of the two the one button does.
+   *
+   * Read at click time rather than rebound on every render: a listener replaced under
+   * a pointer that is already down is a click that goes nowhere.
+   */
+  private signedIn = false
 
   public render (state: AppState): void {
     setText(this.storesHead, state.messages.stores)
@@ -49,6 +67,7 @@ export class SideMenuView {
     this.localeControl.title = state.messages.language
 
     this.renderStores(state)
+    this.renderAccount(state)
     this.renderCategories(state)
     this.renderLocales(state)
     this.renderEnabled(state)
@@ -76,6 +95,27 @@ export class SideMenuView {
       })
       return row
     }))
+  }
+
+  /**
+   * The account block, or nothing at all.
+   *
+   * Hidden outright where the catalog offers no sign-in — which is most of them. A
+   * disabled "Sign in" would be telling somebody about a door that is not there.
+   */
+  private renderAccount (state: AppState): void {
+    this.accountBlock.hidden = !state.account.signInAvailable
+    if (!state.account.signInAvailable) return
+
+    this.signedIn = state.account.signedIn
+    setText(this.accountHead, state.messages.account)
+    setText(this.accountState, state.account.signedIn ? state.messages.signedIn : '')
+    setText(this.accountAction, state.account.signedIn
+      ? state.messages.signOut
+      : state.messages.signIn)
+    // A sign-in already under way has its own panel with a cancel on it; a second
+    // "Sign in" here would start a second flow behind the first one's code.
+    this.accountAction.disabled = state.busy || state.signIn !== null
   }
 
   private renderCategories (state: AppState): void {

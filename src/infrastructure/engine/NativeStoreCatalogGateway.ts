@@ -10,19 +10,24 @@ import type { InstalledStore } from '../../domain/models/InstalledStore'
 import type {
   CatalogSurvey, SelectedGame, UnavailableEntry
 } from '../../domain/models/SelectedGame'
+import type { ServiceDescriptor } from '../../domain/models/ServiceDescriptor'
+import type { SignInPrompt, StoreAccount } from '../../domain/models/StoreAccount'
 import { APP_MODE, WEB_MODE, type StoreConfiguration } from '../../domain/models/StoreConfiguration'
 import type { StorePaths } from '../../domain/models/StorePaths'
-import type { StoreCatalogGateway } from '../../domain/ports/StoreCatalogGateway'
+import type { CredentialRepository } from '../../domain/ports/CredentialRepository'
+import type { SignInPollResult, StoreCatalogGateway } from '../../domain/ports/StoreCatalogGateway'
 import { StoreFileSystem } from '../files/StoreFileSystem'
 import { CatalogClient, type FetchedCatalog } from './CatalogClient'
 import { CatalogSurveyor } from './CatalogSurveyor'
 import type { CatalogEntry } from './dialects/CatalogDialect'
 import { selectCatalogDialect } from './dialects/CatalogDialectSelector'
 import { DesktopLayoutResolver } from './DesktopLayoutResolver'
+import { DeviceSignInClient } from './DeviceSignInClient'
 import { GameInstaller } from './GameInstaller'
 import { HostMachineDetector } from './HostMachineDetector'
 import { LauncherWriter } from './launchers/LauncherWriter'
 import { PayloadInstaller } from './PayloadInstaller'
+import { ServiceDescriptorClient } from './ServiceDescriptorClient'
 import { StoreConfigurationReader } from './StoreConfigurationReader'
 import { StoreStateRepository } from './StoreStateRepository'
 
@@ -45,6 +50,12 @@ const CATALOG_CACHE_FILE_NAME = 'catalog.json'
 export class NativeStoreCatalogGateway implements StoreCatalogGateway {
   private readonly hosts = new HostMachineDetector()
 
+  /**
+   * The credentials are injected because they are the host's to keep: on a desktop the
+   * OS keychain, in the smoke test a map in memory. Nothing here knows which.
+   */
+  public constructor (private readonly credentials: CredentialRepository = NO_CREDENTIALS) {}
+
   public async listGames (
     store: InstalledStore,
     progress: EngineProgressListener = {}
@@ -53,7 +64,10 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
     const host = this.hosts.findHost()
     engine.log(`host: ${host.operatingSystem}/${host.architecture}`)
 
-    const survey = engine.surveyor.survey(await this.readEntries(engine), host)
+    const [ descriptor, entries ] = await Promise.all([
+      engine.service.fetchDescriptor(), this.readEntries(engine)
+    ])
+    const survey = engine.surveyor.survey(entries, host)
     const installed = engine.state.readState()
 
     // One list, both kinds: a client that hides what it cannot install leaves the
@@ -64,7 +78,12 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
     ].sort((left: Game, right: Game): number =>
       left.title.toLowerCase().localeCompare(right.title.toLowerCase()))
 
-    return { games, skipped: survey.skipped, paths: this.toPaths(engine) }
+    return {
+      games,
+      skipped: survey.skipped,
+      paths: this.toPaths(engine),
+      account: toAccount(descriptor, this.credentials.readToken(store.id))
+    }
   }
 
   /**
@@ -132,6 +151,72 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
     return Promise.resolve()
   }
 
+  public async readAccount (store: InstalledStore): Promise<StoreAccount> {
+    const engine = this.openStore(store, {})
+    const descriptor = await engine.service.fetchDescriptor()
+    return toAccount(descriptor, this.credentials.readToken(store.id))
+  }
+
+  public async requestSignIn (store: InstalledStore, clientName: string): Promise<SignInPrompt> {
+    const { client } = await this.openSignIn(store)
+    const requested = await client.requestCode(clientName)
+    return {
+      deviceCode: requested.deviceCode,
+      userCode: requested.userCode,
+      verificationUrl: requested.verificationUrl,
+      intervalSeconds: requested.intervalSeconds,
+      expiresInSeconds: requested.expiresInSeconds
+    }
+  }
+
+  /**
+   * One poll. The token is written here, on the single answer that carries it — a
+   * caller that had to remember to save it would eventually forget.
+   */
+  public async pollSignIn (store: InstalledStore, deviceCode: string): Promise<SignInPollResult> {
+    const { client, descriptor, log } = await this.openSignIn(store)
+    const result = await client.poll(deviceCode)
+    if (result.state === 'approved' && result.token !== null) {
+      this.credentials.writeToken(store.id, result.token)
+      log('signed in')
+    }
+    return {
+      state: result.state,
+      account: toAccount(descriptor, this.credentials.readToken(store.id))
+    }
+  }
+
+  /**
+   * Sign out: tell the server, then forget the token locally regardless.
+   *
+   * The local half is what matters and must not depend on the network — somebody
+   * signing out on a train has to actually be signed out.
+   */
+  public async signOut (store: InstalledStore): Promise<StoreAccount> {
+    const engine = this.openStore(store, {})
+    const descriptor = await engine.service.fetchDescriptor()
+    if (descriptor.auth !== null && this.credentials.readToken(store.id) !== null) {
+      await new DeviceSignInClient(engine.catalog.httpClient(), descriptor.auth.device).revoke()
+    }
+    this.credentials.clearToken(store.id)
+    engine.log('signed out')
+    return toAccount(descriptor, null)
+  }
+
+  /** The sign-in client for one store, or a clear error if the store offers none. */
+  private async openSignIn (store: InstalledStore): Promise<SignInContext> {
+    const engine = this.openStore(store, {})
+    const descriptor = await engine.service.fetchDescriptor()
+    if (descriptor.auth === null) {
+      throw new Error(`${store.name} does not offer signing in`)
+    }
+    return {
+      client: new DeviceSignInClient(engine.catalog.httpClient(), descriptor.auth.device),
+      descriptor,
+      log: engine.log
+    }
+  }
+
   /**
    * Fetch the catalog and read it with the dialect its engine version calls for.
    *
@@ -157,7 +242,8 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
     const layouts = new DesktopLayoutResolver(configuration, this.hosts)
     const layout = layouts.resolveLayout()
     const catalog = new CatalogClient(
-      configuration, files, path.join(store.home, CATALOG_CACHE_FILE_NAME), log)
+      configuration, files, path.join(store.home, CATALOG_CACHE_FILE_NAME), log,
+      (): string | null => this.credentials.readToken(store.id))
     const launchers = new LauncherWriter(configuration, layouts, files, log)
 
     return {
@@ -167,6 +253,7 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
       catalog,
       launchers,
       log,
+      service: new ServiceDescriptorClient(catalog.httpClient(), configuration.store.baseUrl, log),
       surveyor: new CatalogSurveyor(configuration, log),
       state: new StoreStateRepository(files, path.join(store.home, STATE_FILE_NAME), log),
       installer: new GameInstaller(
@@ -197,10 +284,16 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
       installedVersion: record?.version ?? null,
       menuEntryPath: record?.menuEntry ?? null,
       executablePath: record?.executable ?? null,
-      hostedUrl: game.mode === WEB_MODE ? engine.launchers.webUrl(game) : null,
+      // The catalog's own play address wins where it gives one: a store that gates its
+      // web builds serves them from a page that knows how to ask somebody to sign in,
+      // and the raw /file/ directory under it does not.
+      hostedUrl: game.mode === WEB_MODE
+        ? game.access?.webUrl ?? engine.launchers.webUrl(game)
+        : null,
       installable: true,
       unavailableReason: null,
-      unavailableDetail: null
+      unavailableDetail: null,
+      access: game.access
     }
   }
 
@@ -226,6 +319,7 @@ interface StoreEngineContext {
   readonly layout: DesktopLayout
   readonly layouts: DesktopLayoutResolver
   readonly catalog: CatalogClient
+  readonly service: ServiceDescriptorClient
   readonly launchers: LauncherWriter
   readonly surveyor: CatalogSurveyor
   readonly state: StoreStateRepository
@@ -258,8 +352,40 @@ function toUnavailableGame (entry: UnavailableEntry): Game {
     hostedUrl: null,
     installable: false,
     unavailableReason: entry.reason,
-    unavailableDetail: entry.detail
+    unavailableDetail: entry.detail,
+    access: entry.access
   }
+}
+
+interface SignInContext {
+  readonly client: DeviceSignInClient
+  readonly descriptor: ServiceDescriptor
+  readonly log: (line: string) => void
+}
+
+/**
+ * Holding a token for a store that has no sign-in is not being signed in.
+ *
+ * It happens: a store can lose its identity configuration, or a client can keep a token
+ * from before. Reporting it as signed in would offer a "sign out" for a door that is no
+ * longer there.
+ */
+function toAccount (descriptor: ServiceDescriptor, token: string | null): StoreAccount {
+  const available = descriptor.auth !== null
+  return { signInAvailable: available, signedIn: available && token !== null }
+}
+
+/**
+ * A client with nowhere to keep a token is a client that is never signed in.
+ *
+ * The two writers throw nothing away and record nothing: this is the shape the smoke
+ * test runs in, where there is no Electron and therefore no keychain, and a store with
+ * no sign-in behaves exactly as it always did.
+ */
+const NO_CREDENTIALS: CredentialRepository = {
+  readToken: (): null => null,
+  writeToken: (storeId: string, token: string): void => { void storeId; void token },
+  clearToken: (storeId: string): void => { void storeId }
 }
 
 function toMode (mode: string): GameMode {

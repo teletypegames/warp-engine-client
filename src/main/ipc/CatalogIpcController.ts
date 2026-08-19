@@ -46,7 +46,11 @@ export class CatalogIpcController {
       return {
         games: this.gameMapper.toDtoList(listing.games, baseUrl),
         skipped: listing.skipped,
-        paths: listing.paths === null ? null : this.pathsMapper.toDto(listing.paths)
+        paths: listing.paths === null ? null : this.pathsMapper.toDto(listing.paths),
+        account: {
+          signInAvailable: listing.account.signInAvailable,
+          signedIn: listing.account.signedIn
+        }
       }
     })
   }

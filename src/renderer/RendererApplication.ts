@@ -1,5 +1,6 @@
 import type { BridgeApi } from '../shared/contracts/BridgeApi'
 import { requireBridge } from './BridgeAccess'
+import { AccountController } from './controllers/AccountController'
 import { CatalogController } from './controllers/CatalogController'
 import { EngineStreamController } from './controllers/EngineStreamController'
 import { PreferencesController } from './controllers/PreferencesController'
@@ -11,6 +12,7 @@ import { GameCardView } from './views/GameCardView'
 import { GateView } from './views/GateView'
 import { LogDrawerView } from './views/LogDrawerView'
 import { SideMenuView } from './views/SideMenuView'
+import { SignInView } from './views/SignInView'
 import { TopBarView } from './views/TopBarView'
 
 /**
@@ -28,10 +30,12 @@ export class RendererApplication {
   private readonly grid: CatalogGridView
   private readonly topBar: TopBarView
   private readonly sideMenu: SideMenuView
+  private readonly signInPanel: SignInView
   private readonly catalog: CatalogController
   private readonly stores: StoreController
   private readonly preferences: PreferencesController
   private readonly streams: EngineStreamController
+  private readonly accounts: AccountController
 
   public constructor (bridge: BridgeApi = requireBridge()) {
     this.bridge = bridge
@@ -44,6 +48,10 @@ export class RendererApplication {
     this.stores = new StoreController(this.bridge, this.store, this.log, this.catalog)
     this.preferences = new PreferencesController(this.bridge, this.store)
     this.streams = new EngineStreamController(this.bridge, this.store, this.log)
+    this.accounts = new AccountController(
+      this.bridge, this.store, this.log,
+      async (): Promise<void> => { await this.catalog.refresh() }
+    )
 
     this.grid = new CatalogGridView(new GameCardView({
       onInstall: (name: string): void => { void this.catalog.syncGames([name]) },
@@ -51,8 +59,14 @@ export class RendererApplication {
       // now has for it, and the engine replaces the old payload and menu entry.
       onUpgrade: (name: string): void => { void this.catalog.syncGames([name]) },
       onLaunch: (name: string): void => { void this.catalog.launchGame(name) },
-      onRemove: (name: string): void => { void this.catalog.removeGame(name) }
+      onRemove: (name: string): void => { void this.catalog.removeGame(name) },
+      onPurchase: (name: string): void => { void this.purchase(name) },
+      onSignIn: (): void => { void this.accounts.signIn() }
     }))
+    this.signInPanel = new SignInView({
+      onOpenPage: (): void => { void this.accounts.openVerificationPage() },
+      onCancel: (): void => { void this.accounts.cancelSignIn() }
+    })
     this.topBar = new TopBarView({
       onToggleNavigation: (): void => { void this.preferences.toggleNavigation() }
     })
@@ -61,11 +75,29 @@ export class RendererApplication {
       onAddStore: (): void => { void this.stores.offerStores() },
       onRefresh: (): void => { void this.catalog.refresh() },
       onSelectCategory: (filter: CategoryFilter): void => { this.store.applyFilter(filter) },
-      onSelectLocale: (locale: string): void => { void this.preferences.selectLocale(locale) }
+      onSelectLocale: (locale: string): void => { void this.preferences.selectLocale(locale) },
+      onSignIn: (): void => { void this.accounts.signIn() },
+      onSignOut: (): void => { void this.accounts.signOut() }
     })
 
     this.store.subscribe((state: AppState): void => { this.render(state) })
     this.streams.subscribe()
+    this.accounts.subscribe()
+  }
+
+  /**
+   * Buying happens in a browser.
+   *
+   * A checkout rebuilt in this window would be a second place to get card handling
+   * wrong, and the store's own pages already do it. What this side owes afterwards is
+   * a refresh, which the Refresh button is for.
+   */
+  private async purchase (name: string): Promise<void> {
+    const url = this.store.readState().games
+      .find((candidate): boolean => candidate.name === name)?.purchaseUrl ?? null
+    if (url === null) return
+
+    await this.bridge.openUrl(url)
   }
 
   /** Decides what the window is showing, then hands over to the views. */
@@ -91,6 +123,7 @@ export class RendererApplication {
     }
 
     document.body.classList.toggle('nav-closed', !state.navigationOpen)
+    this.signInPanel.render(state)
     this.topBar.render(state)
     this.sideMenu.render(state)
     this.log.render(state)

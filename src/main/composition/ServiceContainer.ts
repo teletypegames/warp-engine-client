@@ -1,4 +1,5 @@
 import type { App, IpcMain, Shell } from 'electron'
+import { AccountService } from '../../application/services/AccountService'
 import { ApplicationStateService } from '../../application/services/ApplicationStateService'
 import { CatalogService } from '../../application/services/CatalogService'
 import { GameLaunchService } from '../../application/services/GameLaunchService'
@@ -7,12 +8,14 @@ import { StoreProvisioningService } from '../../application/services/StoreProvis
 import { StoreSelectionService } from '../../application/services/StoreSelectionService'
 import { ElectronApplicationEnvironment } from '../../infrastructure/electron/ElectronApplicationEnvironment'
 import { ElectronGameLauncher } from '../../infrastructure/electron/ElectronGameLauncher'
+import { SafeStorageCredentialRepository } from '../../infrastructure/electron/SafeStorageCredentialRepository'
 import { NativeStoreCatalogGateway } from '../../infrastructure/engine/NativeStoreCatalogGateway'
 import { HttpTextClient } from '../../infrastructure/http/HttpTextClient'
 import { FileSystemInstalledStoreRepository } from '../../infrastructure/repositories/FileSystemInstalledStoreRepository'
 import { NativeStoreEngineInstaller } from '../../infrastructure/repositories/NativeStoreEngineInstaller'
 import { HttpStoreRegistryRepository } from '../../infrastructure/repositories/HttpStoreRegistryRepository'
 import { JsonFilePreferencesRepository } from '../../infrastructure/repositories/JsonFilePreferencesRepository'
+import { AccountIpcController } from '../ipc/AccountIpcController'
 import { AppIpcController } from '../ipc/AppIpcController'
 import { CatalogIpcController } from '../ipc/CatalogIpcController'
 import { IpcRouter } from '../ipc/IpcRouter'
@@ -35,6 +38,7 @@ export class ServiceContainer {
   public readonly provisioning: StoreProvisioningService
   public readonly state: ApplicationStateService
   public readonly launching: GameLaunchService
+  public readonly accounts: AccountService
 
   private readonly controllers: readonly { register: (router: IpcRouter) => void }[]
 
@@ -46,7 +50,8 @@ export class ServiceContainer {
     const httpClient = new HttpTextClient()
 
     const stores = new FileSystemInstalledStoreRepository()
-    const catalogGateway = new NativeStoreCatalogGateway()
+    const credentials = new SafeStorageCredentialRepository(environment)
+    const catalogGateway = new NativeStoreCatalogGateway(credentials)
     const registry = new HttpStoreRegistryRepository(httpClient)
     const installer = new NativeStoreEngineInstaller()
     const preferencesRepository = new JsonFilePreferencesRepository(environment)
@@ -54,6 +59,7 @@ export class ServiceContainer {
     const preferences = new PreferencesService(preferencesRepository, environment)
     this.selection = new StoreSelectionService(stores, preferences)
     this.catalog = new CatalogService(catalogGateway, this.selection)
+    this.accounts = new AccountService(catalogGateway, this.selection)
     this.provisioning = new StoreProvisioningService(registry, installer, stores, this.selection)
     this.launching = new GameLaunchService(new ElectronGameLauncher(shell), this.catalog)
     this.state = new ApplicationStateService(
@@ -63,7 +69,8 @@ export class ServiceContainer {
     this.controllers = [
       new AppIpcController(this.state, preferences, this.launching),
       new CatalogIpcController(this.catalog, this.launching, this.guard, this.streams),
-      new StoreIpcController(this.provisioning, this.selection, this.guard, this.streams)
+      new StoreIpcController(this.provisioning, this.selection, this.guard, this.streams),
+      new AccountIpcController(this.accounts, this.streams)
     ]
   }
 

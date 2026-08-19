@@ -46,6 +46,12 @@ function matchesGroup (game: GameDto, group: string): boolean {
       return game.updateAvailable
     case 'available':
       return game.installable && !game.installed
+    case 'owned':
+      // Owning something is not the same as having installed it — the point of the
+      // category is finding what you paid for and have not put on this machine yet.
+      return game.accessVerdict === 'entitled'
+    case 'purchasable':
+      return game.accessVerdict === 'purchasable'
     case 'unsupported':
       return !game.installable
     default:
@@ -57,8 +63,8 @@ function matchesGroup (game: GameDto, group: string): boolean {
  * The categories, built from what the catalog actually contains.
  *
  * There is no genre in a WarpEngine catalog, so the useful axes are the state of a
- * title on this machine, the platform it was built with, and whether it runs here or
- * in a browser. Empty axes are left out rather than shown as zeroes, and an axis with
+ * title on this machine, what this person may have of it, the platform it was built
+ * with, and whether it runs here or in a browser. Empty axes are left out rather than shown as zeroes, and an axis with
  * a single value is left out too — a filter that changes nothing is noise.
  */
 export function buildCategorySections (
@@ -73,6 +79,8 @@ export function buildCategorySections (
     { kind: 'group', value: 'installed', label: messages.catInstalled, count: count((game: GameDto): boolean => game.installed) },
     { kind: 'group', value: 'updates', label: messages.catUpdates, count: count((game: GameDto): boolean => game.updateAvailable) },
     { kind: 'group', value: 'available', label: messages.catAvailable, count: count((game: GameDto): boolean => game.installable && !game.installed) },
+    { kind: 'group', value: 'owned', label: messages.catOwned, count: count((game: GameDto): boolean => game.accessVerdict === 'entitled') },
+    { kind: 'group', value: 'purchasable', label: messages.catPurchasable, count: count((game: GameDto): boolean => game.accessVerdict === 'purchasable') },
     { kind: 'group', value: 'unsupported', label: messages.catUnsupported, count: count((game: GameDto): boolean => !game.installable) }
   ]
   sections.push({

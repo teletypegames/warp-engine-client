@@ -1,3 +1,4 @@
+import type { CatalogAccess } from './CatalogAccess'
 import type { UnavailableReason } from './Game'
 
 /**
@@ -26,6 +27,8 @@ export interface SelectedGame {
   readonly createdAt: string | null
   /** `app` for a native archive, `web` for a hosted page. */
   readonly mode: string
+  /** What the catalog says about getting it; null from an engine that cannot say. */
+  readonly access: CatalogAccess | null
 }
 
 /**
@@ -47,6 +50,8 @@ export interface UnavailableEntry {
   readonly reason: UnavailableReason
   /** The sentence behind the code, for a tooltip or the log. */
   readonly detail: string
+  /** Carried here too: a title with no build for this machine can still have a price. */
+  readonly access: CatalogAccess | null
 }
 
 /** What a survey of the catalog found: installable, why not, and what was skipped. */

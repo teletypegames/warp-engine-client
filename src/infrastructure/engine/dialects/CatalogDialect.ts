@@ -1,3 +1,4 @@
+import type { CatalogAccess } from '../../../domain/models/CatalogAccess'
 import type { SupportedWarpEngineVersion } from '../../../domain/models/WarpEngineVersion'
 
 /**
@@ -17,6 +18,15 @@ export interface CatalogDialect {
 
 export interface CatalogEntry {
   readonly software: CatalogSoftware
+  /**
+   * What the catalog says about getting this title, or null where it says nothing.
+   *
+   * Null is not "free": it is an engine too old to have an opinion, and a store that
+   * never gated anything reads the same as one that could not say. Both mean the same
+   * thing in practice — try the download — but only one of them is worth offering a
+   * sign-in for.
+   */
+  readonly access: CatalogAccess | null
   /**
    * The release the catalog itself calls newest-and-stable, or null when it names none.
    *

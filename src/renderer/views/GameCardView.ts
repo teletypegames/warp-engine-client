@@ -7,6 +7,9 @@ export interface GameCardViewCallbacks {
   readonly onUpgrade: (name: string) => void
   readonly onLaunch: (name: string) => void
   readonly onRemove: (name: string) => void
+  /** Opens the catalog's own purchase page in the person's browser. */
+  readonly onPurchase: (name: string) => void
+  readonly onSignIn: () => void
 }
 
 /**
@@ -25,6 +28,7 @@ export class GameCardView {
     const card = createElement('article', 'card')
     if (game.installed) card.classList.add('is-installed')
     if (!game.installable) card.classList.add('is-unavailable')
+    if (game.accessVerdict === 'purchasable') card.classList.add('is-purchasable')
     card.appendChild(this.createArt(game))
     card.appendChild(this.createBody(game, messages, busy))
     return card
@@ -75,6 +79,17 @@ export class GameCardView {
       meta.appendChild(badge)
     }
     meta.appendChild(createElement('span', 'badge badge-plain', game.platform))
+    // The price is where the mode badge is rather than down by the button: what a title
+    // costs is something a person scans a grid for, and a number that only appears
+    // beside a button is a number they have to hunt for card by card.
+    if (game.priceLabel !== null && game.accessVerdict !== 'entitled') {
+      meta.appendChild(createElement('span', 'badge badge-price', game.priceLabel))
+    }
+    if (game.accessVerdict === 'entitled') {
+      const owned = createElement('span', 'badge badge-owned', messages.owned)
+      owned.title = messages.ownedHint
+      meta.appendChild(owned)
+    }
     meta.appendChild(this.createVersion(game, messages))
     return meta
   }
@@ -110,11 +125,51 @@ export class GameCardView {
       return actions
     }
 
+    // Not yours yet: the card sells rather than installs. Deliberately a live button
+    // and not a dimmed one — the dimmed treatment above is for what this *machine*
+    // cannot do, and there is nothing wrong with this machine.
+    if (!game.installed && game.accessVerdict === 'purchasable') {
+      actions.appendChild(this.createPurchase(game, messages, busy))
+      return actions
+    }
+    // The catalog would know, if it knew who was asking.
+    if (!game.installed && game.accessVerdict === 'signInRequired') {
+      actions.appendChild(this.createSignIn(messages, busy))
+      return actions
+    }
+
     actions.appendChild(this.createPrimary(game, messages, busy))
     // Only an installed title has anything in the menu: nothing to upgrade and nothing
     // to uninstall until there is something on the disk.
     if (game.installed) actions.appendChild(this.createMenu(game, messages, busy))
     return actions
+  }
+
+  /**
+   * Buy it — which happens in a browser, not here.
+   *
+   * Payment is the store's business and its own web pages already do it; a checkout
+   * rebuilt in this window would be a second place to get card handling wrong. After
+   * buying, Refresh is what turns the card into an Install.
+   */
+  private createPurchase (game: GameDto, messages: MessageBundle, busy: boolean): HTMLElement {
+    const button = createElement('button', 'btn btn-primary btn-purchase')
+    button.textContent = game.priceLabel === null
+      ? messages.purchase
+      : `${messages.purchase} · ${game.priceLabel}`
+    button.disabled = busy || game.purchaseUrl === null
+    button.title = messages.purchaseHint
+    button.addEventListener('click', (): void => { this.callbacks.onPurchase(game.name) })
+    return button
+  }
+
+  private createSignIn (messages: MessageBundle, busy: boolean): HTMLElement {
+    const button = createElement('button', 'btn btn-secondary')
+    button.textContent = messages.signInToInstall
+    button.disabled = busy
+    button.title = messages.signInToInstallHint
+    button.addEventListener('click', (): void => { this.callbacks.onSignIn() })
+    return button
   }
 
   /**

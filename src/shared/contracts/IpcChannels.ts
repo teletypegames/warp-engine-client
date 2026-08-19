@@ -19,6 +19,11 @@ export const IPC_CHANNELS = {
   catalogRemoveGame: 'catalog:removeGame',
   catalogLaunchGame: 'catalog:launchGame',
 
+  accountRead: 'account:read',
+  accountBeginSignIn: 'account:beginSignIn',
+  accountCancelSignIn: 'account:cancelSignIn',
+  accountSignOut: 'account:signOut',
+
   storeListRegistry: 'store:listRegistry',
   storeInstallStore: 'store:installStore',
   storeSelectStore: 'store:selectStore',
@@ -26,7 +31,9 @@ export const IPC_CHANNELS = {
   /** Main to renderer, one way. */
   streamLog: 'stream:log',
   streamSyncEvent: 'stream:syncEvent',
-  streamBusyChanged: 'stream:busyChanged'
+  streamBusyChanged: 'stream:busyChanged',
+  /** How a sign-in ended, once the browser half is done. */
+  streamSignInFinished: 'stream:signInFinished'
 } as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]

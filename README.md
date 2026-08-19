@@ -55,6 +55,45 @@ so there was no resource seal and Gatekeeper refused it outright rather than
 asking. `scripts/after-pack.js` signs the bundle during the build now, and the
 result verifies as `valid on disk`.
 
+## Signing in, and titles that cost money
+
+**Nothing in this client knows anything about a particular store.** What a title costs,
+whether it needs an account, where to buy it and where to sign in all arrive from the
+catalog's own server — WarpEngine 0.5 answers `GET /api/service` with what it offers, and
+puts an `access` block on every catalog entry. A client that carried those facts would
+work for exactly one shop; this one asks.
+
+Where the server offers no sign-in — every WarpEngine before 0.5, and any store that
+sells nothing — the window shows none, and behaves exactly as it always did.
+
+Where it does:
+
+- the side menu grows an **Account** block: *Sign in…*, and *Sign out* once you are;
+- signing in shows a **short code**. Your browser opens on the store's own page and you
+  type the code there; approving it signs this device in. Nothing is typed into this
+  window, and no password ever reaches it — that is the whole reason for the detour;
+- the token is kept in the **OS keychain** (Keychain, libsecret, DPAPI) through
+  Electron's `safeStorage`, one per store. Where no keychain is available it is not
+  stored at all rather than written out in the clear: the cost is signing in again next
+  run.
+
+On a card, what you may do with a title is separate from what this machine can run:
+
+- **owned** or free → *Install*, as before;
+- **not owned** → the **price** on the card and a **Buy** button, which opens the store's
+  page in your browser. Buying happens there, not here — a checkout rebuilt in this
+  window would be a second place to get card handling wrong. **Refresh** afterwards and
+  the card becomes an *Install*;
+- **signed out, catalog gates it** → *Sign in to install*, because the catalog cannot say
+  whether it is yours until it knows who is asking.
+
+Two new categories go with it: **Owned** and **To buy**. Owning something is not the
+same as having installed it, which is the point of the first one.
+
+A title nobody has bought is **not** dimmed. That treatment belongs to what this
+*machine* cannot do — an unsupported platform, no build for this architecture — and
+there is nothing wrong with the machine here.
+
 ## Which store it installs
 
 On first run the client fetches the registry and offers what it finds. One store
@@ -122,11 +161,14 @@ Everything that is not a title lives in the **side menu** on the left, and the
   catalog into different folders show their folder instead of their id, because
   the id would not tell them apart. **Add a store…** brings up the registry
   picker, the same one the first run offers.
+- **Account** appears only where the catalog offers a sign-in, and holds *Sign in…* or
+  *Sign out* — see above.
 - **Actions** holds **Refresh**, which re-reads the catalog. Titles are installed
   one at a time from their own cards; there is no install-everything button.
 - **Categories** narrows the grid, one category at a time, with the count next to
   each: *Everything*, *Installed*, *Updates*, *Not installed*, then a row per
   **platform** (`godot`, `tic80`, `love`, …) and per **kind** (native or hosted).
+  Where the catalog gates anything, **Owned** and **To buy** join them.
   The axes are built from what the catalog actually contains — a platform with no
   titles is not listed, and a category that disappears under you falls back to
   *Everything* rather than leaving an empty grid. There is no genre in a

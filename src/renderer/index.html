@@ -36,6 +36,17 @@
         <button id="add-store" class="btn btn-ghost btn-wide"></button>
       </section>
 
+      <!--
+        Signing in, and who is signed in. The whole block is hidden where the catalog
+        offers no sign-in at all, which is most of them: a greyed-out button is telling
+        somebody about a door that does not exist.
+      -->
+      <section class="side-block" id="account-block" hidden>
+        <h2 class="side-head" id="head-account"></h2>
+        <p class="side-quiet-text" id="account-state"></p>
+        <button id="account-action" class="btn btn-ghost btn-wide"></button>
+      </section>
+
       <section class="side-block side-cats">
         <h2 class="side-head" id="head-cats"></h2>
         <nav class="cats" id="cats"></nav>
@@ -74,6 +85,22 @@
     </aside>
 
     <div class="content">
+      <!--
+        The code to type into a browser. A panel over the grid rather than a screen of
+        its own: the catalog is still there and still readable, and the sign-in is
+        something happening elsewhere that this window is only reporting on.
+      -->
+      <section id="signin" class="signin" hidden>
+        <h2 id="signin-title"></h2>
+        <p id="signin-body"></p>
+        <p class="signin-code" id="signin-code"></p>
+        <p class="signin-waiting" id="signin-waiting"></p>
+        <div class="signin-actions">
+          <button id="signin-open" class="btn btn-secondary"></button>
+          <button id="signin-cancel" class="btn btn-ghost"></button>
+        </div>
+      </section>
+
       <!-- Shown instead of the grid when there is nothing to drive yet. -->
       <section id="gate" class="gate" hidden>
         <h1 id="gate-title"></h1>

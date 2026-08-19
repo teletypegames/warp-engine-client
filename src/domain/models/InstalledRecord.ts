@@ -6,8 +6,13 @@ import type { SelectedGame } from './SelectedGame'
  * This is the shape `state.json` carries, keyed `<scope>:<name>`. Every path in it
  * is something the store put there and may therefore delete — which is why an
  * uninstall reads the record rather than guessing at paths.
+ *
+ * The catalog's `access` block is deliberately *not* part of it. Whether somebody may
+ * download a title is the server's answer to a question asked now; a copy of it on disk
+ * would go stale the moment a purchase or a refund happened, and a stale "yes" is the
+ * dangerous direction. What is installed stays installed either way.
  */
-export interface InstalledRecord extends SelectedGame {
+export interface InstalledRecord extends Omit<SelectedGame, 'access'> {
   /** The unpacked archive's directory; null for a hosted entry, which has none. */
   readonly payload: string | null
   readonly executable: string | null

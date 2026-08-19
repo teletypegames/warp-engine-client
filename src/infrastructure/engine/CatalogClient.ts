@@ -41,13 +41,27 @@ export class CatalogClient {
     private readonly configuration: StoreConfiguration,
     private readonly files: StoreFileSystem,
     private readonly cachePath: string,
-    private readonly log: (line: string) => void
+    private readonly log: (line: string) => void,
+    /**
+     * The bearer token to send, asked for per request rather than held.
+     *
+     * Every call this client makes goes to the catalog's own host, so the credential
+     * belongs on all of them: the catalog needs it to say what this person owns, and
+     * the download needs it to be allowed at all.
+     */
+    bearerToken: () => string | null = (): null => null
   ) {
     this.http = new StoreHttpClient({
       userAgent: `warp-engine-client/${CLIENT_VERSION} (${configuration.store.id})`,
       timeout: configuration.behavior.timeout,
-      insecure: configuration.behavior.insecure
+      insecure: configuration.behavior.insecure,
+      bearerToken
     })
+  }
+
+  /** The same HTTP client, for the service descriptor and the sign-in flow. */
+  public httpClient (): StoreHttpClient {
+    return this.http
   }
 
   public apiUrl (endpoint: 'catalog' | 'download', parameters?: Readonly<Record<string, string>>): string {

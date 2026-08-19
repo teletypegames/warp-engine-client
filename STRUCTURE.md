@@ -59,6 +59,8 @@ src/
   infrastructure/
     engine/                   the store engine: catalog, releases, install, state
       dialects/               one per WarpEngine version's catalog shape
+      ServiceDescriptorClient what the catalog's server says it offers (GET /api/service)
+      DeviceSignInClient      the device authorization grant, client side
       launchers/              .desktop, .app bundle, .lnk — the three hosts
     archive/                  ZipArchive: a zip reader over node:zlib
     files/                    StoreFileSystem: atomic writes and the delete guard
@@ -66,7 +68,8 @@ src/
     http/                     HttpTextClient, StoreHttpClient, HttpStatusError
     json/                     JsonRecord: reading data that came from elsewhere
     config/                   BuildConfiguration: what was decided when this was packaged
-    electron/                 ApplicationEnvironment and GameLauncher adapters
+    electron/                 ApplicationEnvironment, GameLauncher, and the keychain
+                              credential store
   main/
     main.ts                   the entry point: one line of work
     ElectronApplication.ts    lifecycle, single instance, self-test mode

@@ -123,8 +123,42 @@ class SmokeTest {
     }
     const games = this.gameMapper.toDtoList(listing.games, listing.paths?.catalogBaseUrl ?? '')
     this.reportListing(games)
+    this.reportAccess(listing, games)
 
     if (logLines.length > 0) this.reportOk('stderr log', `${String(logLines.length)} lines (kept off stdout)`)
+  }
+
+  /**
+   * What the catalog said about who may have what.
+   *
+   * The load-bearing case is the boring one: an older engine says nothing, every title
+   * comes back `open`, and the client behaves exactly as it did before any of this
+   * existed. A gated catalog is where the rest of it starts mattering.
+   */
+  private reportAccess (listing: CatalogListing, games: readonly GameDto[]): void {
+    const account = listing.account
+    this.reportOk('sign-in', account.signInAvailable
+      ? (account.signedIn ? 'offered, and signed in' : 'offered, not signed in')
+      : 'not offered by this catalog')
+
+    const counts = new Map<string, number>()
+    for (const game of games) {
+      counts.set(game.accessVerdict, (counts.get(game.accessVerdict) ?? 0) + 1)
+    }
+    const summary = [...counts.entries()]
+      .map(([verdict, count]: readonly [string, number]): string => `${verdict}:${String(count)}`)
+      .join(', ')
+    this.reportOk('access', summary)
+
+    // A price with nothing to click, or a purchase button with no price, is a card
+    // somebody cannot act on.
+    const unbuyable = games.filter((game: GameDto): boolean =>
+      game.accessVerdict === 'purchasable' && game.purchaseUrl === null)
+    if (unbuyable.length > 0) {
+      this.reportBad('purchase links', `${String(unbuyable.length)} priced titles have nowhere to buy them`)
+    } else if ((counts.get('purchasable') ?? 0) > 0) {
+      this.reportOk('purchase links', 'every priced title has one')
+    }
   }
 
   private reportListing (games: readonly GameDto[]): void {

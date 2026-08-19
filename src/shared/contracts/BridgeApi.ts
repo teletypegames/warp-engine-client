@@ -1,3 +1,4 @@
+import type { AccountDto, SignInFinishedDto, SignInPromptDto } from './dto/AccountDto'
 import type { AppStateDto } from './dto/AppStateDto'
 import type { CatalogListingDto } from './dto/CatalogListingDto'
 import type { InstalledStoreDto } from './dto/InstalledStoreDto'
@@ -30,6 +31,12 @@ export interface BridgeApi {
   removeGame: (name: string) => Promise<void>
   launchGame: (name: string) => Promise<boolean>
 
+  readAccount: () => Promise<AccountDto>
+  /** Answers with the code to show; how it ended arrives on `onSignInFinished`. */
+  beginSignIn: () => Promise<SignInPromptDto>
+  cancelSignIn: () => Promise<void>
+  signOut: () => Promise<AccountDto>
+
   listRegistryStores: () => Promise<RegistryResultDto>
   installStore: (store: RegistryStoreDto) => Promise<InstalledStoreDto>
   selectStore: (home: string) => Promise<StoreSelectionDto>
@@ -40,6 +47,7 @@ export interface BridgeApi {
   onLog: (listener: StreamListener<string>) => void
   onSyncEvent: (listener: StreamListener<SyncEventDto>) => void
   onBusyChanged: (listener: StreamListener<boolean>) => void
+  onSignInFinished: (listener: StreamListener<SignInFinishedDto>) => void
 }
 
 /** The name the bridge is published under on `window`. */

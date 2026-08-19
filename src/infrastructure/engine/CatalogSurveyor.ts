@@ -134,7 +134,8 @@ export class CatalogSurveyor {
         author: software.author,
         imageUrl: software.imageUrl,
         createdAt: release.createdAt,
-        mode
+        mode,
+        access: entry.access
       })
     }
     return { games, reasons, unavailable }
@@ -172,6 +173,7 @@ function toUnavailable (
 ): UnavailableEntry {
   const software: CatalogSoftware = entry.software
   return {
+    access: entry.access,
     name: software.name,
     title: software.title,
     platform: software.platform,

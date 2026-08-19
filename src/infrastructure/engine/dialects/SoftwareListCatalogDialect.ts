@@ -2,6 +2,7 @@ import type { SupportedWarpEngineVersion } from '../../../domain/models/WarpEngi
 import {
   asRecord, readOptionalString, readRecord, readString, type JsonRecord
 } from '../../json/JsonRecord'
+import type { CatalogAccess } from '../../../domain/models/CatalogAccess'
 import type {
   CatalogAsset, CatalogDialect, CatalogEntry, CatalogRelease, CatalogSoftware
 } from './CatalogDialect'
@@ -35,6 +36,7 @@ export class SoftwareListCatalogDialect implements CatalogDialect {
       if (software === null) continue
       found.push({
         software,
+        access: this.readAccess(entry),
         latestRelease: this.readLatestRelease(entry),
         releaseCandidates: this.readCandidates(entry)
       })
@@ -42,8 +44,20 @@ export class SoftwareListCatalogDialect implements CatalogDialect {
     return found
   }
 
+  /**
+   * What the catalog says about getting this title. Nothing, at these versions.
+   *
+   * An engine older than 0.5 has no opinion to report, and inventing one here would be
+   * worse than admitting it: "not gated" and "could not say" are different answers, and
+   * only the first is safe to act on. The subclass that can read it overrides this.
+   */
+  protected readAccess (entry: JsonRecord): CatalogAccess | null {
+    void entry
+    return null
+  }
+
   /** A title with no name is not a title: nothing could be keyed by it. */
-  private readSoftware (entry: JsonRecord): CatalogSoftware | null {
+  protected readSoftware (entry: JsonRecord): CatalogSoftware | null {
     const software = readRecord(entry, 'software')
     if (software === null) return null
     const name = readOptionalString(software, 'name')
@@ -59,7 +73,7 @@ export class SoftwareListCatalogDialect implements CatalogDialect {
     }
   }
 
-  private readLatestRelease (entry: JsonRecord): CatalogRelease | null {
+  protected readLatestRelease (entry: JsonRecord): CatalogRelease | null {
     const latest = readRecord(entry, 'latestRelease')
     return latest === null ? null : this.readRelease(latest)
   }
@@ -70,7 +84,7 @@ export class SoftwareListCatalogDialect implements CatalogDialect {
    * `releases` arrives newest-first from the API and `latestRelease` is usually its
    * first element, so identity is settled on the release's own id where it has one.
    */
-  private readCandidates (entry: JsonRecord): readonly CatalogRelease[] {
+  protected readCandidates (entry: JsonRecord): readonly CatalogRelease[] {
     const records: JsonRecord[] = []
     const latest = readRecord(entry, 'latestRelease')
     if (latest !== null) records.push(latest)
@@ -93,7 +107,7 @@ export class SoftwareListCatalogDialect implements CatalogDialect {
     return candidates
   }
 
-  private readRelease (release: JsonRecord): CatalogRelease {
+  protected readRelease (release: JsonRecord): CatalogRelease {
     const assets: CatalogAsset[] = []
     const listed = release['assets']
     if (Array.isArray(listed)) {

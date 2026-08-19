@@ -19,7 +19,7 @@ export class CatalogController {
   public async refresh (): Promise<void> {
     try {
       const listing: CatalogListingDto = await this.bridge.listGames()
-      this.store.applyCatalog(listing.games, listing.paths)
+      this.store.applyCatalog(listing.games, listing.paths, listing.account)
       for (const reason of listing.skipped) this.log.appendLine(`skipped ${reason}`)
     } catch (error: unknown) {
       this.reportFailure(error)

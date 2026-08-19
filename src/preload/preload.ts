@@ -3,6 +3,9 @@ import {
   BRIDGE_GLOBAL_NAME, type BridgeApi, type StreamListener
 } from '../shared/contracts/BridgeApi'
 import { IPC_CHANNELS } from '../shared/contracts/IpcChannels'
+import type {
+  AccountDto, SignInFinishedDto, SignInPromptDto
+} from '../shared/contracts/dto/AccountDto'
 import type { AppStateDto } from '../shared/contracts/dto/AppStateDto'
 import type { CatalogListingDto } from '../shared/contracts/dto/CatalogListingDto'
 import type { InstalledStoreDto } from '../shared/contracts/dto/InstalledStoreDto'
@@ -40,6 +43,15 @@ const bridge: BridgeApi = {
   launchGame: async (name: string): Promise<boolean> =>
     ipcRenderer.invoke(IPC_CHANNELS.catalogLaunchGame, name) as Promise<boolean>,
 
+  readAccount: async (): Promise<AccountDto> =>
+    ipcRenderer.invoke(IPC_CHANNELS.accountRead) as Promise<AccountDto>,
+  beginSignIn: async (): Promise<SignInPromptDto> =>
+    ipcRenderer.invoke(IPC_CHANNELS.accountBeginSignIn) as Promise<SignInPromptDto>,
+  cancelSignIn: async (): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.accountCancelSignIn) as Promise<void>,
+  signOut: async (): Promise<AccountDto> =>
+    ipcRenderer.invoke(IPC_CHANNELS.accountSignOut) as Promise<AccountDto>,
+
   listRegistryStores: async (): Promise<RegistryResultDto> =>
     ipcRenderer.invoke(IPC_CHANNELS.storeListRegistry) as Promise<RegistryResultDto>,
   installStore: async (store: RegistryStoreDto): Promise<InstalledStoreDto> =>
@@ -66,6 +78,12 @@ const bridge: BridgeApi = {
     ipcRenderer.on(IPC_CHANNELS.streamBusyChanged, (_event: IpcRendererEvent, busy: boolean): void => {
       listener(busy)
     })
+  },
+  onSignInFinished: (listener: StreamListener<SignInFinishedDto>): void => {
+    ipcRenderer.on(
+      IPC_CHANNELS.streamSignInFinished,
+      (_event: IpcRendererEvent, payload: SignInFinishedDto): void => { listener(payload) }
+    )
   }
 }
 

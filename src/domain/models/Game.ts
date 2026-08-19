@@ -1,3 +1,5 @@
+import type { CatalogAccess } from './CatalogAccess'
+
 /** How a title runs: unpacked on this machine, or served as a web build. */
 export type GameMode = 'app' | 'web'
 
@@ -41,4 +43,12 @@ export interface Game {
   readonly unavailableReason: UnavailableReason | null
   /** The engine's sentence for it, for a tooltip or the log. */
   readonly unavailableDetail: string | null
+  /**
+   * What the catalog says about getting it, or null where it said nothing.
+   *
+   * Kept separate from `installable`: that one is about this machine — no build for
+   * this architecture — and this one is about this person. A title can be perfectly
+   * installable and still not yours.
+   */
+  readonly access: CatalogAccess | null
 }
