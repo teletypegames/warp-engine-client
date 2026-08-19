@@ -76,22 +76,41 @@ class SmokeTest {
   }
 
   /**
-   * A store needs no repository, and a repository needs no config.json: either way
-   * the engine's defaults carry it. So both absences are reported, not failed.
+   * Where this store's configuration would come from, in the order the installer asks.
+   *
+   * A store needs no config and no repository: either way the engine's defaults carry
+   * it, so every absence here is reported rather than failed. What is worth seeing is
+   * *which* source answered — a store still being configured by a repository is a store
+   * that has not moved over to the registry yet.
    */
   private async checkStoreConfig (store: RegistryStore): Promise<void> {
+    if (store.config !== null) {
+      const subfolder = this.readSubfolder(store.config)
+      this.reportOk('  config', `${String(Object.keys(store.config).length)} sections ` +
+        `from the registry${subfolder === null ? '' : `, subfolder ${subfolder}`}`)
+      return
+    }
     if (store.storeRepositoryUrl === null) {
-      this.reportOk('  config', 'no repository — the engine defaults would be used')
+      this.reportOk('  config', 'none, and no repository — the engine defaults would be used')
       return
     }
     const url = `${store.storeRepositoryUrl.replace(/\/+$/, '')}/raw/branch/master/config.json`
     try {
       const config: unknown = JSON.parse(await this.httpClient.readText(url))
       const sections = typeof config === 'object' && config !== null ? Object.keys(config).length : 0
-      this.reportOk('  config.json', `${String(sections)} sections`)
+      this.reportOk('  config.json', `${String(sections)} sections from the repository ` +
+        '(not yet moved to the registry)')
     } catch (error: unknown) {
       this.reportOk('  config.json', `absent (${this.describe(error)}) — defaults would be used`)
     }
+  }
+
+  /** The prune boundary, which is the field worth seeing at a glance. */
+  private readSubfolder (config: Readonly<Record<string, unknown>>): string | null {
+    const paths = config['paths']
+    if (typeof paths !== 'object' || paths === null) return null
+    const subfolder = (paths as Readonly<Record<string, unknown>>)['subfolder']
+    return typeof subfolder === 'string' ? subfolder : null
   }
 
   private findStore (): InstalledStore | null {

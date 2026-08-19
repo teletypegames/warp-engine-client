@@ -1,57 +1,29 @@
-# WarpEngine Client 2.0.0
+# WarpEngine Client 2.1.0
 
-**The store engine is part of the app. Nothing has to be installed on the machine any
-more.** Reading the catalog, choosing which release fits your computer, downloading and
-unpacking it, writing the menu entry and remembering what went where all happen inside
-the application now. There is no Python to find, no child process, and no JSON protocol
-between the two halves — which is why this is a major version rather than a feature.
+**A store's configuration now comes from the registry itself.** `GET /api/stores`
+records carry a `config` field — the same thing a store's `config.json` held, moved into
+the record that already says what the store is. The client applies it directly, so
+installing a store no longer depends on a second repository existing and staying
+reachable, and a store can be configured entirely from the site's admin.
 
-What that changes for a person: on Windows and on a fresh Mac the app simply works.
-Before it looked for `python3`, `python` and `py -3`, and where none answered it drew a
-screen with a link to python.org instead of a catalog. That screen is gone, along with
-the one that offered to refresh a store engine too old to drive.
+The old path still works. Where a record has no `config` but names a repository, the
+client reads `…/raw/branch/master/config.json` from it exactly as before, so a registry
+whose stores have not moved over is unaffected. With neither, the engine's defaults
+carry the store, as they always have. The order is: registry config, then repository
+file, then defaults.
 
-**Your existing library is kept.** `config.json` and `state.json` on disk are unchanged —
-the same field names, the same `<scope>:<name>` keys, the same file modes — so a machine
-whose games were installed by the shell store keeps them. Opening this version against
-such a store lists them as installed, offers no needless update, and a sync reports
-*already up to date*. A `version: 1` state file is still migrated on first read.
-
-The two Python files an earlier install left in the store folder are removed the next
-time that store is set up. Nothing reads them, and a folder that still looks like it
-holds the engine invites someone to run it against a state file this app is also writing.
-
-**The client knows which WarpEngine served a catalog.** Every WarpEngine API response
-carries a `WarpEngine-Version` header, and the client now reads it, names the version in
-the log, and picks the catalog dialect for it. `SUPPORTED_WARP_ENGINE_VERSIONS` lists what
-this build was written against — 0.2, 0.3 and 0.4 — and the four cases are all handled:
-
-| The header says | What the client does |
-|---|---|
-| a supported version | reads the catalog with that version's dialect |
-| nothing at all | reads it as the oldest supported version — an engine before 0.4.0 sent no header |
-| something older | the same, and says so in the log |
-| something newer | tries the newest dialect anyway, warning that titles may be missed |
-
-Adding a version to that list fails the build until somebody says what it reads like, in
-the type checker and in the linter both. A new engine version cannot arrive unnoticed.
-
-**Refresh and the language picker are icons.** They sit together at the foot of the side
-menu, and the *Actions* heading that used to head a section of one button is gone. Both
-carry their name as a tooltip and to a screen reader, and the language picker is still a
-real `<select>` underneath — the native dropdown, keyboard and all, with only the glyph
-showing.
+**The window cannot supply a store config.** It is handed stores to show and hands one
+back to install, but only as an identity — the config is dropped on the way in, and the
+main process reads the record again from the registry before installing anything. This
+is not tidiness: a config decides where files are written and, through
+`paths.subfolder`, which subtree the store may later delete from. That is not a decision
+the renderer gets to make, for the same reason a `GameDto` carries no paths.
 
 ### Also
 
-No runtime dependencies, still: the zip reader the installer needs is about 150 lines over
-`node:zlib` rather than a package. It restores the executable bit from each entry's
-external attributes, which is what makes an unpacked game able to start at all, and it
-refuses a zip64 archive, an unknown compression method or an entry that would be written
-outside its destination rather than guessing.
-
-The repository itself is free of Python too — the Makefile, the CI check and the release
-script read `package.json` and the forge's JSON with Node now.
+The headless check now reports *which* source configured a store — registry, repository
+or defaults — and names the resulting prune boundary, because "it installed" and "it
+installed where I meant" are different claims.
 
 ### Opening it on macOS
 
@@ -68,19 +40,19 @@ Windows (installer, portable) packages the pipeline builds when the tag is pushe
 
 ### Verified
 
-`make check` is clean: typecheck, lint, the headless smoke test and the window self-test.
+`make check` is clean: typecheck, lint, the headless smoke test and the window
+self-test.
 
-The new engine was measured against the old one rather than trusted. On the same catalog
-and the same config, the Python engine and this one produce **the same 13-title listing
-with zero field differences** and the same resolved paths. Installing three titles — a
-bare TIC-80 binary wrapped in a bundle, a Godot `.app` symlinked, and a hosted web entry —
-gives **byte-identical payloads, identical file modes and an identical `Info.plist`**; the
-only difference in the two trees is the sandbox path inside the generated launcher script.
-`state.json` matches record for record.
+All three configuration sources were exercised end to end against the real serializer
+output, with the client's own classes and a sandbox store root:
 
-The upgrade path was tested directly: pointed at a store home installed by the Python
-engine, this one reports all three titles installed with no update available, and a
-re-sync writes nothing. Remove, prune, prune-suppression on a named sync, and the v1→v2
-state migration were each exercised. The zip reader was checked against Python's
-`extractall` on an archive holding stored, deflated, directory and symlink entries —
-identical bytes and identical modes — and its zip-slip and not-a-zip guards both fire.
+| Registry record | What configured the store | Prune boundary written |
+|---|---|---|
+| `config` present | the registry, with no extra request | `teletypegames` |
+| `config: null`, repository given | the repository's `config.json` | `teletypegames` |
+| neither | the engine's defaults | `teletypegames` |
+
+The renderer barrier was tested adversarially rather than assumed: an install started
+from a record carrying `paths.subfolder: "ATTACKER"` and `paths.install_root:
+"/tmp/pwned"` wrote `subfolder: teletypegames` and `install_root: null` to disk, because
+the service re-read the registry and the mapper had already dropped the config.

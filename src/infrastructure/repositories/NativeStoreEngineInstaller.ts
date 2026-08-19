@@ -77,13 +77,15 @@ export class NativeStoreEngineInstaller implements StoreEngineInstaller {
   /**
    * The store's configuration.
    *
-   * Three cases, and all of them install:
+   * Four cases, and all of them install:
    *
-   *   - **a repository with a config.json** — that file is the authority on how the
-   *     store behaves: which platforms it offers, which statuses it shows, where
-   *     things land;
+   *   - **a config on the registry record** — the authority on how the store behaves:
+   *     which platforms it offers, which statuses it shows, where things land. No
+   *     request at all, because it arrived with the store list;
+   *   - **a repository with a config.json** — the same thing in its older home, read
+   *     for a registry whose stores have not moved over yet;
    *   - **a repository without one** (404) — the engine's defaults, as below;
-   *   - **no repository at all** — the same defaults, without the round trip.
+   *   - **neither** — the same defaults, without the round trip.
    *
    * The engine's built-in defaults already cover the host-to-asset mapping, the
    * modes, the platforms and the behaviour, so what a store actually has to supply is
@@ -113,6 +115,13 @@ export class NativeStoreEngineInstaller implements StoreEngineInstaller {
     storeId: string,
     progress: EngineProgressListener
   ): Promise<Record<string, unknown>> {
+    // The registry's own answer wins, and needs no request: a store's configuration is
+    // part of its record now rather than a file in a repository that has to exist and
+    // stay reachable.
+    if (store.config !== null) {
+      progress.onLog?.(`${store.name} is configured by the registry`)
+      return { ...store.config }
+    }
     const repositoryUrl = store.storeRepositoryUrl
     if (repositoryUrl === null) {
       progress.onLog?.(`${store.name} has no store repository — using the engine defaults`)

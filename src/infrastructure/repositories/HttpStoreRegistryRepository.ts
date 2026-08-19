@@ -1,7 +1,7 @@
 import { RegistryUnavailableError } from '../../domain/errors/RegistryUnavailableError'
 import type { RegistryStore } from '../../domain/models/RegistryStore'
 import type { StoreRegistryRepository } from '../../domain/ports/StoreRegistryRepository'
-import { asRecord, readString, type JsonRecord } from '../json/JsonRecord'
+import { asRecord, readRecord, readString, type JsonRecord } from '../json/JsonRecord'
 import { BuildConfiguration } from '../config/BuildConfiguration'
 import type { HttpTextClient } from '../http/HttpTextClient'
 
@@ -15,10 +15,10 @@ const DEFAULT_REGISTRY_URL = 'https://teletypegames.org/api/stores'
  * field a build was packaged with (for shipping a client for another site), and finally
  * the address of ours.
  *
- * A record needs a name and a catalog URL; those two make a store. The repository
- * is optional and arrives as null when absent — a store configured by nothing but
- * this record installs on the engine's defaults. Records missing either of the two
- * required fields are dropped rather than half-used.
+ * A record needs a name and a catalog URL; those two make a store. The config and the
+ * repository are both optional and arrive as null when absent — a store configured by
+ * nothing but this record installs on the engine's defaults. Records missing either of
+ * the two required fields are dropped rather than half-used.
  */
 export class HttpStoreRegistryRepository implements StoreRegistryRepository {
   public readonly sourceUrl: string
@@ -53,7 +53,8 @@ export class HttpStoreRegistryRepository implements StoreRegistryRepository {
         return {
           name: readString(row, 'name').trim(),
           catalogUrl: (readString(row, 'catalogUrl') || readString(row, 'catalog_url')).trim(),
-          storeRepositoryUrl: repository.length > 0 ? repository : null
+          storeRepositoryUrl: repository.length > 0 ? repository : null,
+          config: readRecord(row, 'config')
         }
       })
       .filter((store: RegistryStore): boolean =>

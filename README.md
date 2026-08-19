@@ -62,35 +62,49 @@ and there is nothing to decide; several and the setup screen shows a picker.
 
 ```json
 [
-  { "name": "Teletype Games", "catalogUrl": "https://teletypegames.org", "storeRepositoryUrl": null },
   {
-    "name": "Some Other Store",
-    "catalogUrl": "https://games.example.org",
-    "storeRepositoryUrl": "https://git.example.org/stores/other-desktop-store"
-  }
+    "name": "Teletype Games",
+    "catalogUrl": "https://teletypegames.org",
+    "storeRepositoryUrl": "https://git.teletypegames.org/stores/ttg-desktop-store",
+    "config": { "store": { "id": "ttg" }, "paths": { "subfolder": "teletypegames" } }
+  },
+  { "name": "Some Other Store", "catalogUrl": "https://games.example.org",
+    "storeRepositoryUrl": null, "config": null }
 ]
 ```
 
-**A store needs no repository of its own.** A name and a catalog are enough: the
-store engine's built-in defaults already cover the host-to-asset mapping, the
-install modes, the platforms and the behaviour, so what is actually missing from
-them is identity — a slug, a name and a catalog URL — and that is exactly what a
-registry record carries. With `storeRepositoryUrl` null the client writes a
-three-section config and the store installs.
+**A store needs nothing of its own.** A name and a catalog are enough: the store
+engine's built-in defaults already cover the host-to-asset mapping, the install modes,
+the platforms and the behaviour, so what is actually missing from them is identity — a
+slug, a name and a catalog URL — and that is exactly what a registry record carries.
+With `config` and `storeRepositoryUrl` both null the client writes a three-section
+config and the store installs.
 
-From a record the client works out the rest:
+Where a store's configuration comes from, in the order the client asks:
 
-- **the store id** — which names the store home and the folder games land in —
-  comes from the repository name when there is one (`ttg-desktop-store` becomes
-  `ttg`), otherwise from the catalog host (`teletypegames.org` becomes
-  `teletypegames`), otherwise from the display name. A `config.json` that sets its
-  own id keeps it.
+1. **`config` on the registry record** — the store's own configuration, in the same
+   shape a store's `config.json` had, because it is that file moved into the registry.
+   It costs no request: it arrived with the store list.
+2. **`storeRepositoryUrl` → `…/raw/branch/master/config.json`** — the same thing in its
+   older home, read for a registry whose stores have not moved over yet. A repository
+   **without** a `config.json` is treated as no repository at all.
+3. **the engine's defaults** — when there is neither.
+
+Two fields the record always decides, whatever the config says:
+
 - **`catalogUrl` and `name`** override the config's own `store.base_url` and
   `store.name`. The registry says which catalog this store is *for*, so it wins.
-- **`storeRepositoryUrl`**, when given → the store's `config.json`, read from
-  `…/raw/branch/master/config.json`. That file stays the authority on how the store
-  behaves: which platforms, which statuses, where things land. A repository
-  **without** a `config.json` is treated as no repository at all.
+- **the store id** — which names the store home and the folder games land in — comes
+  from the config's `store.id` when it sets one; otherwise from the repository name
+  (`ttg-desktop-store` becomes `ttg`), then the catalog host (`teletypegames.org`
+  becomes `teletypegames`), then the display name.
+
+**The window never supplies a config.** It is handed stores to show and hands one back
+to install, but only as an identity: `RegistryStoreDtoMapper.toModel` drops the config,
+and `StoreProvisioningService` reads the record again from the registry before
+installing. A config decides where files are written and which subtree the store may
+later delete from, so it must not be something the renderer can set — the same rule as
+`GameDto` carrying no paths.
 
 What the defaults produce, for a record with no repository: the games land in a
 folder named after the store id, and released, archived **and demo** titles are
