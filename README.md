@@ -230,6 +230,7 @@ names. `make` on its own lists everything.
 | `make lint` | the strict rule set (`lint-fix` fixes what it can) |
 | `make check` | **typecheck, lint and every test suite** — the gate |
 | `make start` | run the app against whatever store is installed |
+| `make icons` | render every icon format from `resources/icon.svg` |
 | `make smoke` | drive the store with no window and no Electron at all |
 | `make storetest` | add and remove a store in a sandbox — the only code that deletes a tree |
 | `SMOKE_HOME=<dir> SMOKE_TOKEN=<bearer> npm run smoke` | the same, against a sandbox store and as a signed-in person |
@@ -245,6 +246,23 @@ names. `make` on its own lists everything.
 The npm scripts still work directly (`npm start`, `npm run dist:mac`) — the
 Makefile adds no logic of its own beyond the release step. Every script that runs the
 app builds first, so there is no way to test a stale bundle.
+
+### The icon
+
+`resources/icon.svg` is the source and the only file to edit; `make icons` renders the
+rest — `icon.png`, `icon.ico`, `icon.icns` and the `icons/` directory Linux packages
+want. Three committed binaries with no way to regenerate them is how an icon becomes
+something nobody dares change, so the render is a script rather than a memory.
+
+It needs `rsvg-convert` (`brew install librsvg`, `apt install librsvg2-bin`). The
+`.icns` step additionally needs `iconutil`, which exists only on macOS — elsewhere it
+is skipped with a warning and the committed `.icns` stands, which is what a mac build
+uses anyway.
+
+The mark is a **W with three lines running into it**: the product's initial, and what
+it is doing. It was drawn for the smallest size first — at 32px the W still reads and
+the lines survive as motion rather than as noise. A portal, a play triangle and a send
+arrow were all tried and all discarded: each already means something else.
 
 ### Continuous integration
 

@@ -36,7 +36,7 @@ BUILDER_ARGS := $(if $(STORES_API),-- --config.extraMetadata.warpEngine.registry
 
 .DEFAULT_GOAL := help
 
-.PHONY: help setup node-check build typecheck lint lint-fix check start smoke uitest storetest test \
+.PHONY: help setup node-check build typecheck lint lint-fix check start smoke uitest storetest icons test \
         dist dist-mac dist-win dist-linux release publish clean distclean version
 
 help: ## List available targets
@@ -82,6 +82,9 @@ smoke: ## Drive the store bridge with no window at all
 
 uitest: ## Load the window once and report what rendered
 	npm run uitest
+
+icons: ## Render every icon format from resources/icon.svg
+	npm run icons
 
 storetest: ## Add and remove a store in a sandbox (the only code that deletes a tree)
 	npm run storetest

@@ -1,0 +1,44 @@
+<!--
+  The WarpEngine Client mark.
+
+  A W, and three lines running into it. The W is the product's initial; the lines are
+  what the W is doing — motion, read left to right, which is also why they are dimmer
+  than it is. Together they say "warp" without a spaceship, a portal or a play triangle,
+  each of which was tried and each of which turned out to mean something else already:
+  a send arrow, a loading spinner, a media player.
+
+  Drawn for the smallest size first. At 32px the W still reads and the lines survive as
+  a stack of motion rather than as noise; anything with an outline, a ring or fine
+  detail did not. The palette is the window's own, taken from src/renderer/style.css,
+  so the icon and the application it opens are the same object.
+
+  This file is the source. `npm run icons` renders every format from it; nothing here is
+  hand-edited binary.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e2937"/>
+      <stop offset="1" stop-color="#0d1116"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.42" r="0.6">
+      <stop offset="0" stop-color="#37b98a" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#37b98a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Inset by 7%: a macOS icon is a rounded tile with air around it, and the same
+       shape is what Windows and the Linux menus get. -->
+  <rect x="72" y="72" width="880" height="880" rx="200" fill="url(#tile)"/>
+  <rect x="72" y="72" width="880" height="880" rx="200" fill="url(#glow)"/>
+  <rect x="72" y="72" width="880" height="880" rx="200" fill="none" stroke="#2a3440" stroke-width="8"/>
+
+  <g stroke="#2c8f6c" stroke-width="48" stroke-linecap="round">
+    <path d="M196 400 H286"/>
+    <path d="M172 512 H274"/>
+    <path d="M196 624 H286"/>
+  </g>
+
+  <path d="M366 348 L462 676 L588 456 L714 676 L810 348" fill="none" stroke="#37b98a"
+        stroke-width="82" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

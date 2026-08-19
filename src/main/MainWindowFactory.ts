@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { BrowserWindow, shell, type BrowserWindowConstructorOptions } from 'electron'
+import { app, BrowserWindow, shell, type BrowserWindowConstructorOptions } from 'electron'
 
 const WINDOW_OPTIONS: BrowserWindowConstructorOptions = {
   width: 1040,
@@ -8,6 +8,22 @@ const WINDOW_OPTIONS: BrowserWindowConstructorOptions = {
   minHeight: 520,
   backgroundColor: '#11151c',
   title: 'WarpEngine Client'
+}
+
+/**
+ * The window icon, in development only.
+ *
+ * A packaged app carries its icon in the bundle, the .exe and the .desktop entry, and
+ * `resources/` is not inside the package at all — pointing at it there would be a path
+ * that does not exist. Run from source there is nothing to carry the icon, so the
+ * window and the taskbar show Electron's own, which makes a dev run look like a
+ * different application from the one being built. macOS ignores this either way: the
+ * Dock icon comes from the bundle.
+ */
+function developmentIcon (): Pick<BrowserWindowConstructorOptions, 'icon'> {
+  if (app.isPackaged) return {}
+
+  return { icon: path.join(__dirname, '..', '..', 'resources', 'icons', '512x512.png') }
 }
 
 /**
@@ -23,6 +39,7 @@ export class MainWindowFactory {
   public createWindow (): BrowserWindow {
     const window = new BrowserWindow({
       ...WINDOW_OPTIONS,
+      ...developmentIcon(),
       webPreferences: {
         preload: path.join(__dirname, '..', 'preload', 'preload.js'),
         contextIsolation: true,

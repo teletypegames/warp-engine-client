@@ -1,30 +1,23 @@
-# WarpEngine Client 2.5.0
+# WarpEngine Client 2.5.1
 
-**A store can be taken off the machine again.** Hovering a store in the side menu shows
-a bin. It asks first, and says how many titles will go with it — because removing a
-store *uninstalls what it installed*. That is not a convenience: a store's `state.json`
-is the only record of which payloads, icons and menu entries belong to it, so leaving
-the games behind would leave orphans nothing could ever identify, least of all a later
-install of the same store into the same folder. The catalog cache, the settings and any
-sign-in token go too.
+**The app has an icon.** Until now every build shipped the default Electron one —
+`electron-builder` said so on every run, in a line easy to read past: *"default Electron
+icon is used, reason=application icon is not set"*. A store you install games with
+should not look like a framework demo in the Dock.
 
-**Adding one moved to a + beside Refresh**, and it now takes a catalog address of your
-own as well as the ones the registry lists. A bare host is enough — `https` is assumed —
-and the name is taken from the address. Both are actions on the whole store rather than
-on one of them, which is why they sit together; the full-width "Add a store…" button
-under the list read as a third store.
+The mark is a **W with three lines running into it**: the product's initial, and what it
+is doing. It uses the window's own palette, so the icon and the application it opens are
+the same object. It was drawn for the smallest size first — at 32px the W still reads
+and the lines survive as motion rather than as noise. A portal, a play triangle and a
+send arrow were each tried and each discarded: they already mean a loading spinner, a
+media player and a submit button.
 
-**The picker has a way out.** Opening it with a store already installed used to be a
-trap: the grid was replaced and nothing short of installing something brought it back.
+`resources/icon.svg` is the source and the only file to edit. `make icons` renders the
+`.png`, the `.ico`, the `.icns` and the Linux size directory from it — three committed
+binaries with no way to regenerate them is how an icon becomes something nobody dares
+touch.
 
-**Two things found by the new test.** `make storetest` adds and removes a store in a
-sandbox, because removal is the only code here that deletes a directory tree and the
-path it deletes is named by the window. It immediately caught that `http://` was
-accepted and became a store called *http* — the trailing slashes were being stripped
-before the scheme was checked — and that `STORE_ROOT` only *prepended* to the search
-path, so a "sandboxed" run still listed the real stores. With a delete button in the
-window, a sandbox that can reach a working installation is not a sandbox; it replaces
-the search path now.
+The window also picks it up when run from source, where there is otherwise no icon to
+carry and a dev run looks like a different application from the one being built.
 
-**`btn-secondary` had no styling at all.** It was introduced in 2.4.0 on the card's
-sign-in button and on the sign-in panel, and rendered as a plain button in both places.
+Nothing else changed: same store handling, same catalog, same sign-in.
