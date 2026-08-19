@@ -4,7 +4,20 @@ import {
   asRecord, readBoolean, readNumber, readOptionalString, readString, readStringArray
 } from '../../infrastructure/json/JsonRecord'
 
-const SETTLE_DELAY_MS = 6_000
+/**
+ * How long to keep waiting for the window to have something on it.
+ *
+ * This used to be a flat six-second sleep, which is a guess about somebody else's
+ * machine: on a cold start — a freshly built app, Gatekeeper checking it, a first DNS
+ * lookup and the catalog still in flight — six seconds is sometimes not enough, and the
+ * run reported an empty window as a failure. It was not a failure; it was a stopwatch.
+ *
+ * Now it polls for a settled window and only gives up at the ceiling, so the common
+ * case is *faster* than the old fixed wait and the cold case still passes.
+ */
+const SETTLE_POLL_MS = 400
+const SETTLE_CEILING_MS = 30_000
+const SETTLE_DELAY_MS = 1_000
 const SWITCH_SETTLE_DELAY_MS = 8_000
 const SHOT_FRAME_DELAY_MS = 400
 
@@ -55,12 +68,14 @@ export class SelfTestRunner {
     private readonly shotPath: string | null = process.env['SELFTEST_SHOT'] ?? null
   ) {}
 
+  /** A short first wait; `run` does the rest of the waiting itself. */
   public get settleDelayMs (): number {
     return SETTLE_DELAY_MS
   }
 
   /** True when the window is in a state a user could work with. */
   public async run (): Promise<boolean> {
+    await this.awaitSettled()
     const report = await this.readReport()
     console.log(JSON.stringify(report, null, 2))
 
@@ -91,6 +106,27 @@ export class SelfTestRunner {
     const passed = rendered && switchedWell
     console.log(passed ? 'SELFTEST OK' : 'SELFTEST FAILED')
     return passed
+  }
+
+  /**
+   * Wait until the window is showing something, or until the ceiling.
+   *
+   * "Something" is a card or the gate: those are the two states a person could act on,
+   * and between them they cover every way this application legitimately ends up. Timing
+   * out is not treated as a failure here — the report is taken anyway, and the checks
+   * below decide, so a genuinely empty window still fails for the right reason rather
+   * than as a timeout with no detail.
+   */
+  private async awaitSettled (): Promise<void> {
+    const deadline = Date.now() + SETTLE_CEILING_MS
+    while (Date.now() < deadline) {
+      const ready = await this.evaluate(
+        "String(document.querySelectorAll('.card').length > 0 || " +
+        "!document.getElementById('gate').hidden)"
+      )
+      if (ready === 'true') return
+      await delay(SETTLE_POLL_MS)
+    }
   }
 
   private async readReport (): Promise<SelfTestReport> {
@@ -205,4 +241,10 @@ export class SelfTestRunner {
     const result: unknown = await this.window.webContents.executeJavaScript(script)
     return typeof result === 'string' ? result : JSON.stringify(result ?? null)
   }
+}
+
+async function delay (milliseconds: number): Promise<void> {
+  await new Promise<void>((resolve: () => void): void => {
+    setTimeout((): void => { resolve() }, milliseconds)
+  })
 }
