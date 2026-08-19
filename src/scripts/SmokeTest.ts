@@ -5,6 +5,7 @@ import type { CatalogListing } from '../domain/models/CatalogListing'
 import type { InstalledStore } from '../domain/models/InstalledStore'
 import { DESKTOP_STORE_ENGINE } from '../domain/models/StoreEngine'
 import { deriveStoreId } from '../domain/models/StoreIdentity'
+import type { CredentialRepository } from '../domain/ports/CredentialRepository'
 import { NativeStoreCatalogGateway } from '../infrastructure/engine/NativeStoreCatalogGateway'
 import { HttpTextClient } from '../infrastructure/http/HttpTextClient'
 import { FileSystemInstalledStoreRepository } from '../infrastructure/repositories/FileSystemInstalledStoreRepository'
@@ -26,12 +27,18 @@ import { LOCALES } from '../shared/i18n/MessageBundle'
  *
  *   npm run smoke                                       the store on this machine
  *   SMOKE_HOME=/path/to/store-home npm run smoke        a sandbox store
+ *   SMOKE_TOKEN=<bearer> npm run smoke                  as a signed-in person
+ *
+ * `SMOKE_TOKEN` exists because the signed-in path is otherwise untestable here: the
+ * real credential store is the OS keychain, reached through Electron, and there is no
+ * Electron in this process. Without it a gated catalog can only ever be read as an
+ * anonymous caller, and "owned" and "not owned" never happen.
  */
 class SmokeTest {
   private failed = false
 
   private readonly stores = new FileSystemInstalledStoreRepository()
-  private readonly catalogGateway = new NativeStoreCatalogGateway()
+  private readonly catalogGateway = new NativeStoreCatalogGateway(envCredentials())
   private readonly httpClient = new HttpTextClient()
   private readonly registry = new HttpStoreRegistryRepository(this.httpClient)
   private readonly gameMapper = new GameDtoMapper()
@@ -219,3 +226,19 @@ void new SmokeTest().run().then(
     process.exitCode = 1
   }
 )
+
+/**
+ * The token from the environment, for every store.
+ *
+ * Deliberately not per store: this is a test harness pointed at one catalog at a time,
+ * and a keyed map here would be ceremony around a single value. Nothing writes — a
+ * smoke run must not leave a credential behind on the machine that ran it.
+ */
+function envCredentials (): CredentialRepository {
+  const token = process.env['SMOKE_TOKEN'] ?? ''
+  return {
+    readToken: (): string | null => (token.length > 0 ? token : null),
+    writeToken: (storeId: string, value: string): void => { void storeId; void value },
+    clearToken: (storeId: string): void => { void storeId }
+  }
+}

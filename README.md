@@ -219,6 +219,7 @@ names. `make` on its own lists everything.
 | `make check` | **typecheck, lint and both test suites** — the gate |
 | `make start` | run the app against whatever store is installed |
 | `make smoke` | drive the store with no window and no Electron at all |
+| `SMOKE_HOME=<dir> SMOKE_TOKEN=<bearer> npm run smoke` | the same, against a sandbox store and as a signed-in person |
 | `make uitest` | load the window once and report what rendered |
 | `SELFTEST_SHOT=shot.png npm run uitest` | the same, and the window photographs itself into that file |
 | `make test` | both test suites |
