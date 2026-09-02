@@ -1,23 +1,18 @@
-# WarpEngine Client 2.5.1
+# WarpEngine Client 2.6.1
 
-**The app has an icon.** Until now every build shipped the default Electron one —
-`electron-builder` said so on every run, in a line easy to read past: *"default Electron
-icon is used, reason=application icon is not set"*. A store you install games with
-should not look like a framework demo in the Dock.
+**The window comes back.** 2.6.0 opened to an empty window: no stores, no cards, no box
+art, and nothing in the log to say why. The list view it introduced put two inline `<svg>`
+icons into the view toggle, and the top bar asked for them as `HTMLElement`. An inline
+`<svg>` is an `SVGSVGElement`, which is not one, so the element check that guards every
+id in `index.html` did exactly what it is for — it threw — in the first constructor the
+renderer runs. Nothing after it ran either.
 
-The mark is a **W with three lines running into it**: the product's initial, and what it
-is doing. It uses the window's own palette, so the icon and the application it opens are
-the same object. It was drawn for the smallest size first — at 32px the W still reads
-and the lines survive as motion rather than as noise. A portal, a play triangle and a
-send arrow were each tried and each discarded: they already mean a loading spinner, a
-media player and a submit button.
+Two things changed. The icons are asked for by their real type. And hiding an element now
+toggles the `hidden` *attribute* rather than assigning the property: on an SVG element the
+property is not there, so assigning it would have created a plain field and hidden
+nothing, which is the bug that would have followed this one.
 
-`resources/icon.svg` is the source and the only file to edit. `make icons` renders the
-`.png`, the `.ico`, the `.icns` and the Linux size directory from it — three committed
-binaries with no way to regenerate them is how an icon becomes something nobody dares
-touch.
-
-The window also picks it up when run from source, where there is otherwise no icon to
-carry and a dev run looks like a different application from the one being built.
+The headless smoke test could not have seen this — it has no window. The window check
+(`npm run uitest`) fails on it in the first second.
 
 Nothing else changed: same store handling, same catalog, same sign-in.

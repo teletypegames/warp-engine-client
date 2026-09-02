@@ -13,8 +13,10 @@ export class TopBarView {
   private readonly progress = requireElement('progress', HTMLElement)
   private readonly navToggle = requireElement('nav-toggle', HTMLButtonElement)
   private readonly viewToggle = requireElement('view-toggle', HTMLButtonElement)
-  private readonly viewIconGrid = requireElement('view-icon-grid', HTMLElement)
-  private readonly viewIconList = requireElement('view-icon-list', HTMLElement)
+  // Inline <svg> elements are SVGSVGElement, not HTMLElement; asking for the wrong
+  // type here threw in the constructor and left the whole window blank.
+  private readonly viewIconGrid = requireElement('view-icon-grid', SVGSVGElement)
+  private readonly viewIconList = requireElement('view-icon-list', SVGSVGElement)
 
   public constructor (callbacks: TopBarViewCallbacks) {
     this.navToggle.addEventListener('click', callbacks.onToggleNavigation)

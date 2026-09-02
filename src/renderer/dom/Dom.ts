@@ -6,7 +6,7 @@
  * a missing or retyped one is a mistake in this repository and should say so loudly
  * instead of silently rendering half a window.
  */
-export function requireElement<TElement extends HTMLElement> (
+export function requireElement<TElement extends Element> (
   id: string,
   type: abstract new () => TElement
 ): TElement {
@@ -31,6 +31,12 @@ export function setText (node: HTMLElement, value: string | number | null): void
   node.textContent = value === null ? '' : String(value)
 }
 
-export function setHidden (node: HTMLElement, hidden: boolean): void {
-  node.hidden = hidden
+/**
+ * Sets the `hidden` attribute rather than the `hidden` property: the property exists
+ * on HTMLElement only, and an inline `<svg>` is an SVGSVGElement, where assigning
+ * `.hidden` creates a plain field and hides nothing. The attribute is what the
+ * stylesheet's `[hidden]` rule reads, on either kind of element.
+ */
+export function setHidden (node: Element, hidden: boolean): void {
+  node.toggleAttribute('hidden', hidden)
 }
