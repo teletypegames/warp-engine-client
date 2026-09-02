@@ -1,5 +1,5 @@
 import type { AccountDto, SignInPromptDto } from '../../shared/contracts/dto/AccountDto'
-import type { AppStateDto } from '../../shared/contracts/dto/AppStateDto'
+import type { AppStateDto, ViewMode } from '../../shared/contracts/dto/AppStateDto'
 import type { GameDto } from '../../shared/contracts/dto/GameDto'
 import type { InstalledStoreDto } from '../../shared/contracts/dto/InstalledStoreDto'
 import type { StorePathsDto } from '../../shared/contracts/dto/StorePathsDto'
@@ -36,6 +36,8 @@ export interface AppState {
   readonly account: AccountDto
   /** Non-null while a code is on screen waiting to be typed into a browser. */
   readonly signIn: SignInPromptDto | null
+  readonly appVersion: string
+  readonly viewMode: ViewMode
 }
 
 const INITIAL_STATE: AppState = {
@@ -54,7 +56,9 @@ const INITIAL_STATE: AppState = {
   progress: null,
   gate: null,
   account: { signInAvailable: false, signedIn: false },
-  signIn: null
+  signIn: null,
+  appVersion: '',
+  viewMode: 'grid'
 }
 
 export type AppStateListener = (state: AppState) => void
@@ -88,7 +92,9 @@ export class AppStore {
       stores: dto.stores,
       currentStore: dto.currentStore,
       registryUrl: dto.registryUrl,
-      defaultStoreRoot: dto.defaultStoreRoot
+      defaultStoreRoot: dto.defaultStoreRoot,
+      appVersion: dto.appVersion,
+      viewMode: dto.viewMode
     }
     this.notify()
   }
@@ -150,6 +156,11 @@ export class AppStore {
 
   public applyBusy (busy: boolean): void {
     this.state = { ...this.state, busy, progress: busy ? this.state.progress : null }
+    this.notify()
+  }
+
+  public applyViewMode (viewMode: ViewMode): void {
+    this.state = { ...this.state, viewMode }
     this.notify()
   }
 

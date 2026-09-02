@@ -6,7 +6,7 @@ import { IPC_CHANNELS } from '../shared/contracts/IpcChannels'
 import type {
   AccountDto, SignInFinishedDto, SignInPromptDto
 } from '../shared/contracts/dto/AccountDto'
-import type { AppStateDto } from '../shared/contracts/dto/AppStateDto'
+import type { AppStateDto, ViewMode } from '../shared/contracts/dto/AppStateDto'
 import type { CatalogListingDto } from '../shared/contracts/dto/CatalogListingDto'
 import type { InstalledStoreDto } from '../shared/contracts/dto/InstalledStoreDto'
 import type { LocaleSelectionDto } from '../shared/contracts/dto/LocaleSelectionDto'
@@ -31,6 +31,8 @@ const bridge: BridgeApi = {
     ipcRenderer.invoke(IPC_CHANNELS.appUpdateLocale, locale) as Promise<LocaleSelectionDto>,
   updateNavOpen: async (open: boolean): Promise<boolean> =>
     ipcRenderer.invoke(IPC_CHANNELS.appUpdateNavOpen, open) as Promise<boolean>,
+  updateViewMode: async (mode: ViewMode): Promise<ViewMode> =>
+    ipcRenderer.invoke(IPC_CHANNELS.appUpdateViewMode, mode) as Promise<ViewMode>,
 
   listGames: async (): Promise<CatalogListingDto> =>
     ipcRenderer.invoke(IPC_CHANNELS.catalogListGames) as Promise<CatalogListingDto>,

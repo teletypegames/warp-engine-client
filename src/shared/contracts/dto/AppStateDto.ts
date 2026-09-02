@@ -2,6 +2,8 @@ import type { Locale } from '../../i18n/MessageBundle'
 import type { MessageBundle } from '../../i18n/MessageBundle'
 import type { InstalledStoreDto } from './InstalledStoreDto'
 
+export type ViewMode = 'grid' | 'list'
+
 /** Everything the window needs before it can paint anything. */
 export interface AppStateDto {
   readonly locale: Locale
@@ -13,4 +15,5 @@ export interface AppStateDto {
   readonly registryUrl: string
   readonly defaultStoreRoot: string
   readonly appVersion: string
+  readonly viewMode: ViewMode
 }

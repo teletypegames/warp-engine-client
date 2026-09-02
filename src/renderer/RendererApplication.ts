@@ -8,6 +8,7 @@ import { StoreController } from './controllers/StoreController'
 import { AppStore, type AppState } from './state/AppStore'
 import { buildCategorySections, resolveFilter, type CategoryFilter } from './state/CategoryFilter'
 import { CatalogGridView } from './views/CatalogGridView'
+import { CatalogListView } from './views/CatalogListView'
 import { GameCardView } from './views/GameCardView'
 import { GateView } from './views/GateView'
 import { LogDrawerView } from './views/LogDrawerView'
@@ -28,6 +29,7 @@ export class RendererApplication {
   private readonly log: LogDrawerView
   private readonly gate: GateView
   private readonly grid: CatalogGridView
+  private readonly list: CatalogListView
   private readonly topBar: TopBarView
   private readonly sideMenu: SideMenuView
   private readonly signInPanel: SignInView
@@ -53,22 +55,23 @@ export class RendererApplication {
       async (): Promise<void> => { await this.catalog.refresh() }
     )
 
-    this.grid = new CatalogGridView(new GameCardView({
+    const gameCallbacks = {
       onInstall: (name: string): void => { void this.catalog.syncGames([name]) },
-      // The same call as an install: a sync of one name fetches whatever the catalog
-      // now has for it, and the engine replaces the old payload and menu entry.
       onUpgrade: (name: string): void => { void this.catalog.syncGames([name]) },
       onLaunch: (name: string): void => { void this.catalog.launchGame(name) },
       onRemove: (name: string): void => { void this.catalog.removeGame(name) },
       onPurchase: (name: string): void => { void this.purchase(name) },
       onSignIn: (): void => { void this.accounts.signIn() }
-    }))
+    }
+    this.grid = new CatalogGridView(new GameCardView(gameCallbacks))
+    this.list = new CatalogListView(gameCallbacks)
     this.signInPanel = new SignInView({
       onOpenPage: (): void => { void this.accounts.openVerificationPage() },
       onCancel: (): void => { void this.accounts.cancelSignIn() }
     })
     this.topBar = new TopBarView({
-      onToggleNavigation: (): void => { void this.preferences.toggleNavigation() }
+      onToggleNavigation: (): void => { void this.preferences.toggleNavigation() },
+      onToggleViewMode: (): void => { void this.preferences.toggleViewMode() }
     })
     this.sideMenu = new SideMenuView({
       onSelectStore: (home: string): void => { void this.stores.selectStore(home) },
@@ -129,14 +132,19 @@ export class RendererApplication {
     this.sideMenu.render(state)
     this.log.render(state)
 
-    // The gate and the grid are alternatives, decided by one field, so they cannot
-    // both be on screen — which is what happened while this was two imperative calls.
     if (state.gate === null) {
       this.gate.hide()
-      this.grid.render(state)
+      if (state.viewMode === 'grid') {
+        this.list.hide()
+        this.grid.render(state)
+      } else {
+        this.grid.hide()
+        this.list.render(state)
+      }
     } else {
       this.gate.show(state.gate, state.messages)
       this.grid.hide()
+      this.list.hide()
     }
   }
 }

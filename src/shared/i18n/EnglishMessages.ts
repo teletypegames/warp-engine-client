@@ -82,7 +82,9 @@ export const ENGLISH_MESSAGES = {
   signInDenied: 'That sign-in was refused.',
   signInExpired: 'That code expired. Try again.',
   signInCancelled: 'Sign-in cancelled.',
-  signInFailed: 'Signing in did not work.'
+  signInFailed: 'Signing in did not work.',
+  gridView: 'Grid view',
+  listView: 'List view'
 } as const
 
 /** Every string the window can show, by key. */

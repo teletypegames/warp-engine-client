@@ -1,5 +1,5 @@
 import type { AccountDto, SignInFinishedDto, SignInPromptDto } from './dto/AccountDto'
-import type { AppStateDto } from './dto/AppStateDto'
+import type { AppStateDto, ViewMode } from './dto/AppStateDto'
 import type { CatalogListingDto } from './dto/CatalogListingDto'
 import type { InstalledStoreDto } from './dto/InstalledStoreDto'
 import type { LocaleSelectionDto } from './dto/LocaleSelectionDto'
@@ -24,6 +24,7 @@ export interface BridgeApi {
   readState: () => Promise<AppStateDto>
   updateLocale: (locale: string) => Promise<LocaleSelectionDto>
   updateNavOpen: (open: boolean) => Promise<boolean>
+  updateViewMode: (mode: ViewMode) => Promise<ViewMode>
 
   listGames: () => Promise<CatalogListingDto>
   readPaths: () => Promise<StorePathsDto>

@@ -22,6 +22,19 @@
       <span class="store-id" id="store-id" hidden></span>
     </div>
     <div class="bar-actions">
+      <button id="view-toggle" class="icon-btn" aria-pressed="false">
+        <svg id="view-icon-grid" class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <rect x="2" y="2" width="5" height="5" rx="1" />
+          <rect x="9" y="2" width="5" height="5" rx="1" />
+          <rect x="2" y="9" width="5" height="5" rx="1" />
+          <rect x="9" y="9" width="5" height="5" rx="1" />
+        </svg>
+        <svg id="view-icon-list" class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false" hidden>
+          <path d="M3 4h10" />
+          <path d="M3 8h10" />
+          <path d="M3 12h10" />
+        </svg>
+      </button>
       <span class="progress" id="progress" hidden></span>
     </div>
   </header>
@@ -52,6 +65,7 @@
       </section>
 
       <section class="side-block side-foot">
+        <span id="app-version" class="side-version"></span>
         <button id="log-toggle" class="side-quiet" aria-expanded="false" aria-controls="log-panel"></button>
         <!--
           Two icons and nothing else. Both carry their name in `title` and `aria-label`,
@@ -143,6 +157,7 @@
       </section>
 
       <main id="grid" class="grid" hidden></main>
+      <main id="catalog-list" class="catalog-list" hidden></main>
 
       <section id="empty" class="empty" hidden></section>
 

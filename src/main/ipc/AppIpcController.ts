@@ -5,6 +5,7 @@ import { IPC_CHANNELS } from '../../shared/contracts/IpcChannels'
 import type { AppStateDto } from '../../shared/contracts/dto/AppStateDto'
 import type { LocaleSelectionDto } from '../../shared/contracts/dto/LocaleSelectionDto'
 import { TranslationCatalog } from '../../shared/i18n/TranslationCatalog'
+import type { ViewMode } from '../../shared/contracts/dto/AppStateDto'
 import { requireBoolean, requireString } from './IpcArguments'
 import type { IpcRouter } from './IpcRouter'
 
@@ -23,6 +24,8 @@ export class AppIpcController {
       this.handleUpdateLocale(requireString(locale, 'locale')))
     router.handle(IPC_CHANNELS.appUpdateNavOpen, (open: unknown): boolean =>
       this.handleUpdateNavOpen(requireBoolean(open, 'open')))
+    router.handle(IPC_CHANNELS.appUpdateViewMode, (mode: unknown): ViewMode =>
+      this.handleUpdateViewMode(requireString(mode, 'mode') as ViewMode))
     router.handle(IPC_CHANNELS.appOpenFolder, async (directory: unknown): Promise<boolean> =>
       this.handleOpenFolder(requireString(directory, 'directory')))
     router.handle(IPC_CHANNELS.appOpenUrl, async (url: unknown): Promise<boolean> =>
@@ -40,6 +43,10 @@ export class AppIpcController {
 
   private handleUpdateNavOpen (open: boolean): boolean {
     return this.preferences.updateNavigationOpen(open)
+  }
+
+  private handleUpdateViewMode (mode: ViewMode): ViewMode {
+    return this.preferences.updateViewMode(mode)
   }
 
   private async handleOpenFolder (directory: string): Promise<boolean> {

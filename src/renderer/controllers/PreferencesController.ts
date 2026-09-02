@@ -1,7 +1,8 @@
 import type { BridgeApi } from '../../shared/contracts/BridgeApi'
+import type { ViewMode } from '../../shared/contracts/dto/AppStateDto'
 import type { AppStore } from '../state/AppStore'
 
-/** The two things the window remembers: its language and whether the menu is open. */
+/** What the window remembers: its language, whether the menu is open, and which view mode. */
 export class PreferencesController {
   public constructor (
     private readonly bridge: BridgeApi,
@@ -17,5 +18,11 @@ export class PreferencesController {
     const open = !this.store.readState().navigationOpen
     this.store.applyNavigationOpen(open)
     await this.bridge.updateNavOpen(open)
+  }
+
+  public async toggleViewMode (): Promise<void> {
+    const mode: ViewMode = this.store.readState().viewMode === 'grid' ? 'list' : 'grid'
+    this.store.applyViewMode(mode)
+    await this.bridge.updateViewMode(mode)
   }
 }

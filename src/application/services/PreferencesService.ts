@@ -1,6 +1,7 @@
 import type { Preferences } from '../../domain/models/Preferences'
 import type { ApplicationEnvironment } from '../../domain/ports/ApplicationEnvironment'
 import type { PreferencesRepository } from '../../domain/ports/PreferencesRepository'
+import type { ViewMode } from '../../shared/contracts/dto/AppStateDto'
 import { TranslationCatalog } from '../../shared/i18n/TranslationCatalog'
 import type { Locale } from '../../shared/i18n/MessageBundle'
 
@@ -35,6 +36,15 @@ export class PreferencesService {
   public updateNavigationOpen (open: boolean): boolean {
     this.merge({ navigationOpen: open })
     return open
+  }
+
+  public readViewMode (): ViewMode {
+    return this.repository.read().viewMode ?? 'grid'
+  }
+
+  public updateViewMode (mode: ViewMode): ViewMode {
+    this.merge({ viewMode: mode })
+    return mode
   }
 
   public readStoreHome (): string | null {

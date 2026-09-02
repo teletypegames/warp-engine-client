@@ -3,6 +3,7 @@ import type { AppState } from '../state/AppStore'
 
 export interface TopBarViewCallbacks {
   readonly onToggleNavigation: () => void
+  readonly onToggleViewMode: () => void
 }
 
 /** The bar: what this is, which store is open, and how far a sync has got. */
@@ -11,20 +12,28 @@ export class TopBarView {
   private readonly storeId = requireElement('store-id', HTMLElement)
   private readonly progress = requireElement('progress', HTMLElement)
   private readonly navToggle = requireElement('nav-toggle', HTMLButtonElement)
+  private readonly viewToggle = requireElement('view-toggle', HTMLButtonElement)
+  private readonly viewIconGrid = requireElement('view-icon-grid', HTMLElement)
+  private readonly viewIconList = requireElement('view-icon-list', HTMLElement)
 
   public constructor (callbacks: TopBarViewCallbacks) {
     this.navToggle.addEventListener('click', callbacks.onToggleNavigation)
+    this.viewToggle.addEventListener('click', callbacks.onToggleViewMode)
   }
 
   public render (state: AppState): void {
     setText(this.appName, state.messages.appName)
-    // The bar names the app, not the store: which store is open is what the switcher in
-    // the side menu says, and saying it twice made the title read like a breadcrumb. The
-    // element stays in the page, hidden, because the window check reads it.
     setText(this.storeId, state.currentStore === null ? '' : state.currentStore.id)
     this.navToggle.title = state.messages.menu
     this.navToggle.setAttribute('aria-label', state.messages.menu)
     this.navToggle.setAttribute('aria-expanded', String(state.navigationOpen))
+
+    const isGrid = state.viewMode === 'grid'
+    setHidden(this.viewIconGrid, !isGrid)
+    setHidden(this.viewIconList, isGrid)
+    this.viewToggle.title = isGrid ? state.messages.listView : state.messages.gridView
+    this.viewToggle.setAttribute('aria-label', isGrid ? state.messages.listView : state.messages.gridView)
+    this.viewToggle.classList.toggle('view-toggle-active', true)
 
     const progress = state.progress
     setHidden(this.progress, progress === null)

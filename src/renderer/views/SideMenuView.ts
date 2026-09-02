@@ -34,6 +34,7 @@ export class SideMenuView {
   private readonly accountState = requireElement('account-state', HTMLElement)
   private readonly accountAction = requireElement('account-action', HTMLButtonElement)
   private readonly locale = requireElement('locale', HTMLSelectElement)
+  private readonly appVersion = requireElement('app-version', HTMLElement)
   /** The square around the select: it is what a pointer hovers, so the tooltip is its. */
   private readonly localeControl = requireElement('locale-control', HTMLElement)
 
@@ -69,6 +70,7 @@ export class SideMenuView {
     describeControl(this.locale, state.messages.language)
     this.localeControl.title = state.messages.language
 
+    setText(this.appVersion, state.appVersion)
     this.renderStores(state)
     this.renderAccount(state)
     this.renderCategories(state)

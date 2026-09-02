@@ -38,7 +38,8 @@ export class ApplicationStateService {
       stores: this.storeMapper.toDtoList(stores),
       registryUrl: this.provisioning.registryUrl,
       defaultStoreRoot: this.selection.readDefaultStoreRoot(),
-      appVersion: this.environment.readVersion()
+      appVersion: this.environment.readVersion(),
+      viewMode: this.preferences.readViewMode()
     }
   }
 }

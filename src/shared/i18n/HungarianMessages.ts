@@ -82,5 +82,7 @@ export const HUNGARIAN_MESSAGES: MessageBundle = {
   signInDenied: 'A belépést elutasították.',
   signInExpired: 'A kód lejárt. Próbáld újra.',
   signInCancelled: 'Belépés megszakítva.',
-  signInFailed: 'A belépés nem sikerült.'
+  signInFailed: 'A belépés nem sikerült.',
+  gridView: 'Rácsnézet',
+  listView: 'Listanézet'
 }

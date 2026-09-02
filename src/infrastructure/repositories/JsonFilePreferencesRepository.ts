@@ -3,8 +3,11 @@ import path from 'node:path'
 import type { Preferences } from '../../domain/models/Preferences'
 import type { ApplicationEnvironment } from '../../domain/ports/ApplicationEnvironment'
 import type { PreferencesRepository } from '../../domain/ports/PreferencesRepository'
+import type { ViewMode } from '../../shared/contracts/dto/AppStateDto'
 import { LOCALES, type Locale } from '../../shared/i18n/MessageBundle'
 import { asRecord, readBoolean, readOptionalString } from '../json/JsonRecord'
+
+const VIEW_MODES: readonly ViewMode[] = ['grid', 'list']
 
 const PREFERENCES_FILE_NAME = 'prefs.json'
 
@@ -26,6 +29,7 @@ export class JsonFilePreferencesRepository implements PreferencesRepository {
       const preferences: {
         locale?: Locale
         navigationOpen?: boolean
+        viewMode?: ViewMode
         storeHome?: string
       } = {}
       const known = LOCALES.find((candidate: Locale): boolean => candidate === locale)
@@ -34,6 +38,9 @@ export class JsonFilePreferencesRepository implements PreferencesRepository {
       if (typeof parsed['navigationOpen'] === 'boolean') {
         preferences.navigationOpen = readBoolean(parsed, 'navigationOpen', true)
       }
+      const viewMode = readOptionalString(parsed, 'viewMode')
+      const knownMode = VIEW_MODES.find((candidate: ViewMode): boolean => candidate === viewMode)
+      if (knownMode !== undefined) preferences.viewMode = knownMode
       return preferences
     } catch {
       return {}

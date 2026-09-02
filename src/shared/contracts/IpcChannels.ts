@@ -11,6 +11,7 @@ export const IPC_CHANNELS = {
   appUpdateLocale: 'app:updateLocale',
   appUpdateNavOpen: 'app:updateNavOpen',
   appOpenFolder: 'app:openFolder',
+  appUpdateViewMode: 'app:updateViewMode',
   appOpenUrl: 'app:openUrl',
 
   catalogListGames: 'catalog:listGames',
