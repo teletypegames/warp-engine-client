@@ -1,7 +1,8 @@
+import { describeError } from '../../domain/errors/DescribeError'
 import type { BridgeApi } from '../../shared/contracts/BridgeApi'
 import type { CatalogListingDto } from '../../shared/contracts/dto/CatalogListingDto'
+import type { GameDto } from '../../shared/contracts/dto/GameDto'
 import type { AppStore } from '../state/AppStore'
-import type { LogDrawerView } from '../views/LogDrawerView'
 
 /**
  * The catalog operations, as the window performs them.
@@ -12,15 +13,14 @@ import type { LogDrawerView } from '../views/LogDrawerView'
 export class CatalogController {
   public constructor (
     private readonly bridge: BridgeApi,
-    private readonly store: AppStore,
-    private readonly log: LogDrawerView
+    private readonly store: AppStore
   ) {}
 
   public async refresh (): Promise<void> {
     try {
       const listing: CatalogListingDto = await this.bridge.listGames()
       this.store.applyCatalog(listing.games, listing.paths, listing.account)
-      for (const reason of listing.skipped) this.log.appendLine(`skipped ${reason}`)
+      for (const reason of listing.skipped) this.store.applyLogLine(`skipped ${reason}`)
     } catch (error: unknown) {
       this.reportFailure(error)
     }
@@ -47,13 +47,28 @@ export class CatalogController {
   public async launchGame (name: string): Promise<void> {
     try {
       const launched = await this.bridge.launchGame(name)
-      if (!launched) this.log.appendLine(`${name}: ${this.store.readState().messages.failed}`)
+      if (!launched) this.store.applyLogLine(`${name}: ${this.store.readState().messages.failed}`)
     } catch (error: unknown) {
       this.reportFailure(error)
     }
   }
 
+  /**
+   * Buying happens in a browser.
+   *
+   * A checkout rebuilt in this window would be a second place to get card handling
+   * wrong, and the store's own pages already do it. What this side owes afterwards is
+   * a refresh, which the Refresh button is for.
+   */
+  public async purchase (name: string): Promise<void> {
+    const url = this.store.readState().games
+      .find((candidate: GameDto): boolean => candidate.name === name)?.purchaseUrl ?? null
+    if (url === null) return
+
+    await this.bridge.openUrl(url)
+  }
+
   private reportFailure (error: unknown): void {
-    this.log.appendLine(error instanceof Error ? error.message : String(error))
+    this.store.applyLogLine(describeError(error))
   }
 }

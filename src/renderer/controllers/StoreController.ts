@@ -1,8 +1,13 @@
+import { describeError } from '../../domain/errors/DescribeError'
 import type { BridgeApi } from '../../shared/contracts/BridgeApi'
+import type { AppStateDto } from '../../shared/contracts/dto/AppStateDto'
+import type { GameDto } from '../../shared/contracts/dto/GameDto'
 import type { RegistryStoreDto } from '../../shared/contracts/dto/RegistryStoreDto'
 import type { AppStore } from '../state/AppStore'
-import type { LogDrawerView } from '../views/LogDrawerView'
 import type { CatalogController } from './CatalogController'
+
+/** Asks the person a yes-or-no question and waits for the answer. */
+export type ConfirmQuestion = (question: string) => boolean
 
 /**
  * Which store the window drives, and how one gets onto the machine.
@@ -10,13 +15,17 @@ import type { CatalogController } from './CatalogController'
  * The gate screens live here because they are all the same decision seen from
  * different angles: there is no store to show a catalog for, and this is what can be
  * done about it.
+ *
+ * The confirmation is injected: how a question is put to somebody is the window's
+ * business, and a controller that called `window.confirm` itself could not be driven
+ * from anywhere without a window.
  */
 export class StoreController {
   public constructor (
     private readonly bridge: BridgeApi,
     private readonly store: AppStore,
-    private readonly log: LogDrawerView,
-    private readonly catalog: CatalogController
+    private readonly catalog: CatalogController,
+    private readonly confirm: ConfirmQuestion
   ) {}
 
   /** Open another store that is already on this machine. */
@@ -28,7 +37,7 @@ export class StoreController {
       this.store.applyGate(null)
       await this.catalog.refresh()
     } catch (error: unknown) {
-      this.log.appendLine(`${messages.switchFailed}: ${error instanceof Error ? error.message : String(error)}`)
+      this.store.applyLogLine(`${messages.switchFailed}: ${describeError(error)}`)
     }
   }
 
@@ -101,12 +110,16 @@ export class StoreController {
    * somebody would not otherwise expect: removing a store uninstalls everything it
    * put here. Leaving them behind would be worse — the store's state file is the only
    * record of which files belong to it, so orphans would be permanent.
+   *
+   * The bridge answers with the application state after the removal, so one call is
+   * both the deed and the new picture of the machine; which store is open afterwards
+   * is the main process's decision, read from that answer.
    */
   public async removeStore (home: string, name: string): Promise<void> {
     const state = this.store.readState()
     const messages = state.messages
     const installed = state.currentStore?.home === home
-      ? state.games.filter((game): boolean => game.installed).length
+      ? state.games.filter((game: GameDto): boolean => game.installed).length
       : null
 
     const question = installed === null
@@ -114,52 +127,50 @@ export class StoreController {
       : messages.removeStoreConfirmGames
         .replace('%{store}', name)
         .replace('%{count}', String(installed))
-    if (!window.confirm(question)) return
+    if (!this.confirm(question)) return
 
     try {
-      await this.bridge.removeStore(home)
-      this.store.applyAppState(await this.bridge.readState())
-      const remaining = this.store.readState().currentStore
-      this.store.applyGate(null)
-      if (remaining === null) {
+      const remaining = await this.bridge.removeStore(home)
+      this.applyStateAndReopen(remaining)
+      if (remaining.currentStore === null) {
         await this.offerStores()
         return
       }
       await this.catalog.refresh()
     } catch (error: unknown) {
-      this.log.appendLine(error instanceof Error ? error.message : String(error))
+      this.store.applyLogLine(describeError(error))
     }
   }
 
   private async installCatalog (catalogUrl: string): Promise<void> {
+    await this.provision(async (): Promise<AppStateDto> => this.bridge.installCatalog(catalogUrl))
+  }
+
+  private async installStore (chosen: RegistryStoreDto): Promise<void> {
+    await this.provision(async (): Promise<AppStateDto> => this.bridge.installStore(chosen))
+  }
+
+  /**
+   * Both ways of getting a store end the same: the state the main process reports
+   * afterwards replaces the window's, the gate comes down, and the new store's catalog
+   * is read and synced. A failure goes to the log and leaves the gate where it was.
+   */
+  private async provision (install: () => Promise<AppStateDto>): Promise<void> {
     const messages = this.store.readState().messages
     this.store.applyProgress({ total: 0, done: 0, label: messages.setupWorking })
     try {
-      await this.bridge.installCatalog(catalogUrl)
-      this.store.applyAppState(await this.bridge.readState())
-      this.store.applyGate(null)
+      this.applyStateAndReopen(await install())
       await this.catalog.refresh()
       await this.catalog.syncGames([])
     } catch (error: unknown) {
-      this.log.appendLine(error instanceof Error ? error.message : String(error))
+      this.store.applyLogLine(describeError(error))
     } finally {
       this.store.applyProgress(null)
     }
   }
 
-  private async installStore (chosen: RegistryStoreDto): Promise<void> {
-    const messages = this.store.readState().messages
-    this.store.applyProgress({ total: 0, done: 0, label: messages.setupWorking })
-    try {
-      await this.bridge.installStore(chosen)
-      this.store.applyAppState(await this.bridge.readState())
-      this.store.applyGate(null)
-      await this.catalog.refresh()
-      await this.catalog.syncGames([])
-    } catch (error: unknown) {
-      this.log.appendLine(error instanceof Error ? error.message : String(error))
-    } finally {
-      this.store.applyProgress(null)
-    }
+  private applyStateAndReopen (state: AppStateDto): void {
+    this.store.applyAppState(state)
+    this.store.applyGate(null)
   }
 }

@@ -5,7 +5,7 @@ import type { InstalledStoreDto } from '../../shared/contracts/dto/InstalledStor
 import type { StorePathsDto } from '../../shared/contracts/dto/StorePathsDto'
 import { ENGLISH_MESSAGES } from '../../shared/i18n/EnglishMessages'
 import type { Locale, MessageBundle } from '../../shared/i18n/MessageBundle'
-import { EVERYTHING, type CatalogFilter } from './CatalogFilter'
+import { EVERYTHING, resolveFilter, type CatalogFilter } from './CatalogFilter'
 import type { GatePresentation } from './GatePresentation'
 
 /** How far a running sync has got, for the counter in the bar. */
@@ -14,6 +14,9 @@ export interface SyncProgress {
   readonly done: number
   readonly label: string
 }
+
+/** How much of the store's output the window keeps; older lines fall off the top. */
+const MAX_LOG_LINES = 400
 
 /** Everything the window draws itself from. Read-only to everyone but the store. */
 export interface AppState {
@@ -27,6 +30,7 @@ export interface AppState {
   readonly defaultStoreRoot: string
   readonly games: readonly GameDto[]
   readonly paths: StorePathsDto | null
+  /** Always consistent with `games`: an axis pointing at nothing is cleared on the way in. */
   readonly filter: CatalogFilter
   readonly busy: boolean
   readonly progress: SyncProgress | null
@@ -38,6 +42,9 @@ export interface AppState {
   readonly signIn: SignInPromptDto | null
   readonly appVersion: string
   readonly viewMode: ViewMode
+  /** The store's own output, newest last, capped at `MAX_LOG_LINES`. */
+  readonly logLines: readonly string[]
+  readonly logOpen: boolean
 }
 
 const INITIAL_STATE: AppState = {
@@ -58,7 +65,9 @@ const INITIAL_STATE: AppState = {
   account: { signInAvailable: false, signedIn: false },
   signIn: null,
   appVersion: '',
-  viewMode: 'grid'
+  viewMode: 'grid',
+  logLines: [],
+  logOpen: false
 }
 
 export type AppStateListener = (state: AppState) => void
@@ -109,12 +118,25 @@ export class AppStore {
     this.notify()
   }
 
+  /**
+   * A new listing, and the filter checked against it.
+   *
+   * A filter can outlive what it points at — the last title of a platform is removed,
+   * an update is applied — so it is corrected here, where the games change, rather than
+   * caught while drawing. The menu and the grid then never disagree about what is on.
+   */
   public applyCatalog (
     games: readonly GameDto[],
     paths: StorePathsDto | null,
     account: AccountDto
   ): void {
-    this.state = { ...this.state, games, paths: paths ?? this.state.paths, account }
+    this.state = {
+      ...this.state,
+      games,
+      paths: paths ?? this.state.paths,
+      account,
+      filter: resolveFilter(this.state.filter, games)
+    }
     this.notify()
   }
 
@@ -150,7 +172,7 @@ export class AppStore {
   }
 
   public applyFilter (filter: CatalogFilter): void {
-    this.state = { ...this.state, filter }
+    this.state = { ...this.state, filter: resolveFilter(filter, this.state.games) }
     this.notify()
   }
 
@@ -166,6 +188,24 @@ export class AppStore {
 
   public applyProgress (progress: SyncProgress | null): void {
     this.state = { ...this.state, progress }
+    this.notify()
+  }
+
+  /**
+   * One more line from the store.
+   *
+   * A line arriving while the drawer is shut does not open it: the store logs on every
+   * refresh, and a window that unfolded a panel by itself would be worse than one that
+   * kept quiet. The lines are kept, so opening it later shows what happened.
+   */
+  public applyLogLine (line: string): void {
+    const lines = [...this.state.logLines, line]
+    this.state = { ...this.state, logLines: lines.slice(Math.max(0, lines.length - MAX_LOG_LINES)) }
+    this.notify()
+  }
+
+  public applyLogOpen (open: boolean): void {
+    this.state = { ...this.state, logOpen: open }
     this.notify()
   }
 

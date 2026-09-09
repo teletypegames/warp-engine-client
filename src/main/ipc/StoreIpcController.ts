@@ -1,9 +1,10 @@
 import { InstalledStoreDtoMapper } from '../../application/mappers/InstalledStoreDtoMapper'
 import { RegistryStoreDtoMapper } from '../../application/mappers/RegistryStoreDtoMapper'
+import type { ApplicationStateService } from '../../application/services/ApplicationStateService'
 import type { StoreProvisioningService } from '../../application/services/StoreProvisioningService'
 import type { StoreSelectionService } from '../../application/services/StoreSelectionService'
 import { IPC_CHANNELS } from '../../shared/contracts/IpcChannels'
-import type { InstalledStoreDto } from '../../shared/contracts/dto/InstalledStoreDto'
+import type { AppStateDto } from '../../shared/contracts/dto/AppStateDto'
 import type { RegistryResultDto } from '../../shared/contracts/dto/RegistryResultDto'
 import type { StoreSelectionDto } from '../../shared/contracts/dto/StoreSelectionDto'
 import type { WindowStreamBroadcaster } from '../streams/WindowStreamBroadcaster'
@@ -11,11 +12,18 @@ import { requireRegistryStore, requireString } from './IpcArguments'
 import type { IpcRouter } from './IpcRouter'
 import type { SingleFlightGuard } from './SingleFlightGuard'
 
-/** Which stores exist, which one is open, and installing a new one. */
+/**
+ * Which stores exist, which one is open, and installing or removing one.
+ *
+ * Installing and removing answer with the whole application state rather than the
+ * store touched: which store is open afterwards is this side's decision, and one
+ * answer saves the window a second round trip to find out.
+ */
 export class StoreIpcController {
   public constructor (
     private readonly provisioning: StoreProvisioningService,
     private readonly selection: StoreSelectionService,
+    private readonly state: ApplicationStateService,
     private readonly guard: SingleFlightGuard,
     private readonly streams: WindowStreamBroadcaster,
     private readonly registryMapper: RegistryStoreDtoMapper = new RegistryStoreDtoMapper(),
@@ -25,13 +33,13 @@ export class StoreIpcController {
   public register (router: IpcRouter): void {
     router.handle(IPC_CHANNELS.storeListRegistry, async (): Promise<RegistryResultDto> =>
       this.handleListRegistry())
-    router.handle(IPC_CHANNELS.storeInstallStore, async (store: unknown): Promise<InstalledStoreDto> =>
+    router.handle(IPC_CHANNELS.storeInstallStore, async (store: unknown): Promise<AppStateDto> =>
       this.handleInstallStore(store))
-    router.handle(IPC_CHANNELS.storeInstallCatalog, async (url: unknown): Promise<InstalledStoreDto> =>
+    router.handle(IPC_CHANNELS.storeInstallCatalog, async (url: unknown): Promise<AppStateDto> =>
       this.handleInstallCatalog(requireString(url, 'catalogUrl')))
     router.handle(IPC_CHANNELS.storeSelectStore, (home: unknown): StoreSelectionDto =>
       this.handleSelectStore(requireString(home, 'home')))
-    router.handle(IPC_CHANNELS.storeRemoveStore, async (home: unknown): Promise<void> =>
+    router.handle(IPC_CHANNELS.storeRemoveStore, async (home: unknown): Promise<AppStateDto> =>
       this.handleRemoveStore(requireString(home, 'home')))
   }
 
@@ -56,11 +64,11 @@ export class StoreIpcController {
     }
   }
 
-  private async handleInstallStore (payload: unknown): Promise<InstalledStoreDto> {
+  private async handleInstallStore (payload: unknown): Promise<AppStateDto> {
     const chosen = this.registryMapper.toModel(requireRegistryStore(payload))
-    return this.guard.run(async (): Promise<InstalledStoreDto> => {
-      const installed = await this.provisioning.installStore(chosen, this.streams.asProgressListener())
-      return this.storeMapper.toDto(installed)
+    return this.guard.run(async (): Promise<AppStateDto> => {
+      await this.provisioning.installStore(chosen, this.streams.asProgressListener())
+      return this.state.readState()
     })
   }
 
@@ -71,12 +79,10 @@ export class StoreIpcController {
    * configuration comes from the engine's defaults, so a typed URL can no more decide
    * where files land than a registry record can.
    */
-  private async handleInstallCatalog (catalogUrl: string): Promise<InstalledStoreDto> {
-    return this.guard.run(async (): Promise<InstalledStoreDto> => {
-      const installed = await this.provisioning.installCatalog(
-        catalogUrl, null, this.streams.asProgressListener()
-      )
-      return this.storeMapper.toDto(installed)
+  private async handleInstallCatalog (catalogUrl: string): Promise<AppStateDto> {
+    return this.guard.run(async (): Promise<AppStateDto> => {
+      await this.provisioning.installCatalog(catalogUrl, null, this.streams.asProgressListener())
+      return this.state.readState()
     })
   }
 
@@ -92,11 +98,12 @@ export class StoreIpcController {
    * every title the store put here and a second engine call across that would be
    * working on files this one is removing.
    */
-  private async handleRemoveStore (home: string): Promise<void> {
-    await this.guard.run(async (): Promise<void> => {
+  private async handleRemoveStore (home: string): Promise<AppStateDto> {
+    return this.guard.run(async (): Promise<AppStateDto> => {
       await this.provisioning.removeStore(
         this.selection.requireStoreAt(home), this.streams.asProgressListener()
       )
+      return this.state.readState()
     })
   }
 }

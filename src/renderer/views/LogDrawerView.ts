@@ -1,10 +1,9 @@
 import { createElement, requireElement, setHidden, setText } from '../dom/Dom'
 import type { AppState } from '../state/AppStore'
 
-const MAX_LOG_LINES = 400
-
 export interface LogDrawerViewCallbacks {
   readonly onOpenFolder: (directory: string) => void
+  readonly onToggle: () => void
 }
 
 /**
@@ -14,20 +13,48 @@ export interface LogDrawerViewCallbacks {
  * line of absolute paths at all times; both were clutter next to the one thing the
  * window is for, which is the titles. The switch lives in the side menu with the rest
  * of what is not a title, and the panel appears above the grid only while it is on.
+ *
+ * The lines and the open flag are state, not something this view keeps: it draws what
+ * the store holds, so the log survives a rebuild of the view like everything else does.
  */
 export class LogDrawerView {
   private readonly toggle = requireElement('log-toggle', HTMLButtonElement)
   private readonly panel = requireElement('log-panel', HTMLElement)
   private readonly lines = requireElement('log-lines', HTMLElement)
   private readonly pathsBox = requireElement('log-paths', HTMLElement)
-  private open = false
 
   public constructor (private readonly callbacks: LogDrawerViewCallbacks) {
-    this.toggle.addEventListener('click', (): void => { this.setOpen(!this.open) })
+    this.toggle.addEventListener('click', callbacks.onToggle)
   }
 
   public render (state: AppState): void {
     setText(this.toggle, state.messages.log)
+    setHidden(this.panel, !state.logOpen)
+    this.toggle.setAttribute('aria-expanded', String(state.logOpen))
+    this.toggle.classList.toggle('is-active', state.logOpen)
+
+    this.renderLines(state)
+    this.renderPaths(state)
+  }
+
+  /**
+   * Rebuilt only when the lines changed: the store re-renders on every progress event,
+   * and four hundred nodes replaced for a counter tick would make the drawer the most
+   * expensive thing in the window. The last line is the tell — a new line changes it,
+   * and so does the cap pushing the oldest one out.
+   */
+  private renderLines (state: AppState): void {
+    const last = this.lines.lastElementChild
+    const unchanged = this.lines.childElementCount === state.logLines.length &&
+      (last === null || last.textContent === state.logLines[state.logLines.length - 1])
+    if (!unchanged) {
+      this.lines.replaceChildren(...state.logLines.map((line: string): HTMLElement =>
+        createElement('div', 'log-line', line)))
+    }
+    if (state.logOpen) this.lines.scrollTop = this.lines.scrollHeight
+  }
+
+  private renderPaths (state: AppState): void {
     this.pathsBox.replaceChildren()
     const paths = state.paths
     if (paths === null) return
@@ -44,28 +71,5 @@ export class LogDrawerView {
       button.addEventListener('click', (): void => { this.callbacks.onOpenFolder(directory) })
       this.pathsBox.appendChild(button)
     }
-  }
-
-  private setOpen (open: boolean): void {
-    this.open = open
-    setHidden(this.panel, !open)
-    this.toggle.setAttribute('aria-expanded', String(open))
-    this.toggle.classList.toggle('is-active', open)
-    if (open) this.lines.scrollTop = this.lines.scrollHeight
-  }
-
-  /**
-   * A line arriving while the panel is shut does not open it: the store logs on every
-   * refresh, and a window that unfolded a panel by itself would be worse than one that
-   * kept quiet. The lines are kept, so opening it later shows what happened.
-   */
-  public appendLine (line: string): void {
-    this.lines.appendChild(createElement('div', 'log-line', line))
-    while (this.lines.childElementCount > MAX_LOG_LINES) {
-      const first = this.lines.firstElementChild
-      if (first === null) break
-      first.remove()
-    }
-    this.lines.scrollTop = this.lines.scrollHeight
   }
 }

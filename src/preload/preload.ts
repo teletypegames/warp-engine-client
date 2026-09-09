@@ -8,7 +8,6 @@ import type {
 } from '../shared/contracts/dto/AccountDto'
 import type { AppStateDto, ViewMode } from '../shared/contracts/dto/AppStateDto'
 import type { CatalogListingDto } from '../shared/contracts/dto/CatalogListingDto'
-import type { InstalledStoreDto } from '../shared/contracts/dto/InstalledStoreDto'
 import type { LocaleSelectionDto } from '../shared/contracts/dto/LocaleSelectionDto'
 import type { RegistryResultDto } from '../shared/contracts/dto/RegistryResultDto'
 import type { RegistryStoreDto } from '../shared/contracts/dto/RegistryStoreDto'
@@ -56,14 +55,14 @@ const bridge: BridgeApi = {
 
   listRegistryStores: async (): Promise<RegistryResultDto> =>
     ipcRenderer.invoke(IPC_CHANNELS.storeListRegistry) as Promise<RegistryResultDto>,
-  installStore: async (store: RegistryStoreDto): Promise<InstalledStoreDto> =>
-    ipcRenderer.invoke(IPC_CHANNELS.storeInstallStore, store) as Promise<InstalledStoreDto>,
-  installCatalog: async (catalogUrl: string): Promise<InstalledStoreDto> =>
-    ipcRenderer.invoke(IPC_CHANNELS.storeInstallCatalog, catalogUrl) as Promise<InstalledStoreDto>,
+  installStore: async (store: RegistryStoreDto): Promise<AppStateDto> =>
+    ipcRenderer.invoke(IPC_CHANNELS.storeInstallStore, store) as Promise<AppStateDto>,
+  installCatalog: async (catalogUrl: string): Promise<AppStateDto> =>
+    ipcRenderer.invoke(IPC_CHANNELS.storeInstallCatalog, catalogUrl) as Promise<AppStateDto>,
   selectStore: async (home: string): Promise<StoreSelectionDto> =>
     ipcRenderer.invoke(IPC_CHANNELS.storeSelectStore, home) as Promise<StoreSelectionDto>,
-  removeStore: async (home: string): Promise<void> =>
-    ipcRenderer.invoke(IPC_CHANNELS.storeRemoveStore, home) as Promise<void>,
+  removeStore: async (home: string): Promise<AppStateDto> =>
+    ipcRenderer.invoke(IPC_CHANNELS.storeRemoveStore, home) as Promise<AppStateDto>,
 
   openFolder: async (directory: string): Promise<boolean> =>
     ipcRenderer.invoke(IPC_CHANNELS.appOpenFolder, directory) as Promise<boolean>,

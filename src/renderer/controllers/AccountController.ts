@@ -1,7 +1,7 @@
+import { describeError } from '../../domain/errors/DescribeError'
 import type { BridgeApi } from '../../shared/contracts/BridgeApi'
 import type { SignInFinishedDto } from '../../shared/contracts/dto/AccountDto'
 import type { AppStore } from '../state/AppStore'
-import type { LogDrawerView } from '../views/LogDrawerView'
 
 /**
  * Signing in and out, from the window's side.
@@ -17,7 +17,6 @@ export class AccountController {
   public constructor (
     private readonly bridge: BridgeApi,
     private readonly store: AppStore,
-    private readonly log: LogDrawerView,
     private readonly onSignedIn: () => Promise<void>
   ) {}
 
@@ -25,11 +24,17 @@ export class AccountController {
     this.bridge.onSignInFinished((result: SignInFinishedDto): void => {
       this.store.applySignIn(null)
       this.store.applyAccount(result.account)
-      this.log.appendLine(this.describeOutcome(result))
+      this.store.applyLogLine(this.describeOutcome(result))
       // Only a successful sign-in changes what the catalog would say. The other three
       // leave it exactly as it was, and re-reading it would be a pointless wait.
       if (result.outcome === 'signedIn') void this.onSignedIn()
     })
+  }
+
+  /** Sign in when signed out, sign out when signed in: the one account button. */
+  public async toggleSignedIn (): Promise<void> {
+    if (this.store.readState().account.signedIn) await this.signOut()
+    else await this.signIn()
   }
 
   public async signIn (): Promise<void> {
@@ -41,7 +46,7 @@ export class AccountController {
       await this.bridge.openUrl(prompt.verificationUrl)
     } catch (error: unknown) {
       this.store.applySignIn(null)
-      this.log.appendLine(`${this.store.readState().messages.signInFailed} ${describe(error)}`)
+      this.store.applyLogLine(`${this.store.readState().messages.signInFailed} ${describeError(error)}`)
     }
   }
 
@@ -65,7 +70,7 @@ export class AccountController {
       // owned title keeps its Install button until the next refresh.
       await this.onSignedIn()
     } catch (error: unknown) {
-      this.log.appendLine(describe(error))
+      this.store.applyLogLine(describeError(error))
     }
   }
 
@@ -78,8 +83,4 @@ export class AccountController {
       case 'cancelled': return messages.signInCancelled
     }
   }
-}
-
-function describe (error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

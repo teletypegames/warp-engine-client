@@ -52,3 +52,21 @@ export function describeControl (element: Element, name: string): void {
   element.setAttribute('aria-label', name)
 }
 
+/**
+ * Close every open `<details>` under `container` when a click lands outside it.
+ *
+ * A `<details>` does not close when the pointer goes elsewhere, and the entries that
+ * carry one cannot own this: they are rebuilt on every render, so a listener per entry
+ * would be a listener per render. The container is created once, which makes it the
+ * right place for the one listener.
+ */
+export function closeDetailsOnOutsideClick (container: Element, selector: string): void {
+  document.addEventListener('click', (event: MouseEvent): void => {
+    const target = event.target
+    const clicked = target instanceof Node ? target : null
+    for (const menu of container.querySelectorAll(`${selector}[open]`)) {
+      if (clicked === null || !menu.contains(clicked)) menu.removeAttribute('open')
+    }
+  })
+}
+

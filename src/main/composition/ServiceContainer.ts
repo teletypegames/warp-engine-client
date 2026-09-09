@@ -71,7 +71,7 @@ export class ServiceContainer {
     this.controllers = [
       new AppIpcController(this.state, preferences, this.launching),
       new CatalogIpcController(this.catalog, this.launching, this.guard, this.streams),
-      new StoreIpcController(this.provisioning, this.selection, this.guard, this.streams),
+      new StoreIpcController(this.provisioning, this.selection, this.state, this.guard, this.streams),
       new AccountIpcController(this.accounts, this.streams)
     ]
   }

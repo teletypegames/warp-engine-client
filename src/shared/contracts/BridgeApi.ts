@@ -1,7 +1,6 @@
 import type { AccountDto, SignInFinishedDto, SignInPromptDto } from './dto/AccountDto'
 import type { AppStateDto, ViewMode } from './dto/AppStateDto'
 import type { CatalogListingDto } from './dto/CatalogListingDto'
-import type { InstalledStoreDto } from './dto/InstalledStoreDto'
 import type { LocaleSelectionDto } from './dto/LocaleSelectionDto'
 import type { RegistryResultDto } from './dto/RegistryResultDto'
 import type { RegistryStoreDto } from './dto/RegistryStoreDto'
@@ -39,12 +38,16 @@ export interface BridgeApi {
   signOut: () => Promise<AccountDto>
 
   listRegistryStores: () => Promise<RegistryResultDto>
-  installStore: (store: RegistryStoreDto) => Promise<InstalledStoreDto>
+  /** Answers with the application state afterwards, the new store open. */
+  installStore: (store: RegistryStoreDto) => Promise<AppStateDto>
   /** A catalog the registry does not list; the name is derived from the address. */
-  installCatalog: (catalogUrl: string) => Promise<InstalledStoreDto>
+  installCatalog: (catalogUrl: string) => Promise<AppStateDto>
   selectStore: (home: string) => Promise<StoreSelectionDto>
-  /** Uninstall everything the store put here, then remove the store itself. */
-  removeStore: (home: string) => Promise<void>
+  /**
+   * Uninstall everything the store put here, then remove the store itself. Answers
+   * with the application state afterwards: which store is open next is decided here.
+   */
+  removeStore: (home: string) => Promise<AppStateDto>
 
   openFolder: (directory: string) => Promise<boolean>
   openUrl: (url: string) => Promise<boolean>

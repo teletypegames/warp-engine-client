@@ -1,4 +1,4 @@
-import { requireElement, setText } from '../dom/Dom'
+import { requireElement, setHidden, setText } from '../dom/Dom'
 import type { AppState } from '../state/AppStore'
 
 export interface SignInViewCallbacks {
@@ -31,7 +31,7 @@ export class SignInView {
   public render (state: AppState): void {
     const prompt = state.signIn
     if (prompt === null) {
-      this.panel.hidden = true
+      setHidden(this.panel, true)
       return
     }
 
@@ -42,6 +42,6 @@ export class SignInView {
     setText(this.waiting, state.messages.signInWaiting)
     setText(this.openPage, state.messages.signInOpenAgain)
     setText(this.cancel, state.messages.signInCancel)
-    this.panel.hidden = false
+    setHidden(this.panel, false)
   }
 }

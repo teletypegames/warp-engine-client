@@ -1,4 +1,5 @@
 import { createElement, describeControl, requireElement, setHidden, setText } from '../dom/Dom'
+import { createIcon } from '../dom/Icon'
 import type { InstalledStoreDto } from '../../shared/contracts/dto/InstalledStoreDto'
 import type { Locale } from '../../shared/i18n/MessageBundle'
 import {
@@ -14,8 +15,8 @@ export interface SideMenuViewCallbacks {
   readonly onToggleFilter: (axis: FilterAxis, value: string) => void
   readonly onClearFilters: () => void
   readonly onSelectLocale: (locale: string) => void
-  readonly onSignIn: () => void
-  readonly onSignOut: () => void
+  /** Sign in when signed out, sign out when signed in: the store knows which. */
+  readonly onToggleSignedIn: () => void
 }
 
 /**
@@ -45,19 +46,8 @@ export class SideMenuView {
     this.refresh.addEventListener('click', callbacks.onRefresh)
     this.clearFilters.addEventListener('click', callbacks.onClearFilters)
     this.locale.addEventListener('change', (): void => { callbacks.onSelectLocale(this.locale.value) })
-    this.accountAction.addEventListener('click', (): void => {
-      if (this.signedIn) this.callbacks.onSignOut()
-      else this.callbacks.onSignIn()
-    })
+    this.accountAction.addEventListener('click', callbacks.onToggleSignedIn)
   }
-
-  /**
-   * Which of the two the one button does.
-   *
-   * Read at click time rather than rebound on every render: a listener replaced under
-   * a pointer that is already down is a click that goes nowhere.
-   */
-  private signedIn = false
 
   public render (state: AppState): void {
     setText(this.storesHead, state.messages.stores)
@@ -109,7 +99,7 @@ export class SideMenuView {
       row.appendChild(open)
 
       const remove = createElement('button', 'store-row-remove')
-      remove.appendChild(createTrashIcon())
+      remove.appendChild(createIcon('trash'))
       describeControl(remove, state.messages.removeStore)
       remove.addEventListener('click', (): void => {
         this.callbacks.onRemoveStore(store.home, store.name)
@@ -130,7 +120,6 @@ export class SideMenuView {
     setHidden(this.accountBlock, !state.account.signInAvailable)
     if (!state.account.signInAvailable) return
 
-    this.signedIn = state.account.signedIn
     setText(this.accountHead, state.messages.account)
     setText(this.accountState, state.account.signedIn ? state.messages.signedIn : '')
     setText(this.accountAction, state.account.signedIn
@@ -218,24 +207,4 @@ export class SideMenuView {
     this.addStore.disabled = state.busy
     for (const row of this.storeList.querySelectorAll('button')) row.disabled = state.busy
   }
-}
-
-/**
- * The remove glyph: a lid and a bin.
- *
- * Drawn rather than a character, for the same reason the other two icons are — a font
- * that lacks the symbol shows a box, and this button has no text to fall back on.
- */
-function createTrashIcon (): SVGSVGElement {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-  svg.setAttribute('class', 'icon icon-trash')
-  svg.setAttribute('viewBox', '0 0 16 16')
-  svg.setAttribute('aria-hidden', 'true')
-  svg.setAttribute('focusable', 'false')
-  for (const d of ['M3 4.5h10', 'M6.5 4.5V3h3v1.5', 'M4.5 4.5 5 13h6l.5-8.5', 'M6.8 7v3.5', 'M9.2 7v3.5']) {
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
-    path.setAttribute('d', d)
-    svg.appendChild(path)
-  }
-  return svg
 }

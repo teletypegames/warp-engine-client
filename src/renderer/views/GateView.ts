@@ -1,11 +1,15 @@
 import type { RegistryStoreDto } from '../../shared/contracts/dto/RegistryStoreDto'
 import { createElement, requireElement, setHidden, setText } from '../dom/Dom'
 import type { MessageBundle } from '../../shared/i18n/MessageBundle'
+import type { AppState } from '../state/AppStore'
 import type { GateCustom, GateLink, GatePresentation } from '../state/GatePresentation'
 
 /**
- * The screen shown instead of the grid when there is nothing to drive: no Python, no
- * store yet, an engine too old, or a registry that cannot be reached.
+ * The screen shown instead of the grid when there is nothing to drive: no store yet,
+ * or a registry that cannot be reached.
+ *
+ * Whether it is up is the state's decision (`gate` is non-null), read here like
+ * everything else; the view never has to be told to hide.
  */
 export class GateView {
   private readonly section = requireElement('gate', HTMLElement)
@@ -25,19 +29,18 @@ export class GateView {
 
   public constructor (private readonly onOpenUrl: (url: string) => void) {}
 
-  public show (presentation: GatePresentation, messages: MessageBundle): void {
-    setHidden(this.section, false)
+  public render (state: AppState): void {
+    const presentation = state.gate
+    setHidden(this.section, presentation === null)
+    if (presentation === null) return
+
     setText(this.title, presentation.title)
     setText(this.body, presentation.body)
-    this.renderChoices(presentation.choices ?? [], messages)
+    this.renderChoices(presentation.choices ?? [], state.messages)
     this.renderAction(presentation)
     this.renderCancel(presentation)
     this.renderCustom(presentation.custom ?? null)
     this.renderLink(presentation.link ?? null)
-  }
-
-  public hide (): void {
-    setHidden(this.section, true)
   }
 
   /** Only shown when the registry offers more than one store; with a single one there is nothing to decide. */

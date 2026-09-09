@@ -1,6 +1,7 @@
 import type { GameDto } from '../../shared/contracts/dto/GameDto'
 import type { MessageBundle } from '../../shared/i18n/MessageBundle'
 import { createElement, describeControl } from '../dom/Dom'
+import { createIcon } from '../dom/Icon'
 
 export interface GameCardViewCallbacks {
   readonly onInstall: (name: string) => void
@@ -13,13 +14,17 @@ export interface GameCardViewCallbacks {
 }
 
 /**
- * One card.
+ * One card — and the pieces of it the list view shares.
  *
  * A card is a function of a title and the strings: it holds no state of its own, so the
  * grid can throw the lot away and rebuild after every listing. The one exception is the
  * actions menu, whose open/closed state lives in a `<details>` element — and being
  * thrown away is exactly what should happen to an open menu when the catalog changes
  * under it.
+ *
+ * The box art, the version line and the actions menu are public because the list draws
+ * the same title in a row: two copies of each drifted apart once, and a row that shows
+ * a different version than the card for the same title is a bug nobody will report.
  */
 export class GameCardView {
   public constructor (private readonly callbacks: GameCardViewCallbacks) {}
@@ -34,7 +39,8 @@ export class GameCardView {
     return card
   }
 
-  private createArt (game: GameDto): HTMLElement {
+  /** The box art, or the first letter on the band an image would fill, so rows stay aligned. */
+  public createArt (game: GameDto): HTMLElement {
     const art = createElement('div', 'art')
     if (game.imageUrl !== null) {
       const image = createElement('img')
@@ -44,10 +50,77 @@ export class GameCardView {
       art.appendChild(image)
       return art
     }
-    // No box art in the catalog: the first letter, on the same band an image would
-    // fill, so a row of cards stays aligned either way.
     art.appendChild(createElement('span', 'art-glyph', game.title.slice(0, 1).toUpperCase()))
     return art
+  }
+
+  /**
+   * The version, and what the catalog has that this machine does not.
+   *
+   * Both numbers, when they differ: which version is installed is the thing a person
+   * came to the card to find out, and "there is a newer one" is only meaningful next to
+   * it. Where they agree, the second number would be noise — the card adds the word
+   * "installed" to it, the compact row lets the styling say so.
+   */
+  public createVersion (game: GameDto, messages: MessageBundle, compact: boolean = false): HTMLElement {
+    if (!game.installed || game.installedVersion === null) {
+      return createElement('span', 'version', game.version)
+    }
+    if (!game.updateAvailable) {
+      return createElement('span', 'version',
+        compact ? game.installedVersion : `${game.installedVersion} · ${messages.installed}`)
+    }
+    const version = createElement('span', 'version has-update',
+      `${game.installedVersion} → ${game.version}`)
+    version.title = messages.updateAvailable
+    return version
+  }
+
+  /**
+   * The three-dot menu: upgrade, and uninstall.
+   *
+   * A `<details>` rather than a scripted popover, so the open state is the DOM's and the
+   * keyboard works without being taught to. Upgrade is present but disabled when there
+   * is nothing newer — a menu whose items appear and disappear makes a person hunt for
+   * the one they used last time, and "greyed out" already says "not now".
+   */
+  public createMenu (game: GameDto, messages: MessageBundle, busy: boolean): HTMLElement {
+    const menu = createElement('details', 'menu')
+    const toggle = createElement('summary', 'icon-btn menu-toggle')
+    describeControl(toggle, messages.moreActions)
+    toggle.appendChild(createIcon('dots'))
+    menu.appendChild(toggle)
+
+    const items = createElement('div', 'menu-items')
+    items.appendChild(this.createMenuItem(messages.upgrade, busy || !game.updateAvailable,
+      (): void => { this.callbacks.onUpgrade(game.name) }))
+    items.appendChild(this.createMenuItem(messages.uninstall, busy,
+      (): void => { this.callbacks.onRemove(game.name) }))
+    menu.appendChild(items)
+    return menu
+  }
+
+  /**
+   * The buttons for a title, in the compact form the list uses.
+   *
+   * The same decisions as the card's `createActions`, minus the note for a title this
+   * machine cannot install: the row has no room for a sentence, and the badge says it.
+   */
+  public createCompactActions (game: GameDto, messages: MessageBundle, busy: boolean): HTMLElement {
+    const actions = createElement('div', 'actions')
+    if (!game.installable) return actions
+
+    if (!game.installed && game.accessVerdict === 'purchasable') {
+      actions.appendChild(this.createPurchase(game, messages, busy, true))
+      return actions
+    }
+    if (!game.installed && game.accessVerdict === 'signInRequired') {
+      actions.appendChild(this.createSignIn(messages, busy, true))
+      return actions
+    }
+    actions.appendChild(this.createPrimary(game, messages, busy, true))
+    if (game.installed) actions.appendChild(this.createMenu(game, messages, busy))
+    return actions
   }
 
   private createBody (game: GameDto, messages: MessageBundle, busy: boolean): HTMLElement {
@@ -94,26 +167,6 @@ export class GameCardView {
     return meta
   }
 
-  /**
-   * The version, and what the catalog has that this machine does not.
-   *
-   * Both numbers, when they differ: which version is installed is the thing a person
-   * came to the card to find out, and "there is a newer one" is only meaningful next to
-   * it. Where they agree, the second number would be noise.
-   */
-  private createVersion (game: GameDto, messages: MessageBundle): HTMLElement {
-    if (!game.installed || game.installedVersion === null) {
-      return createElement('span', 'version', game.version)
-    }
-    if (!game.updateAvailable) {
-      return createElement('span', 'version', `${game.installedVersion} · ${messages.installed}`)
-    }
-    const version = createElement('span', 'version has-update',
-      `${game.installedVersion} → ${game.version}`)
-    version.title = messages.updateAvailable
-    return version
-  }
-
   private createActions (game: GameDto, messages: MessageBundle, busy: boolean): HTMLElement {
     const actions = createElement('div', 'actions')
 
@@ -129,16 +182,16 @@ export class GameCardView {
     // and not a dimmed one — the dimmed treatment above is for what this *machine*
     // cannot do, and there is nothing wrong with this machine.
     if (!game.installed && game.accessVerdict === 'purchasable') {
-      actions.appendChild(this.createPurchase(game, messages, busy))
+      actions.appendChild(this.createPurchase(game, messages, busy, false))
       return actions
     }
     // The catalog would know, if it knew who was asking.
     if (!game.installed && game.accessVerdict === 'signInRequired') {
-      actions.appendChild(this.createSignIn(messages, busy))
+      actions.appendChild(this.createSignIn(messages, busy, false))
       return actions
     }
 
-    actions.appendChild(this.createPrimary(game, messages, busy))
+    actions.appendChild(this.createPrimary(game, messages, busy, false))
     // Only an installed title has anything in the menu: nothing to upgrade and nothing
     // to uninstall until there is something on the disk.
     if (game.installed) actions.appendChild(this.createMenu(game, messages, busy))
@@ -152,9 +205,9 @@ export class GameCardView {
    * rebuilt in this window would be a second place to get card handling wrong. After
    * buying, Refresh is what turns the card into an Install.
    */
-  private createPurchase (game: GameDto, messages: MessageBundle, busy: boolean): HTMLElement {
-    const button = createElement('button', 'btn btn-primary btn-purchase')
-    button.textContent = game.priceLabel === null
+  private createPurchase (game: GameDto, messages: MessageBundle, busy: boolean, compact: boolean): HTMLElement {
+    const button = createElement('button', compact ? 'btn btn-primary btn-tiny' : 'btn btn-primary btn-purchase')
+    button.textContent = compact || game.priceLabel === null
       ? messages.purchase
       : `${messages.purchase} · ${game.priceLabel}`
     button.disabled = busy || game.purchaseUrl === null
@@ -163,8 +216,8 @@ export class GameCardView {
     return button
   }
 
-  private createSignIn (messages: MessageBundle, busy: boolean): HTMLElement {
-    const button = createElement('button', 'btn btn-secondary')
+  private createSignIn (messages: MessageBundle, busy: boolean, compact: boolean): HTMLElement {
+    const button = createElement('button', compact ? 'btn btn-secondary btn-tiny' : 'btn btn-secondary')
     button.textContent = messages.signInToInstall
     button.disabled = busy
     button.title = messages.signInToInstallHint
@@ -179,8 +232,8 @@ export class GameCardView {
    * because the version on the disk still runs and wanting to play it is not the same
    * as wanting to wait for a download.
    */
-  private createPrimary (game: GameDto, messages: MessageBundle, busy: boolean): HTMLElement {
-    const primary = createElement('button', 'btn btn-primary')
+  private createPrimary (game: GameDto, messages: MessageBundle, busy: boolean, compact: boolean): HTMLElement {
+    const primary = createElement('button', compact ? 'btn btn-primary btn-tiny' : 'btn btn-primary')
     if (game.installed) {
       primary.textContent = game.mode === 'web' ? messages.open : messages.play
       primary.disabled = busy || !game.launchable
@@ -193,35 +246,7 @@ export class GameCardView {
     return primary
   }
 
-  /**
-   * The three-dot menu: upgrade, and uninstall.
-   *
-   * A `<details>` rather than a scripted popover, so the open state is the DOM's and the
-   * keyboard works without being taught to. Upgrade is present but disabled when there
-   * is nothing newer — a menu whose items appear and disappear makes a person hunt for
-   * the one they used last time, and "greyed out" already says "not now".
-   */
-  private createMenu (game: GameDto, messages: MessageBundle, busy: boolean): HTMLElement {
-    const menu = createElement('details', 'menu')
-    const toggle = createElement('summary', 'icon-btn menu-toggle')
-    describeControl(toggle, messages.moreActions)
-    toggle.appendChild(this.createDotsIcon())
-    menu.appendChild(toggle)
-
-    const items = createElement('div', 'menu-items')
-    items.appendChild(this.createMenuItem(messages.upgrade, busy || !game.updateAvailable,
-      (): void => { this.callbacks.onUpgrade(game.name) }))
-    items.appendChild(this.createMenuItem(messages.uninstall, busy,
-      (): void => { this.callbacks.onRemove(game.name) }))
-    menu.appendChild(items)
-    return menu
-  }
-
-  private createMenuItem (
-    label: string,
-    disabled: boolean,
-    perform: () => void
-  ): HTMLButtonElement {
+  private createMenuItem (label: string, disabled: boolean, perform: () => void): HTMLButtonElement {
     const item = createElement('button', 'menu-item', label)
     item.disabled = disabled
     item.addEventListener('click', (): void => {
@@ -231,21 +256,5 @@ export class GameCardView {
       perform()
     })
     return item
-  }
-
-  private createDotsIcon (): SVGSVGElement {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-    svg.setAttribute('class', 'icon icon-dots')
-    svg.setAttribute('viewBox', '0 0 16 16')
-    svg.setAttribute('aria-hidden', 'true')
-    svg.setAttribute('focusable', 'false')
-    for (const y of [3.5, 8, 12.5]) {
-      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
-      dot.setAttribute('cx', '8')
-      dot.setAttribute('cy', String(y))
-      dot.setAttribute('r', '1.35')
-      svg.appendChild(dot)
-    }
-    return svg
   }
 }
