@@ -54,10 +54,8 @@ export class StoreHttpClient {
     return await this.request(url, MAX_REDIRECTS, request, async (
       response: http.IncomingMessage
     ): Promise<HttpResponseBody> => {
-      const chunks: Buffer[] = []
-      for await (const chunk of response) chunks.push(Buffer.from(chunk as Buffer))
       return {
-        body: Buffer.concat(chunks),
+        body: await readAllBytes(response),
         contentType: response.headers['content-type'] ?? '',
         headers: readHeaders(response),
         statusCode: response.statusCode ?? 0
@@ -216,3 +214,22 @@ function readHeaders (response: http.IncomingMessage): Readonly<Record<string, s
   }
   return headers
 }
+
+/**
+ * The whole body, as bytes.
+ *
+ * Read through the data event rather than the async iterator, whose chunks are typed
+ * as anything: a stream in the default mode hands out Buffers, and the check says so
+ * rather than a cast assuming it.
+ */
+function readAllBytes (response: http.IncomingMessage): Promise<Buffer> {
+  return new Promise<Buffer>((resolve: (body: Buffer) => void, reject: (error: Error) => void): void => {
+    const chunks: Buffer[] = []
+    response.on('data', (chunk: unknown): void => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)))
+    })
+    response.on('end', (): void => { resolve(Buffer.concat(chunks)) })
+    response.on('error', reject)
+  })
+}
+

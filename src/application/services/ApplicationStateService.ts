@@ -1,8 +1,8 @@
 import type { InstalledStore } from '../../domain/models/InstalledStore'
 import type { ApplicationEnvironment } from '../../domain/ports/ApplicationEnvironment'
 import type { AppStateDto } from '../../shared/contracts/dto/AppStateDto'
-import { TranslationCatalog } from '../../shared/i18n/TranslationCatalog'
-import { InstalledStoreDtoMapper } from '../mappers/InstalledStoreDtoMapper'
+import type { TranslationCatalog } from '../../shared/i18n/TranslationCatalog'
+import type { InstalledStoreDtoMapper } from '../mappers/InstalledStoreDtoMapper'
 import type { PreferencesService } from './PreferencesService'
 import type { StoreProvisioningService } from './StoreProvisioningService'
 import type { StoreSelectionService } from './StoreSelectionService'
@@ -20,8 +20,8 @@ export class ApplicationStateService {
     private readonly selection: StoreSelectionService,
     private readonly provisioning: StoreProvisioningService,
     private readonly environment: ApplicationEnvironment,
-    private readonly translations: TranslationCatalog = new TranslationCatalog(),
-    private readonly storeMapper: InstalledStoreDtoMapper = new InstalledStoreDtoMapper()
+    private readonly translations: TranslationCatalog,
+    private readonly storeMapper: InstalledStoreDtoMapper
   ) {}
 
   public readState (): AppStateDto {

@@ -1,6 +1,7 @@
 import os from 'node:os'
+import type { AccountDtoMapper } from '../../application/mappers/AccountDtoMapper'
 import type { AccountService, SignInResult } from '../../application/services/AccountService'
-import type { StoreAccount } from '../../domain/models/StoreAccount'
+import { describeError } from '../../domain/errors/DescribeError'
 import { IPC_CHANNELS } from '../../shared/contracts/IpcChannels'
 import type { AccountDto, SignInPromptDto } from '../../shared/contracts/dto/AccountDto'
 import type { WindowStreamBroadcaster } from '../streams/WindowStreamBroadcaster'
@@ -20,12 +21,13 @@ import type { IpcRouter } from './IpcRouter'
 export class AccountIpcController {
   public constructor (
     private readonly accounts: AccountService,
-    private readonly streams: WindowStreamBroadcaster
+    private readonly streams: WindowStreamBroadcaster,
+    private readonly accountMapper: AccountDtoMapper
   ) {}
 
   public register (router: IpcRouter): void {
     router.handle(IPC_CHANNELS.accountRead, async (): Promise<AccountDto> =>
-      toDto(await this.accounts.readAccount()))
+      this.accountMapper.toDto(await this.accounts.readAccount()))
     router.handle(IPC_CHANNELS.accountBeginSignIn, async (): Promise<SignInPromptDto> =>
       this.handleBeginSignIn())
     router.handle(IPC_CHANNELS.accountCancelSignIn, (): Promise<void> => {
@@ -33,7 +35,7 @@ export class AccountIpcController {
       return Promise.resolve()
     })
     router.handle(IPC_CHANNELS.accountSignOut, async (): Promise<AccountDto> =>
-      toDto(await this.accounts.signOut()))
+      this.accountMapper.toDto(await this.accounts.signOut()))
   }
 
   private async handleBeginSignIn (): Promise<SignInPromptDto> {
@@ -41,7 +43,7 @@ export class AccountIpcController {
 
     session.finished.then((result: SignInResult): void => {
       this.streams.publishSignInFinished({
-        outcome: result.outcome, account: toDto(result.account)
+        outcome: result.outcome, account: this.accountMapper.toDto(result.account)
       })
     }, (error: unknown): void => {
       // A sign-in that fell over is a sign-in that did not happen; the window needs to
@@ -49,7 +51,7 @@ export class AccountIpcController {
       this.streams.publishSignInFinished({
         outcome: 'expired', account: { signInAvailable: true, signedIn: false }
       })
-      this.streams.publishLog(`sign-in failed: ${describe(error)}`)
+      this.streams.publishLog(`sign-in failed: ${describeError(error)}`)
     })
 
     return {
@@ -58,10 +60,6 @@ export class AccountIpcController {
       expiresInSeconds: session.prompt.expiresInSeconds
     }
   }
-}
-
-function toDto (account: StoreAccount): AccountDto {
-  return { signInAvailable: account.signInAvailable, signedIn: account.signedIn }
 }
 
 /**
@@ -73,8 +71,4 @@ function toDto (account: StoreAccount): AccountDto {
 function clientName (): string {
   const hostname = os.hostname()
   return hostname.length > 0 ? `WarpEngine Client (${hostname})` : 'WarpEngine Client'
-}
-
-function describe (error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

@@ -1,4 +1,9 @@
 import type { App, IpcMain, Shell } from 'electron'
+import { AccountDtoMapper } from '../../application/mappers/AccountDtoMapper'
+import { GameDtoMapper } from '../../application/mappers/GameDtoMapper'
+import { InstalledStoreDtoMapper } from '../../application/mappers/InstalledStoreDtoMapper'
+import { RegistryStoreDtoMapper } from '../../application/mappers/RegistryStoreDtoMapper'
+import { StorePathsDtoMapper } from '../../application/mappers/StorePathsDtoMapper'
 import { AccountService } from '../../application/services/AccountService'
 import { ApplicationStateService } from '../../application/services/ApplicationStateService'
 import { CatalogService } from '../../application/services/CatalogService'
@@ -6,6 +11,7 @@ import { GameLaunchService } from '../../application/services/GameLaunchService'
 import { PreferencesService } from '../../application/services/PreferencesService'
 import { StoreProvisioningService } from '../../application/services/StoreProvisioningService'
 import { StoreSelectionService } from '../../application/services/StoreSelectionService'
+import { BuildConfiguration } from '../../infrastructure/config/BuildConfiguration'
 import { ElectronApplicationEnvironment } from '../../infrastructure/electron/ElectronApplicationEnvironment'
 import { ElectronGameLauncher } from '../../infrastructure/electron/ElectronGameLauncher'
 import { SafeStorageCredentialRepository } from '../../infrastructure/electron/SafeStorageCredentialRepository'
@@ -21,6 +27,7 @@ import { CatalogIpcController } from '../ipc/CatalogIpcController'
 import { IpcRouter } from '../ipc/IpcRouter'
 import { SingleFlightGuard } from '../ipc/SingleFlightGuard'
 import { StoreIpcController } from '../ipc/StoreIpcController'
+import { TranslationCatalog } from '../../shared/i18n/TranslationCatalog'
 import { WindowStreamBroadcaster } from '../streams/WindowStreamBroadcaster'
 
 /**
@@ -48,15 +55,18 @@ export class ServiceContainer {
 
     const environment = new ElectronApplicationEnvironment(app)
     const httpClient = new HttpTextClient()
+    const translations = new TranslationCatalog()
+    const storeMapper = new InstalledStoreDtoMapper()
+    const accountMapper = new AccountDtoMapper()
 
     const stores = new FileSystemInstalledStoreRepository()
     const credentials = new SafeStorageCredentialRepository(environment)
     const catalogGateway = new NativeStoreCatalogGateway(credentials, stores)
-    const registry = new HttpStoreRegistryRepository(httpClient)
+    const registry = new HttpStoreRegistryRepository(httpClient, new BuildConfiguration())
     const installer = new NativeStoreEngineInstaller()
     const preferencesRepository = new JsonFilePreferencesRepository(environment)
 
-    const preferences = new PreferencesService(preferencesRepository, environment)
+    const preferences = new PreferencesService(preferencesRepository, environment, translations)
     this.selection = new StoreSelectionService(stores, preferences)
     this.catalog = new CatalogService(catalogGateway, this.selection)
     this.accounts = new AccountService(catalogGateway, this.selection)
@@ -65,14 +75,18 @@ export class ServiceContainer {
     )
     this.launching = new GameLaunchService(new ElectronGameLauncher(shell), this.catalog)
     this.state = new ApplicationStateService(
-      preferences, this.selection, this.provisioning, environment
+      preferences, this.selection, this.provisioning, environment, translations, storeMapper
     )
 
     this.controllers = [
-      new AppIpcController(this.state, preferences, this.launching),
-      new CatalogIpcController(this.catalog, this.launching, this.guard, this.streams),
-      new StoreIpcController(this.provisioning, this.selection, this.state, this.guard, this.streams),
-      new AccountIpcController(this.accounts, this.streams)
+      new AppIpcController(this.state, preferences, this.launching, translations),
+      new CatalogIpcController(
+        this.catalog, this.launching, this.guard, this.streams,
+        new GameDtoMapper(), new StorePathsDtoMapper(), accountMapper),
+      new StoreIpcController(
+        this.provisioning, this.selection, this.state, this.guard, this.streams,
+        new RegistryStoreDtoMapper(), storeMapper),
+      new AccountIpcController(this.accounts, this.streams, accountMapper)
     ]
   }
 

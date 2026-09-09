@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import {
   BRIDGE_GLOBAL_NAME, type BridgeApi, type StreamListener
 } from '../shared/contracts/BridgeApi'
-import { IPC_CHANNELS } from '../shared/contracts/IpcChannels'
+import { IPC_CHANNELS, type IpcChannel } from '../shared/contracts/IpcChannels'
 import type {
   AccountDto, SignInFinishedDto, SignInPromptDto
 } from '../shared/contracts/dto/AccountDto'
@@ -23,51 +23,65 @@ import type { SyncEventDto } from '../shared/contracts/dto/SyncEventDto'
  * cannot require its own modules — and it implements `BridgeApi`, so the renderer
  * and the main process are compiled against the same contract.
  */
+/**
+ * The one cast in the bridge.
+ *
+ * `ipcRenderer.invoke` answers `Promise<any>`, and the main process's controller for the
+ * channel is what actually decides the type; both sides compile against `BridgeApi`, so
+ * the assertion here is the contract restated once rather than twenty times below.
+ */
+async function invoke<TResult> (channel: IpcChannel, ...args: readonly unknown[]): Promise<TResult> {
+  return await (ipcRenderer.invoke(channel, ...args) as Promise<TResult>)
+}
+
 const bridge: BridgeApi = {
   readState: async (): Promise<AppStateDto> =>
-    ipcRenderer.invoke(IPC_CHANNELS.appReadState) as Promise<AppStateDto>,
+    invoke<AppStateDto>(IPC_CHANNELS.appReadState),
   updateLocale: async (locale: string): Promise<LocaleSelectionDto> =>
-    ipcRenderer.invoke(IPC_CHANNELS.appUpdateLocale, locale) as Promise<LocaleSelectionDto>,
+    invoke<LocaleSelectionDto>(IPC_CHANNELS.appUpdateLocale, locale),
   updateNavOpen: async (open: boolean): Promise<boolean> =>
-    ipcRenderer.invoke(IPC_CHANNELS.appUpdateNavOpen, open) as Promise<boolean>,
+    invoke<boolean>(IPC_CHANNELS.appUpdateNavOpen, open),
   updateViewMode: async (mode: ViewMode): Promise<ViewMode> =>
-    ipcRenderer.invoke(IPC_CHANNELS.appUpdateViewMode, mode) as Promise<ViewMode>,
+    invoke<ViewMode>(IPC_CHANNELS.appUpdateViewMode, mode),
 
   listGames: async (): Promise<CatalogListingDto> =>
-    ipcRenderer.invoke(IPC_CHANNELS.catalogListGames) as Promise<CatalogListingDto>,
+    invoke<CatalogListingDto>(IPC_CHANNELS.catalogListGames),
   readPaths: async (): Promise<StorePathsDto> =>
-    ipcRenderer.invoke(IPC_CHANNELS.catalogReadPaths) as Promise<StorePathsDto>,
-  syncGames: async (names: readonly string[]): Promise<void> =>
-    ipcRenderer.invoke(IPC_CHANNELS.catalogSyncGames, names) as Promise<void>,
-  removeGame: async (name: string): Promise<void> =>
-    ipcRenderer.invoke(IPC_CHANNELS.catalogRemoveGame, name) as Promise<void>,
+    invoke<StorePathsDto>(IPC_CHANNELS.catalogReadPaths),
+  syncGames: async (names: readonly string[]): Promise<void> => {
+    await invoke<unknown>(IPC_CHANNELS.catalogSyncGames, names)
+  },
+  removeGame: async (name: string): Promise<void> => {
+    await invoke<unknown>(IPC_CHANNELS.catalogRemoveGame, name)
+  },
   launchGame: async (name: string): Promise<boolean> =>
-    ipcRenderer.invoke(IPC_CHANNELS.catalogLaunchGame, name) as Promise<boolean>,
+    invoke<boolean>(IPC_CHANNELS.catalogLaunchGame, name),
 
   readAccount: async (): Promise<AccountDto> =>
-    ipcRenderer.invoke(IPC_CHANNELS.accountRead) as Promise<AccountDto>,
+    invoke<AccountDto>(IPC_CHANNELS.accountRead),
   beginSignIn: async (): Promise<SignInPromptDto> =>
-    ipcRenderer.invoke(IPC_CHANNELS.accountBeginSignIn) as Promise<SignInPromptDto>,
-  cancelSignIn: async (): Promise<void> =>
-    ipcRenderer.invoke(IPC_CHANNELS.accountCancelSignIn) as Promise<void>,
+    invoke<SignInPromptDto>(IPC_CHANNELS.accountBeginSignIn),
+  cancelSignIn: async (): Promise<void> => {
+    await invoke<unknown>(IPC_CHANNELS.accountCancelSignIn)
+  },
   signOut: async (): Promise<AccountDto> =>
-    ipcRenderer.invoke(IPC_CHANNELS.accountSignOut) as Promise<AccountDto>,
+    invoke<AccountDto>(IPC_CHANNELS.accountSignOut),
 
   listRegistryStores: async (): Promise<RegistryResultDto> =>
-    ipcRenderer.invoke(IPC_CHANNELS.storeListRegistry) as Promise<RegistryResultDto>,
+    invoke<RegistryResultDto>(IPC_CHANNELS.storeListRegistry),
   installStore: async (store: RegistryStoreDto): Promise<AppStateDto> =>
-    ipcRenderer.invoke(IPC_CHANNELS.storeInstallStore, store) as Promise<AppStateDto>,
+    invoke<AppStateDto>(IPC_CHANNELS.storeInstallStore, store),
   installCatalog: async (catalogUrl: string): Promise<AppStateDto> =>
-    ipcRenderer.invoke(IPC_CHANNELS.storeInstallCatalog, catalogUrl) as Promise<AppStateDto>,
+    invoke<AppStateDto>(IPC_CHANNELS.storeInstallCatalog, catalogUrl),
   selectStore: async (home: string): Promise<StoreSelectionDto> =>
-    ipcRenderer.invoke(IPC_CHANNELS.storeSelectStore, home) as Promise<StoreSelectionDto>,
+    invoke<StoreSelectionDto>(IPC_CHANNELS.storeSelectStore, home),
   removeStore: async (home: string): Promise<AppStateDto> =>
-    ipcRenderer.invoke(IPC_CHANNELS.storeRemoveStore, home) as Promise<AppStateDto>,
+    invoke<AppStateDto>(IPC_CHANNELS.storeRemoveStore, home),
 
   openFolder: async (directory: string): Promise<boolean> =>
-    ipcRenderer.invoke(IPC_CHANNELS.appOpenFolder, directory) as Promise<boolean>,
+    invoke<boolean>(IPC_CHANNELS.appOpenFolder, directory),
   openUrl: async (url: string): Promise<boolean> =>
-    ipcRenderer.invoke(IPC_CHANNELS.appOpenUrl, url) as Promise<boolean>,
+    invoke<boolean>(IPC_CHANNELS.appOpenUrl, url),
 
   onLog: (listener: StreamListener<string>): void => {
     ipcRenderer.on(IPC_CHANNELS.streamLog, (_event: IpcRendererEvent, line: string): void => {

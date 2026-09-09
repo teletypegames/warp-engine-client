@@ -1,11 +1,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { GameDtoMapper } from '../application/mappers/GameDtoMapper'
+import { describeError } from '../domain/errors/DescribeError'
 import type { CatalogListing } from '../domain/models/CatalogListing'
 import type { InstalledStore } from '../domain/models/InstalledStore'
 import { DESKTOP_STORE_ENGINE } from '../domain/models/StoreEngine'
 import { deriveStoreId } from '../domain/models/StoreIdentity'
 import type { CredentialRepository } from '../domain/ports/CredentialRepository'
+import { BuildConfiguration } from '../infrastructure/config/BuildConfiguration'
 import { NativeStoreCatalogGateway } from '../infrastructure/engine/NativeStoreCatalogGateway'
 import { HttpTextClient } from '../infrastructure/http/HttpTextClient'
 import { FileSystemInstalledStoreRepository } from '../infrastructure/repositories/FileSystemInstalledStoreRepository'
@@ -38,9 +40,9 @@ class SmokeTest {
   private failed = false
 
   private readonly stores = new FileSystemInstalledStoreRepository()
-  private readonly catalogGateway = new NativeStoreCatalogGateway(envCredentials())
+  private readonly catalogGateway = new NativeStoreCatalogGateway(envCredentials(), this.stores)
   private readonly httpClient = new HttpTextClient()
-  private readonly registry = new HttpStoreRegistryRepository(this.httpClient)
+  private readonly registry = new HttpStoreRegistryRepository(this.httpClient, new BuildConfiguration())
   private readonly gameMapper = new GameDtoMapper()
 
   public async run (): Promise<number> {
@@ -79,7 +81,7 @@ class SmokeTest {
         this.reportOk(`  ${store.name}`, `${store.catalogUrl} · ${deriveStoreId(store)}`)
       }
     } catch (error: unknown) {
-      this.reportBad('registry', `${this.registry.sourceUrl}: ${this.describe(error)}`)
+      this.reportBad('registry', `${this.registry.sourceUrl}: ${describeError(error)}`)
     }
   }
 
@@ -205,10 +207,6 @@ class SmokeTest {
     }
   }
 
-  private describe (error: unknown): string {
-    return error instanceof Error ? error.message : String(error)
-  }
-
   private reportOk (label: string, value?: string): void {
     console.log(`  ok    ${label}${value === undefined ? '' : `: ${value}`}`)
   }
@@ -222,7 +220,7 @@ class SmokeTest {
 void new SmokeTest().run().then(
   (code: number): void => { process.exitCode = code },
   (error: unknown): void => {
-    console.log(`  FAIL  error: ${error instanceof Error ? error.message : String(error)}`)
+    console.log(`  FAIL  error: ${describeError(error)}`)
     process.exitCode = 1
   }
 )

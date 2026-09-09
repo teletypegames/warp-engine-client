@@ -11,6 +11,9 @@ import { NativeStoreCatalogGateway } from '../infrastructure/engine/NativeStoreC
 import { FileSystemInstalledStoreRepository } from '../infrastructure/repositories/FileSystemInstalledStoreRepository'
 import { NativeStoreEngineInstaller } from '../infrastructure/repositories/NativeStoreEngineInstaller'
 import { JsonFilePreferencesRepository } from '../infrastructure/repositories/JsonFilePreferencesRepository'
+import { NullCredentialRepository } from '../infrastructure/repositories/NullCredentialRepository'
+import { TranslationCatalog } from '../shared/i18n/TranslationCatalog'
+import { describeError } from '../domain/errors/DescribeError'
 import { asRecord } from '../infrastructure/json/JsonRecord'
 
 /**
@@ -42,7 +45,8 @@ class StoreLifecycleTest {
 
     this.stores = new FileSystemInstalledStoreRepository()
     const preferences = new PreferencesService(
-      new JsonFilePreferencesRepository(sandboxEnvironment(this.root)), sandboxEnvironment(this.root)
+      new JsonFilePreferencesRepository(sandboxEnvironment(this.root)), sandboxEnvironment(this.root),
+      new TranslationCatalog()
     )
     this.selection = new StoreSelectionService(this.stores, preferences)
     this.provisioning = new StoreProvisioningService(
@@ -50,7 +54,7 @@ class StoreLifecycleTest {
       new NativeStoreEngineInstaller(),
       this.stores,
       this.selection,
-      new NativeStoreCatalogGateway(undefined, this.stores)
+      new NativeStoreCatalogGateway(new NullCredentialRepository(), this.stores)
     )
   }
 
@@ -64,7 +68,7 @@ class StoreLifecycleTest {
       await this.checkRemoveRefusesAnythingElse()
       await this.checkNormalisation()
     } catch (error: unknown) {
-      this.report(false, 'run', error instanceof Error ? error.message : String(error))
+      this.report(false, 'run', describeError(error))
     } finally {
       fs.rmSync(this.root, { recursive: true, force: true })
     }

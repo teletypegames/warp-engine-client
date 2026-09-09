@@ -1,7 +1,8 @@
 import type { CatalogService } from '../../application/services/CatalogService'
 import type { GameLaunchService } from '../../application/services/GameLaunchService'
-import { GameDtoMapper } from '../../application/mappers/GameDtoMapper'
-import { StorePathsDtoMapper } from '../../application/mappers/StorePathsDtoMapper'
+import type { AccountDtoMapper } from '../../application/mappers/AccountDtoMapper'
+import type { GameDtoMapper } from '../../application/mappers/GameDtoMapper'
+import type { StorePathsDtoMapper } from '../../application/mappers/StorePathsDtoMapper'
 import { IPC_CHANNELS } from '../../shared/contracts/IpcChannels'
 import type { CatalogListingDto } from '../../shared/contracts/dto/CatalogListingDto'
 import type { StorePathsDto } from '../../shared/contracts/dto/StorePathsDto'
@@ -22,8 +23,9 @@ export class CatalogIpcController {
     private readonly launching: GameLaunchService,
     private readonly guard: SingleFlightGuard,
     private readonly streams: WindowStreamBroadcaster,
-    private readonly gameMapper: GameDtoMapper = new GameDtoMapper(),
-    private readonly pathsMapper: StorePathsDtoMapper = new StorePathsDtoMapper()
+    private readonly gameMapper: GameDtoMapper,
+    private readonly pathsMapper: StorePathsDtoMapper,
+    private readonly accountMapper: AccountDtoMapper
   ) {}
 
   public register (router: IpcRouter): void {
@@ -47,10 +49,7 @@ export class CatalogIpcController {
         games: this.gameMapper.toDtoList(listing.games, baseUrl),
         skipped: listing.skipped,
         paths: listing.paths === null ? null : this.pathsMapper.toDto(listing.paths),
-        account: {
-          signInAvailable: listing.account.signInAvailable,
-          signedIn: listing.account.signedIn
-        }
+        account: this.accountMapper.toDto(listing.account)
       }
     })
   }

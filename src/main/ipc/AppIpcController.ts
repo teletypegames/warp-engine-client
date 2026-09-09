@@ -4,9 +4,9 @@ import type { PreferencesService } from '../../application/services/PreferencesS
 import { IPC_CHANNELS } from '../../shared/contracts/IpcChannels'
 import type { AppStateDto } from '../../shared/contracts/dto/AppStateDto'
 import type { LocaleSelectionDto } from '../../shared/contracts/dto/LocaleSelectionDto'
-import { TranslationCatalog } from '../../shared/i18n/TranslationCatalog'
+import type { TranslationCatalog } from '../../shared/i18n/TranslationCatalog'
 import type { ViewMode } from '../../shared/contracts/dto/AppStateDto'
-import { requireBoolean, requireString } from './IpcArguments'
+import { requireBoolean, requireString, requireViewMode } from './IpcArguments'
 import type { IpcRouter } from './IpcRouter'
 
 /** The window's own concerns: what it needs to paint, its language, its menu state. */
@@ -15,7 +15,7 @@ export class AppIpcController {
     private readonly state: ApplicationStateService,
     private readonly preferences: PreferencesService,
     private readonly launching: GameLaunchService,
-    private readonly translations: TranslationCatalog = new TranslationCatalog()
+    private readonly translations: TranslationCatalog
   ) {}
 
   public register (router: IpcRouter): void {
@@ -25,7 +25,7 @@ export class AppIpcController {
     router.handle(IPC_CHANNELS.appUpdateNavOpen, (open: unknown): boolean =>
       this.handleUpdateNavOpen(requireBoolean(open, 'open')))
     router.handle(IPC_CHANNELS.appUpdateViewMode, (mode: unknown): ViewMode =>
-      this.handleUpdateViewMode(requireString(mode, 'mode') as ViewMode))
+      this.handleUpdateViewMode(requireViewMode(mode, 'mode')))
     router.handle(IPC_CHANNELS.appOpenFolder, async (directory: unknown): Promise<boolean> =>
       this.handleOpenFolder(requireString(directory, 'directory')))
     router.handle(IPC_CHANNELS.appOpenUrl, async (url: unknown): Promise<boolean> =>

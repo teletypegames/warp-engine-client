@@ -1,8 +1,9 @@
-import { InstalledStoreDtoMapper } from '../../application/mappers/InstalledStoreDtoMapper'
-import { RegistryStoreDtoMapper } from '../../application/mappers/RegistryStoreDtoMapper'
+import type { InstalledStoreDtoMapper } from '../../application/mappers/InstalledStoreDtoMapper'
+import type { RegistryStoreDtoMapper } from '../../application/mappers/RegistryStoreDtoMapper'
 import type { ApplicationStateService } from '../../application/services/ApplicationStateService'
 import type { StoreProvisioningService } from '../../application/services/StoreProvisioningService'
 import type { StoreSelectionService } from '../../application/services/StoreSelectionService'
+import { describeError } from '../../domain/errors/DescribeError'
 import { IPC_CHANNELS } from '../../shared/contracts/IpcChannels'
 import type { AppStateDto } from '../../shared/contracts/dto/AppStateDto'
 import type { RegistryResultDto } from '../../shared/contracts/dto/RegistryResultDto'
@@ -26,8 +27,8 @@ export class StoreIpcController {
     private readonly state: ApplicationStateService,
     private readonly guard: SingleFlightGuard,
     private readonly streams: WindowStreamBroadcaster,
-    private readonly registryMapper: RegistryStoreDtoMapper = new RegistryStoreDtoMapper(),
-    private readonly storeMapper: InstalledStoreDtoMapper = new InstalledStoreDtoMapper()
+    private readonly registryMapper: RegistryStoreDtoMapper,
+    private readonly storeMapper: InstalledStoreDtoMapper
   ) {}
 
   public register (router: IpcRouter): void {
@@ -59,7 +60,7 @@ export class StoreIpcController {
       return {
         stores: [],
         sourceUrl: this.provisioning.registryUrl,
-        error: error instanceof Error ? error.message : String(error)
+        error: describeError(error)
       }
     }
   }

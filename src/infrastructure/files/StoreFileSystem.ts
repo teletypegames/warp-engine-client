@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { asRecord, readString } from '../json/JsonRecord'
 
 /**
  * The mode an atomic write lands on when the caller names none.
@@ -179,8 +180,8 @@ function depth (value: string): number {
 }
 
 function isMissingFile (error: unknown): boolean {
-  return typeof error === 'object' && error !== null &&
-    (error as { readonly code?: unknown }).code === 'ENOENT'
+  const record = asRecord(error)
+  return record !== null && readString(record, 'code') === 'ENOENT'
 }
 
 export function describe (error: unknown): string {

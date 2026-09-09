@@ -3,6 +3,7 @@ import path from 'node:path'
 import { safeStorage } from 'electron'
 import type { CredentialRepository } from '../../domain/ports/CredentialRepository'
 import type { ApplicationEnvironment } from '../../domain/ports/ApplicationEnvironment'
+import { asRecord } from '../json/JsonRecord'
 
 const FILE_NAME = 'credentials.json'
 
@@ -68,8 +69,7 @@ export class SafeStorageCredentialRepository implements CredentialRepository {
 
   private readAll (): Record<string, unknown> {
     try {
-      const parsed: unknown = JSON.parse(fs.readFileSync(this.filePath(), 'utf8'))
-      return typeof parsed === 'object' && parsed !== null ? parsed as Record<string, unknown> : {}
+      return { ...asRecord(JSON.parse(fs.readFileSync(this.filePath(), 'utf8'))) ?? {} }
     } catch {
       return {}
     }

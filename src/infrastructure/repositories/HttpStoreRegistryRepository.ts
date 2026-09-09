@@ -2,7 +2,7 @@ import { RegistryUnavailableError } from '../../domain/errors/RegistryUnavailabl
 import type { RegistryStore } from '../../domain/models/RegistryStore'
 import type { StoreRegistryRepository } from '../../domain/ports/StoreRegistryRepository'
 import { asRecord, readString, type JsonRecord } from '../json/JsonRecord'
-import { BuildConfiguration } from '../config/BuildConfiguration'
+import type { BuildConfiguration } from '../config/BuildConfiguration'
 import type { HttpTextClient } from '../http/HttpTextClient'
 
 const DEFAULT_REGISTRY_URL = 'https://teletypegames.org/api/stores'
@@ -25,8 +25,8 @@ export class HttpStoreRegistryRepository implements StoreRegistryRepository {
 
   public constructor (
     private readonly httpClient: HttpTextClient,
-    sourceUrl?: string,
-    buildConfiguration: BuildConfiguration = new BuildConfiguration()
+    buildConfiguration: BuildConfiguration,
+    sourceUrl?: string
   ) {
     const fromEnvironment = process.env['STORES_API']
     this.sourceUrl = sourceUrl

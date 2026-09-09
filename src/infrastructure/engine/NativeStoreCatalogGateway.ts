@@ -54,12 +54,15 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
   private readonly hosts = new HostMachineDetector()
 
   /**
-   * The credentials are injected because they are the host's to keep: on a desktop the
-   * OS keychain, in the smoke test a map in memory. Nothing here knows which.
+   * Both are injected because they are the host's to choose: the credentials are the
+   * OS keychain on a desktop and a null object in a headless run, and the store
+   * repository is what removing a store needs to take the home away. Nothing here knows
+   * which, and there is no default — a gateway that quietly wired itself would be a
+   * third composition root hidden in an adapter.
    */
   public constructor (
-    private readonly credentials: CredentialRepository = NO_CREDENTIALS,
-    private readonly stores: InstalledStoreRepository = NO_STORES
+    private readonly credentials: CredentialRepository,
+    private readonly stores: InstalledStoreRepository
   ) {}
 
   public async listGames (
@@ -418,33 +421,6 @@ function toAccount (descriptor: ServiceDescriptor, token: string | null): StoreA
   return { signInAvailable: available, signedIn: available && token !== null }
 }
 
-/**
- * Removing a store needs the repository that found it; nothing else here does.
- *
- * The default refuses rather than pretending. A gateway assembled without one — the
- * smoke test — reads catalogs perfectly well, and should say so plainly if somebody
- * asks it to delete something, instead of silently doing nothing.
- */
-const NO_STORES: InstalledStoreRepository = {
-  findAll: (): readonly [] => [],
-  findByHome: (): null => null,
-  readRoots: (): readonly [] => [],
-  resolveDefaultHome: (storeId: string): string => storeId,
-  removeHome: (): never => { throw new Error('this gateway was built without a store repository') }
-}
-
-/**
- * A client with nowhere to keep a token is a client that is never signed in.
- *
- * The two writers throw nothing away and record nothing: this is the shape the smoke
- * test runs in, where there is no Electron and therefore no keychain, and a store with
- * no sign-in behaves exactly as it always did.
- */
-const NO_CREDENTIALS: CredentialRepository = {
-  readToken: (): null => null,
-  writeToken: (storeId: string, token: string): void => { void storeId; void token },
-  clearToken: (storeId: string): void => { void storeId }
-}
 
 function toMode (mode: string): GameMode {
   return mode === WEB_MODE ? WEB_MODE : APP_MODE

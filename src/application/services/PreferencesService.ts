@@ -2,7 +2,7 @@ import type { Preferences } from '../../domain/models/Preferences'
 import type { ApplicationEnvironment } from '../../domain/ports/ApplicationEnvironment'
 import type { PreferencesRepository } from '../../domain/ports/PreferencesRepository'
 import type { ViewMode } from '../../shared/contracts/dto/AppStateDto'
-import { TranslationCatalog } from '../../shared/i18n/TranslationCatalog'
+import type { TranslationCatalog } from '../../shared/i18n/TranslationCatalog'
 import type { Locale } from '../../shared/i18n/MessageBundle'
 
 /**
@@ -15,7 +15,7 @@ export class PreferencesService {
   public constructor (
     private readonly repository: PreferencesRepository,
     private readonly environment: ApplicationEnvironment,
-    private readonly translations: TranslationCatalog = new TranslationCatalog()
+    private readonly translations: TranslationCatalog
   ) {}
 
   public readLocale (): Locale {

@@ -1,5 +1,8 @@
 import { asRecord, readString } from '../../infrastructure/json/JsonRecord'
+import type { ViewMode } from '../../shared/contracts/dto/AppStateDto'
 import type { RegistryStoreDto } from '../../shared/contracts/dto/RegistryStoreDto'
+
+const VIEW_MODES: readonly ViewMode[] = ['grid', 'list']
 
 /**
  * Reading what came over the bridge.
@@ -17,6 +20,12 @@ export function requireString (value: unknown, name: string): string {
 export function requireBoolean (value: unknown, name: string): boolean {
   if (typeof value !== 'boolean') throw new TypeError(`${name} must be a boolean`)
   return value
+}
+
+export function requireViewMode (value: unknown, name: string): ViewMode {
+  const found = VIEW_MODES.find((mode: ViewMode): boolean => mode === value)
+  if (found === undefined) throw new TypeError(`${name} must be one of ${VIEW_MODES.join(', ')}`)
+  return found
 }
 
 export function requireStringArray (value: unknown, name: string): readonly string[] {
