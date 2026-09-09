@@ -22,7 +22,7 @@
       <span class="store-id" id="store-id" hidden></span>
     </div>
     <div class="bar-actions">
-      <button id="view-toggle" class="icon-btn" aria-pressed="false">
+      <button id="view-toggle" class="icon-btn view-toggle-active" aria-pressed="false">
         <svg id="view-icon-grid" class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
           <rect x="2" y="2" width="5" height="5" rx="1" />
           <rect x="9" y="2" width="5" height="5" rx="1" />
@@ -59,8 +59,15 @@
         <button id="account-action" class="btn btn-ghost btn-wide"></button>
       </section>
 
+      <!--
+        The filter: one block per axis. Status is a list, the rest are chips, and the
+        axes combine. "Clear" shows only while something is narrowing the catalog.
+      -->
       <section class="side-block side-cats">
-        <h2 class="side-head" id="head-cats"></h2>
+        <div class="side-head-row">
+          <h2 class="side-head" id="head-cats"></h2>
+          <button id="filters-clear" class="side-link" hidden></button>
+        </div>
         <nav class="cats" id="cats"></nav>
       </section>
 

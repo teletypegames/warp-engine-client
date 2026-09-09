@@ -69,6 +69,7 @@ export class SoftwareListCatalogDialect implements CatalogDialect {
       status: readString(software, 'status'),
       description: readString(software, 'desc').trim(),
       author: readString(software, 'author').trim(),
+      category: readCategory(software),
       imageUrl: readOptionalString(software, 'imageUrl')
     }
   }
@@ -123,4 +124,10 @@ export class SoftwareListCatalogDialect implements CatalogDialect {
       assets
     }
   }
+}
+
+/** A blank category is no category: the filter axis it would feed is hidden without one. */
+function readCategory (software: JsonRecord): string | null {
+  const category = (readOptionalString(software, 'category') ?? '').trim()
+  return category.length > 0 ? category : null
 }

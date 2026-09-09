@@ -23,6 +23,7 @@ export interface SelectedGame {
   readonly title: string
   readonly description: string
   readonly author: string
+  readonly category: string | null
   readonly imageUrl: string | null
   readonly createdAt: string | null
   /** `app` for a native archive, `web` for a hosted page. */
@@ -45,6 +46,7 @@ export interface UnavailableEntry {
   readonly platform: string
   readonly description: string
   readonly author: string
+  readonly category: string | null
   readonly imageUrl: string | null
   readonly version: string
   readonly reason: UnavailableReason

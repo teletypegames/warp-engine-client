@@ -1,9 +1,9 @@
-import { createElement, requireElement, setText } from '../dom/Dom'
+import { createElement, describeControl, requireElement, setHidden, setText } from '../dom/Dom'
 import type { InstalledStoreDto } from '../../shared/contracts/dto/InstalledStoreDto'
 import type { Locale } from '../../shared/i18n/MessageBundle'
 import {
-  buildCategorySections, isSameFilter, type CategoryFilter, type CategoryItem
-} from '../state/CategoryFilter'
+  buildFilterSections, isEverything, type FilterAxis, type FilterSection
+} from '../state/CatalogFilter'
 import type { AppState } from '../state/AppStore'
 
 export interface SideMenuViewCallbacks {
@@ -11,7 +11,8 @@ export interface SideMenuViewCallbacks {
   readonly onRemoveStore: (home: string, name: string) => void
   readonly onAddStore: () => void
   readonly onRefresh: () => void
-  readonly onSelectCategory: (filter: CategoryFilter) => void
+  readonly onToggleFilter: (axis: FilterAxis, value: string) => void
+  readonly onClearFilters: () => void
   readonly onSelectLocale: (locale: string) => void
   readonly onSignIn: () => void
   readonly onSignOut: () => void
@@ -28,7 +29,8 @@ export class SideMenuView {
   private readonly storeList = requireElement('store-list', HTMLElement)
   private readonly addStore = requireElement('add-store', HTMLButtonElement)
   private readonly refresh = requireElement('refresh', HTMLButtonElement)
-  private readonly categories = requireElement('cats', HTMLElement)
+  private readonly filters = requireElement('cats', HTMLElement)
+  private readonly clearFilters = requireElement('filters-clear', HTMLButtonElement)
   private readonly accountBlock = requireElement('account-block', HTMLElement)
   private readonly accountHead = requireElement('head-account', HTMLElement)
   private readonly accountState = requireElement('account-state', HTMLElement)
@@ -41,6 +43,7 @@ export class SideMenuView {
   public constructor (private readonly callbacks: SideMenuViewCallbacks) {
     this.addStore.addEventListener('click', callbacks.onAddStore)
     this.refresh.addEventListener('click', callbacks.onRefresh)
+    this.clearFilters.addEventListener('click', callbacks.onClearFilters)
     this.locale.addEventListener('change', (): void => { callbacks.onSelectLocale(this.locale.value) })
     this.accountAction.addEventListener('click', (): void => {
       if (this.signedIn) this.callbacks.onSignOut()
@@ -73,7 +76,7 @@ export class SideMenuView {
     setText(this.appVersion, state.appVersion)
     this.renderStores(state)
     this.renderAccount(state)
-    this.renderCategories(state)
+    this.renderFilters(state)
     this.renderLocales(state)
     this.renderEnabled(state)
   }
@@ -124,7 +127,7 @@ export class SideMenuView {
    * disabled "Sign in" would be telling somebody about a door that is not there.
    */
   private renderAccount (state: AppState): void {
-    this.accountBlock.hidden = !state.account.signInAvailable
+    setHidden(this.accountBlock, !state.account.signInAvailable)
     if (!state.account.signInAvailable) return
 
     this.signedIn = state.account.signedIn
@@ -138,25 +141,60 @@ export class SideMenuView {
     this.accountAction.disabled = state.busy || state.signIn !== null
   }
 
-  private renderCategories (state: AppState): void {
-    const sections = buildCategorySections(state.games, state.messages)
+  /**
+   * The filter, one block per axis.
+   *
+   * The status axis is a list, because exactly one of its entries is on and a list
+   * reads as a choice; the others are chips, because any of them can be on or off and a
+   * chip reads as a switch. Both carry the faceted count, so a person sees what a click
+   * would do before doing it. "Clear" only exists while there is something to clear.
+   */
+  private renderFilters (state: AppState): void {
+    const sections = buildFilterSections(state.games, state.filter, state.messages)
     const nodes: HTMLElement[] = []
     for (const section of sections) {
-      if (section.title !== null) nodes.push(createElement('div', 'cat-group', section.title))
-      for (const item of section.items) nodes.push(this.createCategoryRow(item, state.filter))
+      const block = createElement('div', 'filter-axis')
+      block.appendChild(createElement('div', 'filter-axis-title', section.title))
+      block.appendChild(section.exclusive ? this.createList(section) : this.createChips(section))
+      nodes.push(block)
     }
-    this.categories.replaceChildren(...nodes)
+    this.filters.replaceChildren(...nodes)
+
+    setText(this.clearFilters, state.messages.clearFilters)
+    setHidden(this.clearFilters, isEverything(state.filter))
   }
 
-  private createCategoryRow (item: CategoryItem, active: CategoryFilter): HTMLElement {
-    const row = createElement('button', 'cat')
-    if (isSameFilter(item, active)) row.classList.add('is-active')
-    row.appendChild(createElement('span', 'cat-label', item.label))
-    row.appendChild(createElement('span', 'cat-count', String(item.count)))
-    row.addEventListener('click', (): void => {
-      this.callbacks.onSelectCategory({ kind: item.kind, value: item.value })
-    })
-    return row
+  private createList (section: FilterSection): HTMLElement {
+    const list = createElement('div', 'filter-list')
+    list.setAttribute('role', 'radiogroup')
+    for (const option of section.options) {
+      const row = createElement('button', 'cat')
+      row.setAttribute('role', 'radio')
+      row.setAttribute('aria-checked', String(option.active))
+      if (option.active) row.classList.add('is-active')
+      row.appendChild(createElement('span', 'cat-label', option.label))
+      row.appendChild(createElement('span', 'cat-count', String(option.count)))
+      row.addEventListener('click', (): void => { this.callbacks.onToggleFilter(option.axis, option.value) })
+      list.appendChild(row)
+    }
+    return list
+  }
+
+  private createChips (section: FilterSection): HTMLElement {
+    const chips = createElement('div', 'filter-chips')
+    for (const option of section.options) {
+      const chip = createElement('button', 'chip')
+      chip.setAttribute('aria-pressed', String(option.active))
+      if (option.active) chip.classList.add('is-active')
+      // A chip that would show nothing stays, dimmed: it says the value exists in the
+      // catalog and the other axes are what is hiding it.
+      if (option.count === 0 && !option.active) chip.classList.add('is-empty')
+      chip.appendChild(createElement('span', 'chip-label', option.label))
+      chip.appendChild(createElement('span', 'chip-count', String(option.count)))
+      chip.addEventListener('click', (): void => { this.callbacks.onToggleFilter(option.axis, option.value) })
+      chips.appendChild(chip)
+    }
+    return chips
   }
 
   private renderLocales (state: AppState): void {
@@ -183,12 +221,6 @@ export class SideMenuView {
 }
 
 /**
- * Name an icon-only control.
- *
- * `title` is the tooltip a mouse finds and `aria-label` is what a screen reader reads;
- * an icon button needs both, and they are the same sentence.
- */
-/**
  * The remove glyph: a lid and a bin.
  *
  * Drawn rather than a character, for the same reason the other two icons are — a font
@@ -206,9 +238,4 @@ function createTrashIcon (): SVGSVGElement {
     svg.appendChild(path)
   }
   return svg
-}
-
-function describeControl (element: HTMLElement, name: string): void {
-  element.title = name
-  element.setAttribute('aria-label', name)
 }

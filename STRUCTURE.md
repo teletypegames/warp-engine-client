@@ -84,7 +84,7 @@ src/
     main.ts                   the entry point
     RendererApplication.ts    wires views and controllers, owns the boot decision
     BridgeAccess.ts           the typed window.storeApi
-    state/                    AppStore, CategoryFilter
+    state/                    AppStore, CatalogFilter, GatePresentation
     views/                    one class per region of the window
     controllers/              one class per group of actions
     dom/                      Dom.ts: the DOM chores

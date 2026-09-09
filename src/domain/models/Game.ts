@@ -29,6 +29,8 @@ export interface Game {
   readonly kind: string
   readonly description: string
   readonly author: string
+  /** The catalog's genre for the title — "Puzzle", "Arcade" — or null where it names none. */
+  readonly category: string | null
   /** Relative to the catalog's base URL, as published. */
   readonly imagePath: string | null
   readonly installed: boolean

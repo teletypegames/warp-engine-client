@@ -51,6 +51,8 @@ export interface CatalogSoftware {
   readonly status: string
   readonly description: string
   readonly author: string
+  /** The catalog's genre for the title, as published; null where it names none. */
+  readonly category: string | null
   readonly imageUrl: string | null
 }
 

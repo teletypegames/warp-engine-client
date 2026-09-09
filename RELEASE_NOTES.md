@@ -1,3 +1,20 @@
+# WarpEngine Client 2.8.0
+
+**The filter has axes.** The side menu used to offer one list of categories — a status,
+a platform or a kind, one of them at a time — so "the installed Plus/4 titles" was not a
+thing it could show. The list is now a filter with four axes that combine: the status of
+a title on this machine (a list, exactly one on), the platform, the kind (native or
+hosted) and the category, the last three as chips that switch on and off. Every count is
+faceted — it says how many titles the option would show given the other axes as they
+stand — and *Clear* appears while anything is narrowing the catalog. An axis the catalog
+has no second value for is not drawn.
+
+**Category comes from the catalog.** The dialect reads an optional `category` on a
+software record and carries it to the window as `GameDto.category`; the category axis
+appears once a catalog publishes one. WarpEngine does not yet, so the axis stays hidden
+until it does. It is not written into `state.json`, which keeps the file the shape the
+other store clients write.
+
 # WarpEngine Client 2.7.0
 
 **The Commodore titles install.** A C64 or Plus/4 release used to be a cartridge and

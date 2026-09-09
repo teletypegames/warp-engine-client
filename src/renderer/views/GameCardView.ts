@@ -1,6 +1,6 @@
 import type { GameDto } from '../../shared/contracts/dto/GameDto'
 import type { MessageBundle } from '../../shared/i18n/MessageBundle'
-import { createElement } from '../dom/Dom'
+import { createElement, describeControl } from '../dom/Dom'
 
 export interface GameCardViewCallbacks {
   readonly onInstall: (name: string) => void
@@ -204,8 +204,7 @@ export class GameCardView {
   private createMenu (game: GameDto, messages: MessageBundle, busy: boolean): HTMLElement {
     const menu = createElement('details', 'menu')
     const toggle = createElement('summary', 'icon-btn menu-toggle')
-    toggle.title = messages.moreActions
-    toggle.setAttribute('aria-label', messages.moreActions)
+    describeControl(toggle, messages.moreActions)
     toggle.appendChild(this.createDotsIcon())
     menu.appendChild(toggle)
 

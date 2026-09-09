@@ -613,3 +613,82 @@ body.nav-closed .side { margin-left: calc(-1 * var(--side-width)); }
 .list-row .meta { flex: none; display: flex; gap: 6px; align-items: center; }
 .list-row .version { font-size: 12px; color: var(--ink-dim); flex: none; }
 .list-row .actions { flex: none; display: flex; gap: 6px; align-items: center; }
+
+/*
+ * The filter. One block per axis: the status axis is a list of rows (one is always on),
+ * the others are chips (any may be on). `.cat` is kept for the rows because the window
+ * check counts them and reads which one is active.
+ */
+.side-head-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.side-link {
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  padding: 0 4px;
+  cursor: pointer;
+}
+.side-link:hover { text-decoration: underline; }
+.cats { gap: 14px; padding-right: 2px; }
+.filter-axis { display: flex; flex-direction: column; gap: 4px; }
+.filter-axis-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: #6b7d92;
+  padding: 0 10px;
+}
+.filter-list { display: flex; flex-direction: column; gap: 1px; }
+.cat { position: relative; padding-left: 14px; }
+.cat.is-active::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 7px;
+  bottom: 7px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.cat-count {
+  min-width: 18px;
+  text-align: center;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--ink-dim);
+}
+.cat.is-active .cat-count { background: var(--bg); color: var(--ink); }
+
+.filter-chips { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 8px; }
+.chip {
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-dim);
+  cursor: pointer;
+  max-width: 100%;
+}
+.chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip-count {
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--panel-2);
+}
+.chip:hover { color: var(--ink); border-color: #3a4757; background: var(--panel-2); }
+.chip.is-active { color: var(--accent-ink); background: var(--accent); border-color: transparent; font-weight: 600; }
+.chip.is-active .chip-count { background: rgba(0, 0, 0, .18); color: inherit; }
+.chip.is-empty { opacity: .5; }
+.chip:focus-visible, .cat:focus-visible, .side-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

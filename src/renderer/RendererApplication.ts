@@ -6,7 +6,7 @@ import { EngineStreamController } from './controllers/EngineStreamController'
 import { PreferencesController } from './controllers/PreferencesController'
 import { StoreController } from './controllers/StoreController'
 import { AppStore, type AppState } from './state/AppStore'
-import { buildCategorySections, resolveFilter, type CategoryFilter } from './state/CategoryFilter'
+import { EVERYTHING, resolveFilter, toggleOption, type FilterAxis } from './state/CatalogFilter'
 import { CatalogGridView } from './views/CatalogGridView'
 import { CatalogListView } from './views/CatalogListView'
 import { GameCardView } from './views/GameCardView'
@@ -78,7 +78,10 @@ export class RendererApplication {
       onRemoveStore: (home: string, name: string): void => { void this.stores.removeStore(home, name) },
       onAddStore: (): void => { void this.stores.offerStores() },
       onRefresh: (): void => { void this.catalog.refresh() },
-      onSelectCategory: (filter: CategoryFilter): void => { this.store.applyFilter(filter) },
+      onToggleFilter: (axis: FilterAxis, value: string): void => {
+        this.store.applyFilter(toggleOption(this.store.readState().filter, axis, value))
+      },
+      onClearFilters: (): void => { this.store.applyFilter(EVERYTHING) },
       onSelectLocale: (locale: string): void => { void this.preferences.selectLocale(locale) },
       onSignIn: (): void => { void this.accounts.signIn() },
       onSignOut: (): void => { void this.accounts.signOut() }
@@ -119,8 +122,8 @@ export class RendererApplication {
 
   private render (state: AppState): void {
     // The filter is corrected before anything is drawn from it, so the menu and the
-    // grid can never disagree about which category is active.
-    const corrected = resolveFilter(state.filter, buildCategorySections(state.games, state.messages))
+    // grid can never disagree about what is active.
+    const corrected = resolveFilter(state.filter, state.games)
     if (corrected !== state.filter) {
       this.store.applyFilter(corrected)
       return

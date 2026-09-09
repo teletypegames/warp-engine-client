@@ -35,6 +35,8 @@ export interface GameDto {
   readonly kind: string
   readonly description: string
   readonly author: string
+  /** The catalog's genre, or null where it names none; the category axis of the filter. */
+  readonly category: string | null
   /** Absolute, already resolved against the catalog's base URL. */
   readonly imageUrl: string | null
   readonly installed: boolean

@@ -1,7 +1,7 @@
 import type { GameDto } from '../../shared/contracts/dto/GameDto'
 import { requireElement, setHidden, setText } from '../dom/Dom'
 import type { AppState } from '../state/AppStore'
-import { matchesFilter } from '../state/CategoryFilter'
+import { matchesFilter } from '../state/CatalogFilter'
 import type { GameCardView } from './GameCardView'
 
 /** The grid, and the sentence that stands in for it when there is nothing to show. */

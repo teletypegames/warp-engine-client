@@ -1,8 +1,8 @@
 import type { GameDto } from '../../shared/contracts/dto/GameDto'
 import type { MessageBundle } from '../../shared/i18n/MessageBundle'
-import { createElement, requireElement, setHidden, setText } from '../dom/Dom'
+import { createElement, describeControl, requireElement, setHidden, setText } from '../dom/Dom'
 import type { AppState } from '../state/AppStore'
-import { matchesFilter } from '../state/CategoryFilter'
+import { matchesFilter } from '../state/CatalogFilter'
 import type { GameCardViewCallbacks } from './GameCardView'
 
 /** The catalog as a flat list of rows instead of a grid of cards. */
@@ -131,8 +131,7 @@ export class CatalogListView {
   private createMenu (game: GameDto, messages: MessageBundle, busy: boolean): HTMLElement {
     const menu = createElement('details', 'menu')
     const toggle = createElement('summary', 'icon-btn menu-toggle')
-    toggle.title = messages.moreActions
-    toggle.setAttribute('aria-label', messages.moreActions)
+    describeControl(toggle, messages.moreActions)
     toggle.appendChild(this.createDotsIcon())
     menu.appendChild(toggle)
 

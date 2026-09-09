@@ -40,3 +40,15 @@ export function setText (node: HTMLElement, value: string | number | null): void
 export function setHidden (node: Element, hidden: boolean): void {
   node.toggleAttribute('hidden', hidden)
 }
+
+/**
+ * Name an icon-only control.
+ *
+ * `title` is the tooltip a mouse finds and `aria-label` is what a screen reader reads;
+ * an icon button needs both, and they are the same sentence.
+ */
+export function describeControl (element: Element, name: string): void {
+  element.setAttribute('title', name)
+  element.setAttribute('aria-label', name)
+}
+

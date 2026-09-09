@@ -11,8 +11,11 @@ import type { SelectedGame } from './SelectedGame'
  * download a title is the server's answer to a question asked now; a copy of it on disk
  * would go stale the moment a purchase or a refund happened, and a stale "yes" is the
  * dangerous direction. What is installed stays installed either way.
+ *
+ * Nor is `category`: it is the catalog's word for the title and is read from the
+ * catalog each time, so the file keeps the shape the other store clients write.
  */
-export interface InstalledRecord extends Omit<SelectedGame, 'access'> {
+export interface InstalledRecord extends Omit<SelectedGame, 'access' | 'category'> {
   /** The unpacked archive's directory; null for a hosted entry, which has none. */
   readonly payload: string | null
   readonly executable: string | null

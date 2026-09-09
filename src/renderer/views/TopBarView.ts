@@ -1,4 +1,4 @@
-import { requireElement, setHidden, setText } from '../dom/Dom'
+import { describeControl, requireElement, setHidden, setText } from '../dom/Dom'
 import type { AppState } from '../state/AppStore'
 
 export interface TopBarViewCallbacks {
@@ -26,16 +26,13 @@ export class TopBarView {
   public render (state: AppState): void {
     setText(this.appName, state.messages.appName)
     setText(this.storeId, state.currentStore === null ? '' : state.currentStore.id)
-    this.navToggle.title = state.messages.menu
-    this.navToggle.setAttribute('aria-label', state.messages.menu)
+    describeControl(this.navToggle, state.messages.menu)
     this.navToggle.setAttribute('aria-expanded', String(state.navigationOpen))
 
     const isGrid = state.viewMode === 'grid'
     setHidden(this.viewIconGrid, !isGrid)
     setHidden(this.viewIconList, isGrid)
-    this.viewToggle.title = isGrid ? state.messages.listView : state.messages.gridView
-    this.viewToggle.setAttribute('aria-label', isGrid ? state.messages.listView : state.messages.gridView)
-    this.viewToggle.classList.toggle('view-toggle-active', true)
+    describeControl(this.viewToggle, isGrid ? state.messages.listView : state.messages.gridView)
 
     const progress = state.progress
     setHidden(this.progress, progress === null)

@@ -25,6 +25,7 @@ export class GameDtoMapper {
       kind: game.kind,
       description: game.description,
       author: game.author,
+      category: game.category,
       imageUrl: this.resolveImageUrl(game, catalogBaseUrl),
       installed: game.installed,
       updateAvailable: game.updateAvailable,
