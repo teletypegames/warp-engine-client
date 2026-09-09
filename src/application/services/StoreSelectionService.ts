@@ -23,8 +23,11 @@ export class StoreSelectionService {
     return this.stores.findAll()
   }
 
-  /** The store to drive, remembering the choice across runs. Null when there is none. */
-  public findCurrentStore (): InstalledStore | null {
+  /**
+   * The store to drive, read from the disk and the remembered choice. Null when there
+   * is none. A read rather than a find: it refreshes what `requireCurrentStore` answers.
+   */
+  public readCurrentStore (): InstalledStore | null {
     const known = this.stores.findAll()
     const preferredHome = this.preferences.readStoreHome()
     const remembered = preferredHome === null
@@ -35,7 +38,7 @@ export class StoreSelectionService {
   }
 
   public requireCurrentStore (): InstalledStore {
-    const store = this.current ?? this.findCurrentStore()
+    const store = this.current ?? this.readCurrentStore()
     if (store === null) throw new StoreMissingError()
     return store
   }
@@ -65,7 +68,7 @@ export class StoreSelectionService {
   /**
    * Forget a store that is no longer on the machine.
    *
-   * The next store is not chosen here: `findCurrentStore` re-reads the disk and applies
+   * The next store is not chosen here: `readCurrentStore` re-reads the disk and applies
    * the same rule it always does, so "which store is open" has exactly one answer in
    * one place. Clearing the remembered home first is what stops it choosing the one
    * that has just been deleted.
@@ -73,7 +76,7 @@ export class StoreSelectionService {
   public forgetStore (store: InstalledStore): void {
     if (this.preferences.readStoreHome() === store.home) this.preferences.forgetStoreHome()
     if (this.current?.home === store.home) this.current = null
-    this.findCurrentStore()
+    this.readCurrentStore()
   }
 
   public readDefaultStoreRoot (): string {

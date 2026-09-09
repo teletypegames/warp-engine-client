@@ -38,7 +38,7 @@ export class PayloadInstaller {
   public async unpack (game: SelectedGame, destination: string): Promise<number> {
     const parent = path.dirname(destination)
     fs.mkdirSync(parent, { recursive: true })
-    const archivePath = this.files.temporaryPath(parent, game.name, '.zip')
+    const archivePath = this.files.resolveTemporaryPath(parent, game.name, '.zip')
 
     try {
       const size = await this.catalog.downloadAsset(game.asset, archivePath)

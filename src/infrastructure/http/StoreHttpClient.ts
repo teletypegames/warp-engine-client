@@ -3,7 +3,7 @@ import http from 'node:http'
 import https from 'node:https'
 import path from 'node:path'
 import { pipeline } from 'node:stream/promises'
-import { HttpStatusError } from './HttpTextClient'
+import { HttpStatusError } from './HttpStatusError'
 
 const MAX_REDIRECTS = 5
 

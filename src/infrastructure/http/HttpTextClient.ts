@@ -1,17 +1,10 @@
 import http from 'node:http'
 import https from 'node:https'
+import { HttpStatusError } from './HttpStatusError'
 
 const REQUEST_TIMEOUT_MS = 60_000
 const MAX_REDIRECTS = 5
 const USER_AGENT = 'warp-engine-client'
-
-/** A response that arrived but said no. The status matters: 404 is not a failure everywhere. */
-export class HttpStatusError extends Error {
-  public constructor (public readonly url: string, public readonly statusCode: number) {
-    super(`${url} answered ${String(statusCode)}`)
-    this.name = 'HttpStatusError'
-  }
-}
 
 /**
  * GET a URL as text, following redirects.
@@ -24,7 +17,7 @@ export class HttpTextClient {
   public async readText (url: string, redirectsLeft: number = MAX_REDIRECTS): Promise<string> {
     return new Promise<string>((resolve: (body: string) => void, reject: (error: Error) => void): void => {
       const client = url.startsWith('http://') ? http : https
-      const request = client.get(url, { headers: { 'User-Agent': USER_AGENT } }, (response): void => {
+      const request = client.get(url, { headers: { 'User-Agent': USER_AGENT } }, (response: http.IncomingMessage): void => {
         const status = response.statusCode ?? 0
         const location = response.headers.location
 

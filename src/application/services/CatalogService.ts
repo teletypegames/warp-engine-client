@@ -43,9 +43,6 @@ export class CatalogService {
     return this.lastListing?.games.find((game: Game): boolean => game.name === name) ?? null
   }
 
-  public findCatalogBaseUrl (): string {
-    return this.lastListing?.paths?.catalogBaseUrl ?? ''
-  }
 
   /** After a write the listing is stale; the window refreshes anyway. */
   public forgetListing (): void {

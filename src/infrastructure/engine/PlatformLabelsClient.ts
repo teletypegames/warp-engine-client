@@ -1,22 +1,10 @@
-import { HttpStatusError } from '../http/HttpTextClient'
+import { HttpStatusError } from '../http/HttpStatusError'
 import type { StoreHttpClient } from '../http/StoreHttpClient'
 import type { StoreFileSystem } from '../files/StoreFileSystem'
 import { asRecord, readOptionalString, readRecord } from '../json/JsonRecord'
+import { NO_LABELS, PlatformLabels } from './PlatformLabels'
 
 const BUILDS_PATH = '/api/builds'
-
-/** What a catalog calls its platforms, by platform name. */
-export class PlatformLabels {
-  public constructor (private readonly labels: Readonly<Record<string, string>>) {}
-
-  /** The display name, or the raw name for a platform the catalog did not describe. */
-  public labelFor (platform: string): string {
-    const label = this.labels[platform]
-    return label !== undefined && label.length > 0 ? label : platform
-  }
-}
-
-const NO_LABELS = new PlatformLabels({})
 
 /**
  * `GET /api/builds`: the catalog's own names for its platforms.

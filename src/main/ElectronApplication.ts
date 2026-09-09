@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { BrowserWindow, dialog, type App, type IpcMain, type Shell } from 'electron'
+import { describeError } from '../domain/errors/DescribeError'
 import { ServiceContainer } from './composition/ServiceContainer'
 import { MainWindowFactory } from './MainWindowFactory'
 import { SelfTestRunner } from './diagnostics/SelfTestRunner'
@@ -54,7 +55,7 @@ export class ElectronApplication {
       if (process.platform !== 'darwin') this.app.quit()
     })
     process.on('unhandledRejection', (reason: unknown): void => {
-      dialog.showErrorBox(PRODUCT_NAME, reason instanceof Error ? reason.message : String(reason))
+      dialog.showErrorBox(PRODUCT_NAME, describeError(reason))
     })
 
     void this.app.whenReady().then((): void => { this.openWindow() })
@@ -79,7 +80,7 @@ export class ElectronApplication {
         runner.run().then(
           (passed: boolean): void => { this.app.exit(passed ? 0 : 1) },
           (error: unknown): void => {
-            console.log(`SELFTEST ERROR ${error instanceof Error ? error.message : String(error)}`)
+            console.log(`SELFTEST ERROR ${describeError(error)}`)
             this.app.exit(1)
           }
         )

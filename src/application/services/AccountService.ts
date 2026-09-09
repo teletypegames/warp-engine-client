@@ -37,7 +37,7 @@ export class AccountService {
 
   /** Null where no store is open — the window asks before anything is chosen. */
   public async readAccount (): Promise<StoreAccount> {
-    const store = this.selection.findCurrentStore()
+    const store = this.selection.readCurrentStore()
     if (store === null) return NO_ACCOUNT
 
     return await this.catalogGateway.readAccount(store)
@@ -67,7 +67,7 @@ export class AccountService {
   }
 
   public async signOut (): Promise<StoreAccount> {
-    const store = this.selection.findCurrentStore()
+    const store = this.selection.readCurrentStore()
     if (store === null) return NO_ACCOUNT
 
     this.cancelSignIn()

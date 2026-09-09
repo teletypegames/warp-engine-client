@@ -27,7 +27,7 @@ export class ApplicationStateService {
   public readState (): AppStateDto {
     const locale = this.preferences.readLocale()
     const stores = this.selection.listStores()
-    const current: InstalledStore | null = this.selection.findCurrentStore()
+    const current: InstalledStore | null = this.selection.readCurrentStore()
 
     return {
       locale,

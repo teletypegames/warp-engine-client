@@ -41,13 +41,13 @@ export class LauncherWriter {
    * The catalog serves these as a directory rather than an archive, so the entry is
    * a link to it — which also means a web title needs the network.
    */
-  public webUrl (game: SelectedGame | InstalledRecord): string {
+  public resolveWebUrl (game: SelectedGame | InstalledRecord): string {
     const assetPath = game.assetPath.length > 0 ? game.assetPath : `/file/${game.asset}`
     return `${this.configuration.store.baseUrl}/${assetPath.replace(/^\/+|\/+$/g, '')}/`
   }
 
-  public launcherPath (layout: DesktopLayout, game: SelectedGame | InstalledRecord): string {
-    const group = this.layouts.menuGroup(layout)
+  public resolveLauncherPath (layout: DesktopLayout, game: SelectedGame | InstalledRecord): string {
+    const group = this.layouts.resolveMenuGroup(layout)
     if (layout.operatingSystem === 'linux') {
       return path.join(group, `${this.configuration.store.id}-${game.name}.desktop`)
     }
@@ -65,8 +65,8 @@ export class LauncherWriter {
    * behind.
    */
   public writeLauncher (layout: DesktopLayout, record: InstalledRecord): string {
-    const entryPath = this.launcherPath(layout, record)
-    const url = this.webUrl(record)
+    const entryPath = this.resolveLauncherPath(layout, record)
+    const url = this.resolveWebUrl(record)
     if (layout.operatingSystem === 'linux') return this.desktopEntries.write(record, entryPath, url)
     if (layout.operatingSystem === 'darwin') return this.macBundles.write(record, entryPath, url)
     return this.windowsShortcuts.write(record, entryPath, url)

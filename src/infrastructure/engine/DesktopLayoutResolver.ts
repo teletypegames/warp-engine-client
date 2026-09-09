@@ -5,7 +5,7 @@ import {
 import type { InstalledRecord } from '../../domain/models/InstalledRecord'
 import type { SelectedGame } from '../../domain/models/SelectedGame'
 import type { StoreConfiguration } from '../../domain/models/StoreConfiguration'
-import { expandHome, expandPathSpecification } from '../files/StoreFileSystem'
+import { expandHome, expandPathSpecification } from '../files/Paths'
 import type { HostMachineDetector } from './HostMachineDetector'
 
 /**
@@ -50,12 +50,12 @@ export class DesktopLayoutResolver {
   }
 
   /** The only payload subtree this store may delete from. */
-  public ownedRoot (layout: DesktopLayout): string {
+  public resolveOwnedRoot (layout: DesktopLayout): string {
     return path.join(layout.installRoot, this.configuration.paths.subfolder)
   }
 
-  public payloadDirectory (layout: DesktopLayout, game: SelectedGame | InstalledRecord): string {
-    return path.join(this.ownedRoot(layout), game.name)
+  public resolvePayloadDirectory (layout: DesktopLayout, game: SelectedGame | InstalledRecord): string {
+    return path.join(this.resolveOwnedRoot(layout), game.name)
   }
 
   /**
@@ -64,12 +64,12 @@ export class DesktopLayoutResolver {
    * Kept inside our own folder rather than the shared icon theme, so an uninstall
    * never has to reach into it.
    */
-  public iconPath (layout: DesktopLayout, game: SelectedGame | InstalledRecord): string {
-    return path.join(this.ownedRoot(layout), 'icons', `${game.name}.png`)
+  public resolveIconPath (layout: DesktopLayout, game: SelectedGame | InstalledRecord): string {
+    return path.join(this.resolveOwnedRoot(layout), 'icons', `${game.name}.png`)
   }
 
   /** Windows puts programs in a Start-menu folder; the others do not. */
-  public menuGroup (layout: DesktopLayout): string {
+  public resolveMenuGroup (layout: DesktopLayout): string {
     if (layout.operatingSystem === 'windows') {
       return path.join(layout.menuDirectory, toSafeFileName(this.configuration.store.name))
     }

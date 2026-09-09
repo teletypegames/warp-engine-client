@@ -5,7 +5,8 @@ import type { EngineProgressListener } from '../../domain/models/EngineProgress'
 import { gameKey, type InstalledRecord } from '../../domain/models/InstalledRecord'
 import type { SelectedGame } from '../../domain/models/SelectedGame'
 import { APP_MODE, type StoreConfiguration } from '../../domain/models/StoreConfiguration'
-import { describe, type StoreFileSystem } from '../files/StoreFileSystem'
+import { describeError } from '../../domain/errors/DescribeError'
+import type { StoreFileSystem } from '../files/StoreFileSystem'
 import type { CatalogClient } from './CatalogClient'
 import type { DesktopLayoutResolver } from './DesktopLayoutResolver'
 import type { LauncherWriter } from './launchers/LauncherWriter'
@@ -71,7 +72,7 @@ export class GameInstaller {
         installed.set(key, result.record)
       } catch (error: unknown) {
         failed += 1
-        const reason = describe(error)
+        const reason = describeError(error)
         this.log(`warning: ${game.name} failed: ${reason}`)
         progress.onEvent?.({ event: 'failed', name: game.name, error: reason })
       }
@@ -99,7 +100,7 @@ export class GameInstaller {
     game: SelectedGame,
     previous: InstalledRecord | null
   ): Promise<{ readonly record: InstalledRecord; readonly changed: boolean }> {
-    const payloadDirectory = this.layouts.payloadDirectory(layout, game)
+    const payloadDirectory = this.layouts.resolvePayloadDirectory(layout, game)
     let changed = false
     let payload: string | null = null
     let executable: string | null = null
@@ -125,7 +126,7 @@ export class GameInstaller {
       payload = payloadDirectory
     } else {
       // Nothing to unpack: the browser build is hosted, so the entry is a link.
-      url = this.launchers.webUrl(game)
+      url = this.launchers.resolveWebUrl(game)
       if (previous?.url !== url) {
         changed = true
         this.log(`added ${game.name} ${game.version} as a web entry -> ${url}`)
@@ -149,7 +150,7 @@ export class GameInstaller {
 
   /** Delete one title's payload, icon and menu entry — and nothing else. */
   public removeGame (layout: DesktopLayout, record: InstalledRecord): void {
-    const owned = this.layouts.ownedRoot(layout)
+    const owned = this.layouts.resolveOwnedRoot(layout)
     for (const target of [record.payload, record.icon]) {
       if (target !== null) this.files.removeWithin(target, owned)
     }
@@ -164,16 +165,16 @@ export class GameInstaller {
       this.removeGame(layout, record)
       installed.delete(key)
     }
-    const owned = this.layouts.ownedRoot(layout)
+    const owned = this.layouts.resolveOwnedRoot(layout)
     this.files.pruneEmptyDirectories([path.join(owned, 'icons'), owned], layout.installRoot)
     if (layout.operatingSystem === 'windows') {
-      this.files.pruneEmptyDirectories([this.layouts.menuGroup(layout)], layout.menuDirectory)
+      this.files.pruneEmptyDirectories([this.layouts.resolveMenuGroup(layout)], layout.menuDirectory)
     }
   }
 
   private async installIcon (layout: DesktopLayout, game: SelectedGame): Promise<string | null> {
     if (game.imageUrl === null) return null
-    const iconPath = this.layouts.iconPath(layout, game)
+    const iconPath = this.layouts.resolveIconPath(layout, game)
     if (hasContent(iconPath)) return iconPath
 
     const image = await this.catalog.downloadImage(game.imageUrl, game.name)

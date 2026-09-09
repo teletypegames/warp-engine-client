@@ -2,7 +2,7 @@ import type { GameDto } from '../../shared/contracts/dto/GameDto'
 import type { MessageBundle } from '../../shared/i18n/MessageBundle'
 import { closeDetailsOnOutsideClick, createElement, requireElement } from '../dom/Dom'
 import type { AppState } from '../state/AppStore'
-import { renderListing } from './CatalogListing'
+import { renderListing } from './Listing'
 import type { GameCardView } from './GameCardView'
 
 /**

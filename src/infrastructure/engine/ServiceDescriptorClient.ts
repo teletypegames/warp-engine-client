@@ -2,7 +2,7 @@ import {
   DEFAULT_SERVICE_DESCRIPTOR, type AuthDescriptor, type DeviceAuthDescriptor,
   type ServiceDescriptor
 } from '../../domain/models/ServiceDescriptor'
-import { HttpStatusError } from '../http/HttpTextClient'
+import { HttpStatusError } from '../http/HttpStatusError'
 import type { StoreHttpClient } from '../http/StoreHttpClient'
 import { asRecord, readBoolean, readNumber, readOptionalString, readRecord } from '../json/JsonRecord'
 

@@ -99,7 +99,7 @@ class StoreLifecycleTest {
 
     this.report(!fs.existsSync(store.home), 'home removed', store.home)
     this.report(this.stores.findAll().length === 0, 'gone from the scan')
-    this.report(this.selection.findCurrentStore() === null, 'nothing open afterwards')
+    this.report(this.selection.readCurrentStore() === null, 'nothing open afterwards')
   }
 
   /**

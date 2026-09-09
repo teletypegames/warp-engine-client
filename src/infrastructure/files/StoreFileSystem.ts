@@ -1,7 +1,8 @@
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
+import { describeError } from '../../domain/errors/DescribeError'
 import { asRecord, readString } from '../json/JsonRecord'
+import { isWithin } from './Paths'
 
 /**
  * The mode an atomic write lands on when the caller names none.
@@ -38,7 +39,7 @@ export class StoreFileSystem {
       return JSON.parse(fs.readFileSync(filePath, 'utf8'))
     } catch (error: unknown) {
       if (isMissingFile(error)) return null
-      this.log(`warning: cannot read ${filePath}: ${describe(error)}`)
+      this.log(`warning: cannot read ${filePath}: ${describeError(error)}`)
       return null
     }
   }
@@ -73,7 +74,7 @@ export class StoreFileSystem {
    * store's entry must not touch what it points at.
    */
   public removeWithin (target: string, root: string): boolean {
-    if (!within(target, root)) {
+    if (!isWithin(target, root)) {
       this.log(`warning: refusing to delete ${target} (outside ${root})`)
       return false
     }
@@ -98,7 +99,7 @@ export class StoreFileSystem {
       .sort((left: string, right: string): number => depth(right) - depth(left))
 
     for (const directory of ordered) {
-      if (!within(directory, root)) {
+      if (!isWithin(directory, root)) {
         this.log(`warning: refusing to remove ${directory} (outside ${root})`)
         continue
       }
@@ -114,58 +115,11 @@ export class StoreFileSystem {
     }
   }
 
-  public temporaryPath (directory: string, label: string, suffix: string): string {
+  public resolveTemporaryPath (directory: string, label: string, suffix: string): string {
     return path.join(directory, `.${this.tag}-${label}${suffix}`)
   }
 }
 
-/**
- * True when `target` is `root` or sits inside it.
- *
- * Every delete a store performs is guarded by this.
- */
-export function within (target: string, root: string): boolean {
-  if (target.length === 0 || root.length === 0) return false
-  const resolvedTarget = path.resolve(target)
-  const resolvedRoot = path.resolve(root)
-  return resolvedTarget === resolvedRoot || resolvedTarget.startsWith(resolvedRoot + path.sep)
-}
-
-/** `$XDG_DATA_HOME|~/.local/share/applications` or a plain `~`-path, resolved. */
-export function expandPathSpecification (specification: string | null): string | null {
-  if (specification === null || specification.length === 0) return null
-  let remaining = specification
-  if (remaining.startsWith('$')) {
-    const [variable, fallback] = splitOnce(remaining.slice(1), '|')
-    // `$XDG_DATA_HOME|~/.local/share/applications` — the tail after the fallback's
-    // own prefix is what gets appended to the variable.
-    const [name, tail] = splitOnce(variable, '/')
-    const value = process.env[name]
-    if (value !== undefined && value.length > 0) {
-      const base = expandHome(value)
-      return path.resolve(tail.length > 0 ? path.join(base, tail) : base)
-    }
-    remaining = fallback
-  }
-  if (remaining.length === 0) return null
-  return path.resolve(expandVariables(expandHome(remaining)))
-}
-
-export function expandHome (value: string): string {
-  return value === '~' || value.startsWith(`~${path.sep}`) || value.startsWith('~/')
-    ? path.join(os.homedir(), value.slice(2))
-    : value
-}
-
-function expandVariables (value: string): string {
-  return value.replace(/\$(\w+)|\$\{(\w+)\}/g, (match: string, bare: string | undefined, braced: string | undefined): string =>
-    process.env[bare ?? braced ?? ''] ?? match)
-}
-
-function splitOnce (value: string, separator: string): readonly [string, string] {
-  const index = value.indexOf(separator)
-  return index < 0 ? [value, ''] : [value.slice(0, index), value.slice(index + separator.length)]
-}
 
 function statOrNull (target: string): fs.Stats | null {
   try {
@@ -184,9 +138,6 @@ function isMissingFile (error: unknown): boolean {
   return record !== null && readString(record, 'code') === 'ENOENT'
 }
 
-export function describe (error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
 
 let sequence = 0
 function counter (): string {

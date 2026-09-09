@@ -1,5 +1,8 @@
 import path from 'node:path'
-import { app, BrowserWindow, shell, type BrowserWindowConstructorOptions } from 'electron'
+import {
+  app, BrowserWindow, shell, type BrowserWindowConstructorOptions, type Event,
+  type RenderProcessGoneDetails, type WebContentsConsoleMessageEventParams
+} from 'electron'
 
 const WINDOW_OPTIONS: BrowserWindowConstructorOptions = {
   width: 1040,
@@ -57,11 +60,11 @@ export class MainWindowFactory {
 
   /** A renderer error is invisible from the main process otherwise. */
   private forwardRendererDiagnostics (window: BrowserWindow): void {
-    window.webContents.on('console-message', (details): void => {
+    window.webContents.on('console-message', (details: Event<WebContentsConsoleMessageEventParams>): void => {
       const level = details.level === 'error' ? 3 : details.level === 'warning' ? 2 : 1
       this.onRendererMessage(details.message, level)
     })
-    window.webContents.on('render-process-gone', (_event, details): void => {
+    window.webContents.on('render-process-gone', (_event: Event, details: RenderProcessGoneDetails): void => {
       this.onRendererMessage(`gone: ${details.reason}`, 3)
     })
   }

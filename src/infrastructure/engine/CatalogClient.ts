@@ -3,7 +3,8 @@ import {
   WARP_ENGINE_VERSION_HEADER, describeWarpEngineVersion, readWarpEngineVersion,
   type WarpEngineVersion
 } from '../../domain/models/WarpEngineVersion'
-import { describe, type StoreFileSystem } from '../files/StoreFileSystem'
+import { describeError } from '../../domain/errors/DescribeError'
+import type { StoreFileSystem } from '../files/StoreFileSystem'
 import { StoreHttpClient } from '../http/StoreHttpClient'
 import { asRecord } from '../json/JsonRecord'
 
@@ -35,7 +36,7 @@ export interface FetchedCatalog {
  * a library, and being told what is installed matters more than being current.
  */
 export class CatalogClient {
-  private readonly http: StoreHttpClient
+  public readonly http: StoreHttpClient
 
   public constructor (
     private readonly configuration: StoreConfiguration,
@@ -60,11 +61,8 @@ export class CatalogClient {
   }
 
   /** The same HTTP client, for the service descriptor and the sign-in flow. */
-  public httpClient (): StoreHttpClient {
-    return this.http
-  }
 
-  public apiUrl (endpoint: 'catalog' | 'download', parameters?: Readonly<Record<string, string>>): string {
+  public resolveApiUrl (endpoint: 'catalog' | 'download', parameters?: Readonly<Record<string, string>>): string {
     const { baseUrl, api } = this.configuration.store
     const url = `${baseUrl}/${api[endpoint].replace(/^\/+/, '')}`
     if (parameters === undefined) return url
@@ -72,8 +70,8 @@ export class CatalogClient {
   }
 
   /** `GET /api/download` rather than `/file/`, so downloads are counted. */
-  public downloadUrl (asset: string): string {
-    return this.apiUrl('download', { path: asset })
+  public resolveDownloadUrl (asset: string): string {
+    return this.resolveApiUrl('download', { path: asset })
   }
 
   /**
@@ -86,7 +84,7 @@ export class CatalogClient {
    */
   public async fetchCatalog (): Promise<FetchedCatalog> {
     const ownerId = this.configuration.catalog.ownerId
-    const url = this.apiUrl('catalog', ownerId === null ? undefined : { owner_id: String(ownerId) })
+    const url = this.resolveApiUrl('catalog', ownerId === null ? undefined : { owner_id: String(ownerId) })
     try {
       const { body, headers } = await this.http.readBytes(url)
       const catalog = asRecord(JSON.parse(body.toString('utf8')))
@@ -100,14 +98,14 @@ export class CatalogClient {
       return { catalog, engineVersion }
     } catch (error: unknown) {
       const cached = asRecord(this.files.readJson(this.cachePath))
-      if (cached === null) throw new Error(`cannot fetch the catalog from ${url}: ${describe(error)}`)
-      this.log(`warning: catalog fetch failed (${describe(error)}) — using the cached copy`)
+      if (cached === null) throw new Error(`cannot fetch the catalog from ${url}: ${describeError(error)}`)
+      this.log(`warning: catalog fetch failed (${describeError(error)}) — using the cached copy`)
       return { catalog: cached, engineVersion: readWarpEngineVersion(null) }
     }
   }
 
   public async downloadAsset (asset: string, destination: string): Promise<number> {
-    return await this.http.download(this.downloadUrl(asset), destination)
+    return await this.http.download(this.resolveDownloadUrl(asset), destination)
   }
 
   /**
@@ -118,17 +116,17 @@ export class CatalogClient {
    */
   public async downloadImage (imageUrl: string, name: string): Promise<DownloadedImage | null> {
     try {
-      const { body, contentType } = await this.http.readBytes(this.absoluteImageUrl(imageUrl))
+      const { body, contentType } = await this.http.readBytes(this.resolveImageUrl(imageUrl))
       const mediaType = contentType.split(';')[0]?.trim().toLowerCase() ?? ''
       return { body, extension: IMAGE_EXTENSIONS[mediaType] ?? '.png' }
     } catch (error: unknown) {
-      this.log(`warning: box art for ${name} failed: ${describe(error)}`)
+      this.log(`warning: box art for ${name} failed: ${describeError(error)}`)
       return null
     }
   }
 
   /** The catalog gives a server-relative `imageUrl`; absolute ones pass through. */
-  public absoluteImageUrl (imageUrl: string): string {
+  public resolveImageUrl (imageUrl: string): string {
     if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl
     return this.configuration.store.baseUrl + imageUrl
   }

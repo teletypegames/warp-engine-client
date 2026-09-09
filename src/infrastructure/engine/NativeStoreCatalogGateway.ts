@@ -2,17 +2,15 @@ import path from 'node:path'
 import type { CatalogListing } from '../../domain/models/CatalogListing'
 import type { DesktopLayout } from '../../domain/models/DesktopLayout'
 import type { EngineProgressListener } from '../../domain/models/EngineProgress'
-import type { Game, GameMode } from '../../domain/models/Game'
-import {
-  gameKey, limitToNames, matchStateKeys, type InstalledRecord
-} from '../../domain/models/InstalledRecord'
+import type { Game } from '../../domain/models/Game'
+import { limitToNames, matchStateKeys } from '../../domain/models/InstalledRecord'
 import type { InstalledStore } from '../../domain/models/InstalledStore'
 import type {
   CatalogSurvey, SelectedGame, UnavailableEntry
 } from '../../domain/models/SelectedGame'
 import type { ServiceDescriptor } from '../../domain/models/ServiceDescriptor'
 import type { SignInPrompt, StoreAccount } from '../../domain/models/StoreAccount'
-import { APP_MODE, WEB_MODE, type StoreConfiguration } from '../../domain/models/StoreConfiguration'
+import type { StoreConfiguration } from '../../domain/models/StoreConfiguration'
 import type { StorePaths } from '../../domain/models/StorePaths'
 import type { CredentialRepository } from '../../domain/ports/CredentialRepository'
 import type { InstalledStoreRepository } from '../../domain/ports/InstalledStoreRepository'
@@ -24,11 +22,12 @@ import type { CatalogEntry } from './dialects/CatalogDialect'
 import { selectCatalogDialect } from './dialects/CatalogDialectSelector'
 import { DesktopLayoutResolver } from './DesktopLayoutResolver'
 import { DeviceSignInClient } from './DeviceSignInClient'
+import { EngineGameMapper } from './EngineGameMapper'
 import { GameInstaller } from './GameInstaller'
 import { HostMachineDetector } from './HostMachineDetector'
 import { LauncherWriter } from './launchers/LauncherWriter'
 import { PayloadInstaller } from './PayloadInstaller'
-import { PlatformLabelsClient, type PlatformLabels } from './PlatformLabelsClient'
+import { PlatformLabelsClient } from './PlatformLabelsClient'
 import { ServiceDescriptorClient } from './ServiceDescriptorClient'
 import { StoreConfigurationReader } from './StoreConfigurationReader'
 import { StoreStateRepository } from './StoreStateRepository'
@@ -52,6 +51,7 @@ const PLATFORM_LABELS_CACHE_FILE_NAME = 'platforms.json'
  */
 export class NativeStoreCatalogGateway implements StoreCatalogGateway {
   private readonly hosts = new HostMachineDetector()
+  private readonly games = new EngineGameMapper()
 
   /**
    * Both are injected because they are the host's to choose: the credentials are the
@@ -82,8 +82,9 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
     // One list, both kinds: a client that hides what it cannot install leaves the
     // visitor wondering whether the catalog is small or their machine is unusual.
     const games = [
-      ...survey.games.map((game: SelectedGame): Game => this.toGame(engine, game, installed, labels)),
-      ...survey.unavailable.map((entry: UnavailableEntry): Game => toUnavailableGame(entry, labels))
+      ...survey.games.map((game: SelectedGame): Game => this.games.toGame(
+        game, installed, labels, (selected: SelectedGame): string => engine.launchers.resolveWebUrl(selected))),
+      ...survey.unavailable.map((entry: UnavailableEntry): Game => this.games.toUnavailableGame(entry, labels))
     ].sort((left: Game, right: Game): number =>
       left.title.toLowerCase().localeCompare(right.title.toLowerCase()))
 
@@ -91,7 +92,7 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
       games,
       skipped: survey.skipped,
       paths: this.toPaths(engine),
-      account: toAccount(descriptor, this.credentials.readToken(store.id))
+      account: this.games.toAccount(descriptor, this.credentials.readToken(store.id))
     }
   }
 
@@ -133,7 +134,7 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
       return
     }
     engine.launchers.refreshMenu(engine.layout)
-    engine.log(`done — the games are in ${engine.layouts.menuGroup(engine.layout)}`)
+    engine.log(`done — the games are in ${engine.layouts.resolveMenuGroup(engine.layout)}`)
   }
 
   public removeGame (
@@ -191,7 +192,7 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
   public async readAccount (store: InstalledStore): Promise<StoreAccount> {
     const engine = this.openStore(store, {})
     const descriptor = await engine.service.fetchDescriptor()
-    return toAccount(descriptor, this.credentials.readToken(store.id))
+    return this.games.toAccount(descriptor, this.credentials.readToken(store.id))
   }
 
   public async requestSignIn (store: InstalledStore, clientName: string): Promise<SignInPrompt> {
@@ -219,7 +220,7 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
     }
     return {
       state: result.state,
-      account: toAccount(descriptor, this.credentials.readToken(store.id))
+      account: this.games.toAccount(descriptor, this.credentials.readToken(store.id))
     }
   }
 
@@ -233,11 +234,11 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
     const engine = this.openStore(store, {})
     const descriptor = await engine.service.fetchDescriptor()
     if (descriptor.auth !== null && this.credentials.readToken(store.id) !== null) {
-      await new DeviceSignInClient(engine.catalog.httpClient(), descriptor.auth.device).revoke()
+      await new DeviceSignInClient(engine.catalog.http, descriptor.auth.device).revoke()
     }
     this.credentials.clearToken(store.id)
     engine.log('signed out')
-    return toAccount(descriptor, null)
+    return this.games.toAccount(descriptor, null)
   }
 
   /** The sign-in client for one store, or a clear error if the store offers none. */
@@ -248,7 +249,7 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
       throw new Error(`${store.name} does not offer signing in`)
     }
     return {
-      client: new DeviceSignInClient(engine.catalog.httpClient(), descriptor.auth.device),
+      client: new DeviceSignInClient(engine.catalog.http, descriptor.auth.device),
       descriptor,
       log: engine.log
     }
@@ -290,9 +291,9 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
       catalog,
       launchers,
       log,
-      service: new ServiceDescriptorClient(catalog.httpClient(), configuration.store.baseUrl, log),
+      service: new ServiceDescriptorClient(catalog.http, configuration.store.baseUrl, log),
       platforms: new PlatformLabelsClient(
-        catalog.httpClient(), configuration.store.baseUrl, files,
+        catalog.http, configuration.store.baseUrl, files,
         path.join(store.home, PLATFORM_LABELS_CACHE_FILE_NAME), log),
       surveyor: new CatalogSurveyor(configuration, log),
       state: new StoreStateRepository(files, path.join(store.home, STATE_FILE_NAME), log),
@@ -303,43 +304,6 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
     }
   }
 
-  private toGame (
-    engine: StoreEngineContext,
-    game: SelectedGame,
-    installed: ReadonlyMap<string, InstalledRecord>,
-    labels: PlatformLabels
-  ): Game {
-    const record = installed.get(gameKey(game)) ?? null
-    return {
-      name: game.name,
-      title: game.title,
-      platform: game.platform,
-      platformLabel: labels.labelFor(game.platform),
-      version: game.version,
-      mode: toMode(game.mode),
-      kind: game.kind,
-      description: game.description,
-      author: game.author,
-      category: game.category,
-      imagePath: game.imageUrl,
-      installed: record !== null,
-      updateAvailable: record !== null && record.asset !== game.asset,
-      installedVersion: record?.version ?? null,
-      menuEntryPath: record?.menuEntry ?? null,
-      executablePath: record?.executable ?? null,
-      // The catalog's own play address wins where it gives one: a store that gates its
-      // web builds serves them from a page that knows how to ask somebody to sign in,
-      // and the raw /file/ directory under it does not.
-      hostedUrl: game.mode === WEB_MODE
-        ? game.access?.webUrl ?? engine.launchers.webUrl(game)
-        : null,
-      installable: true,
-      unavailableReason: null,
-      unavailableDetail: null,
-      access: game.access
-    }
-  }
-
   private toPaths (engine: StoreEngineContext): StorePaths {
     const host = this.hosts.findHost()
     return {
@@ -347,8 +311,8 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
       architecture: host.architecture,
       installRoot: engine.layout.installRoot,
       menuDirectory: engine.layout.menuDirectory,
-      storeFolder: engine.layouts.ownedRoot(engine.layout),
-      menuGroup: engine.layouts.menuGroup(engine.layout),
+      storeFolder: engine.layouts.resolveOwnedRoot(engine.layout),
+      menuGroup: engine.layouts.resolveMenuGroup(engine.layout),
       catalogBaseUrl: engine.configuration.store.baseUrl,
       storeName: engine.configuration.store.name,
       storeId: engine.configuration.store.id
@@ -371,37 +335,6 @@ interface StoreEngineContext {
   readonly log: (line: string) => void
 }
 
-/**
- * A title this machine cannot install, in the same shape as an installable one.
- *
- * The mode is `app` for want of a truer answer: a title with no build has no mode,
- * and nothing reads this one because `installable` is false.
- */
-function toUnavailableGame (entry: UnavailableEntry, labels: PlatformLabels): Game {
-  return {
-    name: entry.name,
-    title: entry.title,
-    platform: entry.platform,
-    platformLabel: labels.labelFor(entry.platform),
-    version: entry.version,
-    mode: APP_MODE,
-    kind: '',
-    description: entry.description,
-    author: entry.author,
-    category: entry.category,
-    imagePath: entry.imageUrl,
-    installed: false,
-    updateAvailable: false,
-    installedVersion: null,
-    menuEntryPath: null,
-    executablePath: null,
-    hostedUrl: null,
-    installable: false,
-    unavailableReason: entry.reason,
-    unavailableDetail: entry.detail,
-    access: entry.access
-  }
-}
 
 interface SignInContext {
   readonly client: DeviceSignInClient
@@ -409,19 +342,5 @@ interface SignInContext {
   readonly log: (line: string) => void
 }
 
-/**
- * Holding a token for a store that has no sign-in is not being signed in.
- *
- * It happens: a store can lose its identity configuration, or a client can keep a token
- * from before. Reporting it as signed in would offer a "sign out" for a door that is no
- * longer there.
- */
-function toAccount (descriptor: ServiceDescriptor, token: string | null): StoreAccount {
-  const available = descriptor.auth !== null
-  return { signInAvailable: available, signedIn: available && token !== null }
-}
 
 
-function toMode (mode: string): GameMode {
-  return mode === WEB_MODE ? WEB_MODE : APP_MODE
-}

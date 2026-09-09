@@ -1,7 +1,7 @@
 import type { GameDto } from '../../shared/contracts/dto/GameDto'
 import { closeDetailsOnOutsideClick, requireElement } from '../dom/Dom'
 import type { AppState } from '../state/AppStore'
-import { renderListing } from './CatalogListing'
+import { renderListing } from './Listing'
 import type { GameCardView } from './GameCardView'
 
 /** The grid of cards; on screen while there is no gate and the view mode says grid. */

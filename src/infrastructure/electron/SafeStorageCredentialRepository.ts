@@ -25,7 +25,7 @@ export class SafeStorageCredentialRepository implements CredentialRepository {
   public constructor (private readonly environment: ApplicationEnvironment) {}
 
   public readToken (storeId: string): string | null {
-    if (!this.available()) return null
+    if (!this.isAvailable()) return null
     const encoded = this.readAll()[storeId]
     if (typeof encoded !== 'string') return null
 
@@ -39,7 +39,7 @@ export class SafeStorageCredentialRepository implements CredentialRepository {
   }
 
   public writeToken (storeId: string, token: string): void {
-    if (!this.available()) return
+    if (!this.isAvailable()) return
 
     const all = { ...this.readAll() }
     all[storeId] = safeStorage.encryptString(token).toString('base64')
@@ -59,7 +59,7 @@ export class SafeStorageCredentialRepository implements CredentialRepository {
     this.writeAll(remaining)
   }
 
-  public available (): boolean {
+  public isAvailable (): boolean {
     try {
       return safeStorage.isEncryptionAvailable()
     } catch {

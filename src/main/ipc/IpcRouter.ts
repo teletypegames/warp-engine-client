@@ -20,12 +20,13 @@ export class IpcRouter {
       try {
         return await handler(...args)
       } catch (error: unknown) {
-        throw this.describe(channel, error)
+        throw this.toIpcError(channel, error)
       }
     })
   }
 
-  private describe (channel: IpcChannel, error: unknown): Error {
+  /** The error as it crosses the bridge: a domain error by its code, anything else logged here. */
+  private toIpcError (channel: IpcChannel, error: unknown): Error {
     if (error instanceof DomainError) return new Error(`${error.code}: ${error.message}`)
     if (error instanceof Error) {
       console.error(`[ipc] ${channel} failed: ${error.message}`)
