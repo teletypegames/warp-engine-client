@@ -55,16 +55,31 @@ src/
     errors/                   DomainError and its subclasses, each with a code
   application/
     services/                 CatalogService, StoreSelectionService, …
-    mappers/                  domain → DTO
+    mappers/                  domain → DTO: Game, InstalledStore, RegistryStore,
+                              StorePaths, Account
   infrastructure/
-    engine/                   the store engine: catalog, releases, install, state
-      dialects/               one per WarpEngine version's catalog shape
+    engine/                   the store engine, in process
+      NativeStoreCatalogGateway   the StoreCatalogGateway port: every catalog operation
+      CatalogClient           the catalog and its files over HTTP, cached beside the store
+      CatalogSurveyor         which titles this machine can install, and why not the rest
+      ReleasePicker           the release carrying the asset kind the host wants
+      HostMachineDetector     the operating system and architecture, as the store names them
+      DesktopLayoutResolver   where payloads, icons and menu entries go on this host
+      GameInstaller           install, upgrade, remove, prune — the writes
+      PayloadInstaller        download, unpack, find the program to launch
+      StoreConfigurationReader  config.json → StoreConfiguration
+      StoreStateRepository    state.json → InstalledRecord, and back
+      EngineGameMapper        survey entry + installed record + labels → Game
+      PlatformLabels, PlatformLabelsClient  what the catalog calls its platforms (GET /api/builds)
       ServiceDescriptorClient what the catalog's server says it offers (GET /api/service)
       DeviceSignInClient      the device authorization grant, client side
+      dialects/               one per WarpEngine version's catalog shape
       launchers/              .desktop, .app bundle, .lnk — the three hosts
     archive/                  ZipArchive: a zip reader over node:zlib
-    files/                    StoreFileSystem: atomic writes and the delete guard
-    repositories/             the port implementations
+    files/                    StoreFileSystem: atomic writes and the delete guard;
+                              Paths: home and variable expansion, the containment check
+    repositories/             the port implementations, including the null credential
+                              store a headless run is wired with
     http/                     HttpTextClient, StoreHttpClient, HttpStatusError
     json/                     JsonRecord: reading data that came from elsewhere
     config/                   BuildConfiguration: what was decided when this was packaged
@@ -85,13 +100,18 @@ src/
     RendererApplication.ts    wires views and controllers, owns the boot decision
     BridgeAccess.ts           the typed window.storeApi
     state/                    AppStore, CatalogFilter, GatePresentation
-    views/                    one class per region of the window
+    views/                    one class per region of the window; Listing is what the
+                              grid and the list share
     controllers/              one class per group of actions
-    dom/                      Dom.ts: the DOM chores
+    dom/                      Dom.ts: the DOM chores; Icon.ts: the drawn glyphs
     index.html, style.css     copied into the build as-is
   scripts/
     SmokeTest.ts              the second composition root, with no window
+    StoreLifecycleTest.ts     the third: adding and removing a store under a temporary root
 ```
+
+A second `scripts/` sits beside `src/` and is not part of the application: the esbuild
+and icon build steps, the packaging hook and the release shell scripts.
 
 ## Patterns
 
@@ -143,9 +163,10 @@ directions:
 ### Composition root
 
 `main/composition/ServiceContainer.ts` for the application, `scripts/SmokeTest.ts` for
-the headless check. Wiring happens in exactly these two places. No service constructs
-its own adapter, and there is no service locator or global registry — dependencies
-arrive through constructors.
+the headless check, `scripts/StoreLifecycleTest.ts` for the store lifecycle under a
+sandbox. Wiring happens in exactly these three places. No service constructs its own
+adapter, no constructor parameter has a default that is an adapter, and there is no
+service locator or global registry — dependencies arrive through constructors.
 
 ### Controller and Router
 
@@ -234,7 +255,7 @@ The names are a pattern, not a preference, and are checked by
 | Kind | Pattern | Example |
 |---|---|---|
 | Domain model | plain noun, no suffix | `Game`, `InstalledStore` |
-| Port | `<Subject>Repository` / `Gateway` / `Locator` / `Installer` / `Launcher` | `StoreCatalogGateway` |
+| Port | `<Subject>Repository` / `Gateway` / `Locator` / `Installer` / `Launcher` / `Environment` | `StoreCatalogGateway` |
 | Adapter | `<Technology><Port>` | `NativeStoreCatalogGateway`, `HttpStoreRegistryRepository`, `FileSystemInstalledStoreRepository` |
 | Service | `<Area>Service` | `CatalogService` |
 | Mapper | `<Subject>Mapper` / `<Subject>DtoMapper` | `EngineGameMapper`, `GameDtoMapper` |
@@ -256,17 +277,21 @@ The verb states the contract, so a caller knows what a name will do before readi
 
 | Prefix | Contract |
 |---|---|
-| `find…` | returns the thing or `null` / an array; absence is normal |
+| `find…` | returns the thing or `null` / an array; absence is normal, and nothing changes |
 | `require…` | returns the thing or **throws**; absence is a fault |
 | `read…` | fetches from a store, a file or a process |
 | `list…` | returns a collection from somewhere outside |
-| `install…`, `sync…`, `remove…`, `select…`, `update…` | changes something |
+| `resolve…` | computes a path, a URL or a layout from configuration; no I/O |
+| `install…`, `sync…`, `remove…`, `select…`, `update…`, `adopt…`, `forget…` | changes something |
+| `offer…`, `toggle…` | changes what is on screen, through the state |
 | `apply…` | writes to the renderer state store |
+| `publish…` | pushes onto a one-way stream to the window |
 | `render…` | draws (views only) |
+| `create…` | builds a DOM node (views only) |
 | `handle…` | an IPC or DOM event handler |
 | `on…` | a callback property or subscription |
 | `to…` / `from…` | a mapper conversion |
-| `is…`, `has…`, `can…` | a boolean |
+| `is…`, `has…`, `can…`, `matches…` | a boolean |
 | `describe…` | turns something into a message for a person |
 
 Booleans read as assertions (`supported`, `installed`, `launchable`, `busy`), never

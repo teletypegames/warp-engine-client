@@ -15,6 +15,16 @@ appears once a catalog publishes one. WarpEngine does not yet, so the axis stays
 until it does. It is not written into `state.json`, which keeps the file the shape the
 other store clients write.
 
+**Under the hood, the window follows its own rules again.** An audit against
+STRUCTURE.md found the drift: log lines living in a view, controllers writing to that
+view, a gate shown and hidden by calls, mappers and null objects constructed in
+constructor defaults, casts on data that came over the bridge or off the disk, and a
+list view that had grown its own copies of the card's pieces. All of it is put back where
+the map says it goes — the log is state, every view has one `render(state)`, wiring
+happens only in the three composition roots, foreign data goes through `JsonRecord`, and
+the list draws with the card's art, version and menu. Nothing visible changed except the
+version line in the list, which now says just the number.
+
 # WarpEngine Client 2.7.0
 
 **The Commodore titles install.** A C64 or Plus/4 release used to be a cartridge and
