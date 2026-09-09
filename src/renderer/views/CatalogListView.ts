@@ -68,7 +68,7 @@ export class CatalogListView {
 
   private createMeta (game: GameDto, messages: MessageBundle): HTMLElement {
     const meta = createElement('div', 'meta')
-    meta.appendChild(createElement('span', 'badge badge-plain', game.platform))
+    meta.appendChild(createElement('span', 'badge badge-plain', game.platformLabel))
     if (game.installable) {
       meta.appendChild(createElement('span', `badge badge-${game.mode}`,
         game.mode === 'web' ? messages.hosted : messages.native))

@@ -78,7 +78,7 @@ export class GameCardView {
       badge.title = game.unavailableDetail ?? label
       meta.appendChild(badge)
     }
-    meta.appendChild(createElement('span', 'badge badge-plain', game.platform))
+    meta.appendChild(createElement('span', 'badge badge-plain', game.platformLabel))
     // The price is where the mode badge is rather than down by the button: what a title
     // costs is something a person scans a grid for, and a number that only appears
     // beside a button is a number they have to hunt for card by card.

@@ -133,9 +133,12 @@ export const DEFAULT_STORE_CONFIGURATION: StoreConfiguration = {
     bevy: { enabled: true },
     tic80: { enabled: true },
     phaser: { enabled: true },
-    // A cartridge is data for an emulator: nothing a desktop menu can launch. The
-    // Batocera and RetroArch stores are where those belong.
-    c64: { enabled: false }
+    // A cartridge alone is data for an emulator, but since WarpEngine 0.11 a C64 or
+    // Plus/4 release also carries native players — yapeSDL with a launcher that sets
+    // the machine and autostarts the program — and a browser build, so a desktop menu
+    // has something to launch after all.
+    c64: { enabled: true },
+    plus4: { enabled: true }
   },
   behavior: { prune: true, timeout: 60, insecure: false }
 }

@@ -13,9 +13,11 @@ import path from 'node:path'
  * install can start, so every entry is read from the central directory, which is
  * the only place that carries it.
  *
- * Symlinks are written as regular files holding their target path. That is also
- * what Python's `ZipFile.extractall` does, so an archive that installed before
- * installs the same way now.
+ * Symlinks are restored as symlinks when the archive marks them as such in the unix
+ * mode — a macOS framework inside an `.app` is a tree of them, and a framework whose
+ * `Versions/Current` is a text file is a framework `dyld` may still load but
+ * `codesign` no longer recognises. A link that would point outside the destination is
+ * refused like any other path that would.
  */
 
 const END_OF_CENTRAL_DIRECTORY = 0x06054b50
@@ -39,6 +41,8 @@ const ZIP64_U32 = 0xffffffff
 const DEFAULT_FILE_MODE = 0o644
 const DEFAULT_DIRECTORY_MODE = 0o755
 const EXECUTABLE_BITS = 0o111
+const FILE_TYPE_MASK = 0o170000
+const SYMLINK_TYPE = 0o120000
 
 export interface ZipEntry {
   readonly fileName: string
@@ -48,6 +52,7 @@ export interface ZipEntry {
   readonly uncompressedSize: number
   /** From the external attributes' high word; 0 when the archive carries no unix mode. */
   readonly unixMode: number
+  readonly symlink: boolean
   readonly localHeaderOffset: number
 }
 
@@ -83,8 +88,22 @@ export class ZipArchive {
         continue
       }
       fs.mkdirSync(path.dirname(target), { recursive: true })
+      if (entry.symlink) {
+        this.writeSymlink(entry, target, root)
+        continue
+      }
       fs.writeFileSync(target, this.readEntry(entry), { mode: this.fileMode(entry) })
     }
+  }
+
+  private writeSymlink (entry: ZipEntry, target: string, root: string): void {
+    const linkTarget = this.readEntry(entry).toString('utf8')
+    const resolved = path.resolve(path.dirname(target), linkTarget)
+    if (resolved !== root && !resolved.startsWith(root + path.sep)) {
+      throw new Error(`${entry.fileName} would link outside ${root}`)
+    }
+    fs.rmSync(target, { force: true })
+    fs.symlinkSync(linkTarget, target)
   }
 
   /** One entry's bytes, decompressed. */
@@ -143,6 +162,7 @@ function readCentralDirectory (buffer: Buffer, archivePath: string): readonly Zi
     const extraLength = buffer.readUInt16LE(cursor + 30)
     const commentLength = buffer.readUInt16LE(cursor + 32)
     const fileName = buffer.toString('utf8', cursor + CENTRAL_FILE_HEADER_SIZE, cursor + CENTRAL_FILE_HEADER_SIZE + nameLength)
+    const unixMode = buffer.readUInt32LE(cursor + 38) >>> 16
 
     entries.push({
       fileName,
@@ -150,7 +170,8 @@ function readCentralDirectory (buffer: Buffer, archivePath: string): readonly Zi
       compressionMethod: buffer.readUInt16LE(cursor + 10),
       compressedSize: buffer.readUInt32LE(cursor + 20),
       uncompressedSize: buffer.readUInt32LE(cursor + 24),
-      unixMode: buffer.readUInt32LE(cursor + 38) >>> 16,
+      unixMode,
+      symlink: (unixMode & FILE_TYPE_MASK) === SYMLINK_TYPE,
       localHeaderOffset: buffer.readUInt32LE(cursor + 42)
     })
     cursor += CENTRAL_FILE_HEADER_SIZE + nameLength + extraLength + commentLength

@@ -19,6 +19,7 @@ export class GameDtoMapper {
       name: game.name,
       title: game.title,
       platform: game.platform,
+      platformLabel: game.platformLabel,
       version: game.version,
       mode: game.mode,
       kind: game.kind,

@@ -22,6 +22,8 @@ export interface Game {
   readonly name: string
   readonly title: string
   readonly platform: string
+  /** The platform as the catalog names it for people — "Plus/4" for `plus4`. */
+  readonly platformLabel: string
   readonly version: string
   readonly mode: GameMode
   readonly kind: string

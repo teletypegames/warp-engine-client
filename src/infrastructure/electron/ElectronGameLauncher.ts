@@ -36,6 +36,12 @@ export class ElectronGameLauncher implements GameLauncher {
     }
 
     const executable = game.executablePath ?? target
+    if (isBatchFile(executable)) {
+      // A batch file is not a program: the kernel cannot exec it, and Node refuses to
+      // pretend, so it goes through the interpreter every Windows has.
+      this.spawnDetached('cmd.exe', ['/c', 'start', '', executable], path.dirname(executable))
+      return true
+    }
     this.spawnDetached(executable, [], path.dirname(executable))
     return true
   }
@@ -55,4 +61,9 @@ export class ElectronGameLauncher implements GameLauncher {
   private spawnDetached (command: string, commandArguments: readonly string[], cwd: string): void {
     spawn(command, [...commandArguments], { cwd, detached: true, stdio: 'ignore' }).unref()
   }
+}
+
+function isBatchFile (filePath: string): boolean {
+  const lowered = filePath.toLowerCase()
+  return lowered.endsWith('.bat') || lowered.endsWith('.cmd')
 }

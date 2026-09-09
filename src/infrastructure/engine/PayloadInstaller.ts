@@ -9,6 +9,9 @@ import type { CatalogClient } from './CatalogClient'
 const NEVER_A_PROGRAM: readonly string[] =
   ['.txt', '.md', '.json', '.so', '.dll', '.dylib', '.pck', '.dat']
 
+/** What Windows starts by double-click: a binary, or a batch file wrapping one. */
+const WINDOWS_PROGRAM_EXTENSIONS: readonly string[] = ['.exe', '.bat', '.cmd']
+
 export type ExecutableKind = 'bundle' | 'exe'
 
 export interface FoundProgram {
@@ -51,19 +54,19 @@ export class PayloadInstaller {
   /**
    * The thing to launch inside an unpacked payload.
    *
-   * A `bundle` is a macOS `.app` the archive already contained — a LÖVE or Godot
-   * build ships one — and then it *is* the launcher rather than something to wrap.
-   * Otherwise the answer is a single executable, and "single" is the whole
-   * difficulty: an archive holding one candidate is unambiguous, and where there are
-   * several the one named after the game wins. Anything else is reported as not
-   * found, because launching the wrong binary is worse than failing the install.
+   * A program named after the game wins outright: an archive that ships an emulator
+   * next to a launcher script — the C64 and Plus/4 bundles carry yapeSDL and a
+   * `<name>` / `<name>.bat` / `<name>.command` that sets the machine and autostarts
+   * the cartridge — names the launcher after the game precisely so that this is the
+   * thing to run, and neither the emulator binary nor its `.app` is. Then a `bundle`,
+   * a macOS `.app` the archive already contained — a LÖVE or Godot build ships one —
+   * which *is* the launcher rather than something to wrap. Otherwise the answer is a
+   * single executable, and "single" is the whole difficulty: an archive holding one
+   * candidate is unambiguous, and where there are several the one named after the
+   * game wins. Anything else is reported as not found, because launching the wrong
+   * binary is worse than failing the install.
    */
   public findProgram (root: string, name: string, operatingSystem: string): FoundProgram | null {
-    if (operatingSystem === 'darwin') {
-      const bundle = this.findBundle(root)
-      if (bundle !== null) return { kind: 'bundle', executablePath: bundle }
-    }
-
     const executables: string[] = []
     const namedAfterTheGame: string[] = []
 
@@ -73,12 +76,25 @@ export class PayloadInstaller {
       if (NEVER_A_PROGRAM.some((extension: string): boolean => lowered.endsWith(extension))) return
 
       if (operatingSystem === 'windows') {
-        if (lowered.endsWith('.exe')) executables.push(filePath)
+        if (WINDOWS_PROGRAM_EXTENSIONS.some((extension: string): boolean => lowered.endsWith(extension))) {
+          executables.push(filePath)
+        }
       } else if (isExecutable(filePath)) {
         executables.push(filePath)
       }
       if (stem(fileName) === name) namedAfterTheGame.push(filePath)
     })
+
+    const launchers = executables.filter((candidate: string): boolean =>
+      stem(path.basename(candidate)) === name)
+    if (launchers.length === 1 && launchers[0] !== undefined) {
+      return { kind: 'exe', executablePath: launchers[0] }
+    }
+
+    if (operatingSystem === 'darwin') {
+      const bundle = this.findBundle(root)
+      if (bundle !== null) return { kind: 'bundle', executablePath: bundle }
+    }
 
     for (const candidates of [executables, namedAfterTheGame]) {
       if (candidates.length === 1 && candidates[0] !== undefined) {

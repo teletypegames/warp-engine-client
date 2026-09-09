@@ -28,6 +28,8 @@ export interface GameDto {
   readonly name: string
   readonly title: string
   readonly platform: string
+  /** The platform's display name, from the catalog; the raw name where it has none. */
+  readonly platformLabel: string
   readonly version: string
   readonly mode: GameModeDto
   readonly kind: string

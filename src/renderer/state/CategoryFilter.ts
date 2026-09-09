@@ -88,16 +88,20 @@ export function buildCategorySections (
     items: groups.filter((item: CategoryItem): boolean => item.value === 'all' || item.count > 0)
   })
 
-  const platforms = [...new Set(games.map((game: GameDto): string => game.platform))]
-    .filter((platform: string): boolean => platform.length > 0)
-    .sort((left: string, right: string): number => left.localeCompare(right))
+  const labels = new Map<string, string>()
+  for (const game of games) {
+    if (game.platform.length > 0 && !labels.has(game.platform)) labels.set(game.platform, game.platformLabel)
+  }
+  const platforms = [...labels.keys()]
+    .sort((left: string, right: string): number =>
+      (labels.get(left) ?? left).localeCompare(labels.get(right) ?? right))
   if (platforms.length > 1) {
     sections.push({
       title: messages.catPlatform,
       items: platforms.map((platform: string): CategoryItem => ({
         kind: 'platform',
         value: platform,
-        label: platform,
+        label: labels.get(platform) ?? platform,
         count: count((game: GameDto): boolean => game.platform === platform)
       }))
     })

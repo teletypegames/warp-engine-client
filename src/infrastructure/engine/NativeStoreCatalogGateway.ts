@@ -28,12 +28,14 @@ import { GameInstaller } from './GameInstaller'
 import { HostMachineDetector } from './HostMachineDetector'
 import { LauncherWriter } from './launchers/LauncherWriter'
 import { PayloadInstaller } from './PayloadInstaller'
+import { PlatformLabelsClient, type PlatformLabels } from './PlatformLabelsClient'
 import { ServiceDescriptorClient } from './ServiceDescriptorClient'
 import { StoreConfigurationReader } from './StoreConfigurationReader'
 import { StoreStateRepository } from './StoreStateRepository'
 
 const STATE_FILE_NAME = 'state.json'
 const CATALOG_CACHE_FILE_NAME = 'catalog.json'
+const PLATFORM_LABELS_CACHE_FILE_NAME = 'platforms.json'
 
 /**
  * The store engine, in process.
@@ -68,8 +70,8 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
     const host = this.hosts.findHost()
     engine.log(`host: ${host.operatingSystem}/${host.architecture}`)
 
-    const [ descriptor, entries ] = await Promise.all([
-      engine.service.fetchDescriptor(), this.readEntries(engine)
+    const [ descriptor, entries, labels ] = await Promise.all([
+      engine.service.fetchDescriptor(), this.readEntries(engine), engine.platforms.fetchLabels()
     ])
     const survey = engine.surveyor.survey(entries, host)
     const installed = engine.state.readState()
@@ -77,8 +79,8 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
     // One list, both kinds: a client that hides what it cannot install leaves the
     // visitor wondering whether the catalog is small or their machine is unusual.
     const games = [
-      ...survey.games.map((game: SelectedGame): Game => this.toGame(engine, game, installed)),
-      ...survey.unavailable.map((entry: UnavailableEntry): Game => toUnavailableGame(entry))
+      ...survey.games.map((game: SelectedGame): Game => this.toGame(engine, game, installed, labels)),
+      ...survey.unavailable.map((entry: UnavailableEntry): Game => toUnavailableGame(entry, labels))
     ].sort((left: Game, right: Game): number =>
       left.title.toLowerCase().localeCompare(right.title.toLowerCase()))
 
@@ -286,6 +288,9 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
       launchers,
       log,
       service: new ServiceDescriptorClient(catalog.httpClient(), configuration.store.baseUrl, log),
+      platforms: new PlatformLabelsClient(
+        catalog.httpClient(), configuration.store.baseUrl, files,
+        path.join(store.home, PLATFORM_LABELS_CACHE_FILE_NAME), log),
       surveyor: new CatalogSurveyor(configuration, log),
       state: new StoreStateRepository(files, path.join(store.home, STATE_FILE_NAME), log),
       installer: new GameInstaller(
@@ -298,13 +303,15 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
   private toGame (
     engine: StoreEngineContext,
     game: SelectedGame,
-    installed: ReadonlyMap<string, InstalledRecord>
+    installed: ReadonlyMap<string, InstalledRecord>,
+    labels: PlatformLabels
   ): Game {
     const record = installed.get(gameKey(game)) ?? null
     return {
       name: game.name,
       title: game.title,
       platform: game.platform,
+      platformLabel: labels.labelFor(game.platform),
       version: game.version,
       mode: toMode(game.mode),
       kind: game.kind,
@@ -352,6 +359,7 @@ interface StoreEngineContext {
   readonly layouts: DesktopLayoutResolver
   readonly catalog: CatalogClient
   readonly service: ServiceDescriptorClient
+  readonly platforms: PlatformLabelsClient
   readonly launchers: LauncherWriter
   readonly surveyor: CatalogSurveyor
   readonly state: StoreStateRepository
@@ -365,11 +373,12 @@ interface StoreEngineContext {
  * The mode is `app` for want of a truer answer: a title with no build has no mode,
  * and nothing reads this one because `installable` is false.
  */
-function toUnavailableGame (entry: UnavailableEntry): Game {
+function toUnavailableGame (entry: UnavailableEntry, labels: PlatformLabels): Game {
   return {
     name: entry.name,
     title: entry.title,
     platform: entry.platform,
+    platformLabel: labels.labelFor(entry.platform),
     version: entry.version,
     mode: APP_MODE,
     kind: '',
