@@ -56,6 +56,14 @@ interface SettingsReport {
   readonly closed: boolean
 }
 
+/** What the search box did when typed into and emptied again. */
+interface SearchReport {
+  readonly needle: string
+  readonly total: number
+  readonly narrowed: number
+  readonly cleared: number
+}
+
 /** What changed after clicking a store that was not open. */
 interface StoreSwitchReport {
   readonly storeId: string
@@ -96,6 +104,9 @@ export class SelfTestRunner {
     const settings = await this.probeSettings()
     console.log(`settings: ${JSON.stringify(settings)}`)
 
+    const searched = report.gateVisible ? null : await this.probeSearch()
+    if (searched !== null) console.log(`search: ${JSON.stringify(searched)}`)
+
     if (this.shotPath !== null) await this.captureShot(this.shotPath)
 
     // A gate passes on having something to do, not on having a picker: the picker
@@ -125,7 +136,13 @@ export class SelfTestRunner {
     const settingsWell = settings.opened && settings.rows === report.stores.length &&
       settings.title.length > 0 && settings.storesTab && settings.closed
 
-    const passed = rendered && switchedWell && settingsWell
+    // Typing the first title's opening into the box keeps that card, drops something
+    // when there is anything else to drop, and emptying the box brings everything back.
+    const searchedWell = searched === null || (
+      searched.narrowed >= 1 && searched.cleared === searched.total &&
+      (searched.total < 2 || searched.narrowed < searched.total))
+
+    const passed = rendered && switchedWell && settingsWell && searchedWell
     console.log(passed ? 'SELFTEST OK' : 'SELFTEST FAILED')
     return passed
   }
@@ -284,6 +301,39 @@ export class SelfTestRunner {
       rows: readNumber(opened, 'rows'),
       storesTab: readBoolean(opened, 'storesTab'),
       closed: closed === 'true'
+    }
+  }
+
+  /**
+   * The search box, typed into and emptied again.
+   *
+   * The needle is the opening of the first card's title, so the search has to keep at
+   * least that card; with more than one title it is expected to lose some — a box that
+   * keeps every card is a box wired to nothing. Typing goes through the `input` event
+   * the view listens to, not the state, so the wiring is what is tested.
+   */
+  private async probeSearch (): Promise<SearchReport> {
+    const record = asRecord(JSON.parse(await this.evaluate(`(async () => {
+      const total = document.querySelectorAll('.card').length
+      const first = document.querySelector('.card h2')
+      const needle = first === null ? '' : first.textContent.trim().slice(0, 6)
+      const box = document.getElementById('search')
+      const type = async (value) => {
+        box.value = value
+        box.dispatchEvent(new Event('input', { bubbles: true }))
+        await new Promise((done) => setTimeout(done, ${String(SETTLE_POLL_MS)}))
+        return document.querySelectorAll('.card').length
+      }
+      const narrowed = await type(needle)
+      const cleared = await type('')
+      return JSON.stringify({ needle, total, narrowed, cleared })
+    })()`))) ?? {}
+
+    return {
+      needle: readString(record, 'needle'),
+      total: readNumber(record, 'total'),
+      narrowed: readNumber(record, 'narrowed'),
+      cleared: readNumber(record, 'cleared')
     }
   }
 

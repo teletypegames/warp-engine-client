@@ -18,7 +18,9 @@ export const WARP_ENGINE_VERSION_HEADER = 'warpengine-version'
  * compile error until `selectCatalogDialect` says which dialect it gets, which is the
  * point — a new engine version should not be able to arrive silently.
  */
-export const SUPPORTED_WARP_ENGINE_VERSIONS = ['0.2', '0.3', '0.4', '0.5'] as const
+export const SUPPORTED_WARP_ENGINE_VERSIONS = [
+  '0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8', '0.9', '0.10', '0.11', '0.12'
+] as const
 
 export type SupportedWarpEngineVersion = typeof SUPPORTED_WARP_ENGINE_VERSIONS[number]
 

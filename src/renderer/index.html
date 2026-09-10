@@ -22,6 +22,10 @@
       <span class="store-id" id="store-id" hidden></span>
     </div>
     <div class="bar-actions">
+      <!-- The search box is part of the filter: what is typed narrows the grid together
+           with the axes in the side menu, and Clear there empties it too. Hidden while
+           there is no store to search. -->
+      <input id="search" class="input search" type="search" spellcheck="false" autocomplete="off" hidden>
       <button id="view-toggle" class="icon-btn view-toggle-active" aria-pressed="false">
         <svg id="view-icon-grid" class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
           <rect x="2" y="2" width="5" height="5" rx="1" />

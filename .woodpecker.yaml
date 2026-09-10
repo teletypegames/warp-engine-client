@@ -28,8 +28,11 @@ steps:
       - npm run lint
       # The window test wants a display and a store on the machine; that check belongs
       # where there is one. The bridge check runs here unconditionally — it needs nothing
-      # but Node, now that the store engine is part of the application.
+      # but Node, now that the store engine is part of the application — and so does the
+      # store lifecycle test: it adds, renames and removes a store under a temporary
+      # root, which is the only code here that deletes a directory tree.
       - npm run smoke
+      - npm run storetest
 
   # A quarter of a gigabyte of packages is not worth building on every push, so the
   # two builds run when a release is being cut — or when asked for by hand.

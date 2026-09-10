@@ -35,6 +35,7 @@ export const ENGLISH_MESSAGES = {
   switchFailed: 'That store could not be opened',
   categories: 'Filters',
   clearFilters: 'Clear',
+  search: 'Search titles',
   catState: 'Status',
   catAll: 'Everything',
   catInstalled: 'Installed',

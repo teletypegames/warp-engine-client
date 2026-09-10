@@ -8,7 +8,7 @@ import { EngineStreamController } from './controllers/EngineStreamController'
 import { PreferencesController } from './controllers/PreferencesController'
 import { StoreController } from './controllers/StoreController'
 import { AppStore, type AppState } from './state/AppStore'
-import { EVERYTHING, toggleOption, type FilterAxis } from './state/CatalogFilter'
+import { EVERYTHING, toggleOption, withQuery, type FilterAxis } from './state/CatalogFilter'
 import type { SettingsTab } from './state/SettingsTab'
 import { CatalogGridView } from './views/CatalogGridView'
 import { CatalogListView } from './views/CatalogListView'
@@ -75,7 +75,10 @@ export class RendererApplication {
       }),
       new TopBarView({
         onToggleNavigation: (): void => { void this.preferences.toggleNavigation() },
-        onToggleViewMode: (): void => { void this.preferences.toggleViewMode() }
+        onToggleViewMode: (): void => { void this.preferences.toggleViewMode() },
+        onSearch: (query: string): void => {
+          this.store.applyFilter(withQuery(this.store.readState().filter, query))
+        }
       }),
       new SideMenuView({
         onSelectStore: (home: string): void => { void this.stores.selectStore(home) },

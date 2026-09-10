@@ -1,3 +1,30 @@
+# WarpEngine Client 2.11.0
+
+**Search.** A search box in the bar narrows the grid to the titles whose title or name
+contains what is typed, with case and accents folded — `love` finds *LÖVE*, `ra` finds
+*Blessing of Ra*. It is part of the filter rather than a layer over it: the faceted counts
+on the chips already allow for the typed text, *Clear* in the side menu empties the box
+along with the axes, and Escape in the box does the same. The text is the one part of the
+filter that is never resolved away when the catalog changes: a search that matches nothing
+is what the person asked for, and the empty grid says so.
+
+**The engine versions the client admits to knowing.** The supported list ended at 0.5
+while the catalog has been served by 0.11 for weeks, so every fetch logged that the engine
+was *newer than this client knows* and might drop titles — against a shape it read
+perfectly well. The list now runs to 0.12: 0.6 to 0.11 changed storage, CI, images and
+the build matrix, none of which is the catalog's shape, and 0.12 adds the optional
+`category` the dialect has read since 2.8.0. Two dialects, eleven versions, and the
+exhaustive switch still stops the build when a twelfth arrives.
+
+**The store lifecycle test runs in CI.** It adds, renames and removes a store under a
+temporary root — the only code in the application that deletes a directory tree — and
+needed nothing but Node all along; it now runs in the `check` step beside the smoke test
+rather than only on a workstation.
+
+The self-test types the first title's opening into the box, expects the grid to keep that
+card and, with more than one title, to lose some, then empties the box and expects
+everything back.
+
 # WarpEngine Client 2.10.0
 
 **Settings.** A gear in the bottom-left corner of the side menu opens a dialog with

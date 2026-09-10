@@ -2,12 +2,16 @@ import type { GameDto } from '../../shared/contracts/dto/GameDto'
 import type { MessageBundle } from '../../shared/i18n/MessageBundle'
 
 /**
- * The four axes the catalog is narrowed along.
+ * The four axes the catalog is narrowed along, and the text typed into the search box.
  *
  * `group` is the state of a title on this machine and is always set — "everything" is
  * a group. The other three are properties of the title and are optional: null means
  * the axis is not narrowing. The axes combine: a filter is the conjunction of all four,
  * so *Installed* and *Plus/4* together show the installed Plus/4 titles.
+ *
+ * `query` is not an axis — it has no options to count — but it is part of the filter,
+ * so the faceted counts on the chips already say how many titles a click would show
+ * *given what is typed*, and *Clear* takes the typed text with it.
  */
 export type FilterAxis = 'group' | 'platform' | 'mode' | 'category'
 
@@ -16,6 +20,8 @@ export interface CatalogFilter {
   readonly platform: string | null
   readonly mode: string | null
   readonly category: string | null
+  /** Matched against the title and the name; the empty string is not narrowing. */
+  readonly query: string
 }
 
 /** One choice on one axis, with how many titles it would show. */
@@ -40,12 +46,13 @@ export interface FilterSection {
   readonly options: readonly FilterOption[]
 }
 
-export const EVERYTHING: CatalogFilter = { group: 'all', platform: null, mode: null, category: null }
+export const EVERYTHING: CatalogFilter = { group: 'all', platform: null, mode: null, category: null, query: '' }
 
 const GROUPS = ['all', 'installed', 'updates', 'available', 'owned', 'purchasable', 'unsupported'] as const
 
 export function isEverything (filter: CatalogFilter): boolean {
-  return filter.group === 'all' && filter.platform === null && filter.mode === null && filter.category === null
+  return filter.group === 'all' && filter.platform === null && filter.mode === null &&
+    filter.category === null && filter.query === ''
 }
 
 export function matchesFilter (game: GameDto, filter: CatalogFilter): boolean {
@@ -55,7 +62,13 @@ export function matchesFilter (game: GameDto, filter: CatalogFilter): boolean {
   // sends none, and counting it as native would put a C64 cartridge under "native".
   if (filter.mode !== null && !(game.installable && game.mode === filter.mode)) return false
   if (filter.category !== null && game.category !== filter.category) return false
+  if (!matchesQuery(game, filter.query)) return false
   return true
+}
+
+/** The filter with the search box's text; the axes stand. */
+export function withQuery (filter: CatalogFilter, query: string): CatalogFilter {
+  return { ...filter, query }
 }
 
 /**
@@ -171,14 +184,34 @@ export function resolveFilter (filter: CatalogFilter, games: readonly GameDto[])
       : null,
     category: filter.category !== null && has((game: GameDto): boolean => game.category === filter.category)
       ? filter.category
-      : null
+      : null,
+    // Typed text is never stale: a search that matches nothing is what the person
+    // asked for, and the empty grid says so rather than the text vanishing.
+    query: filter.query
   }
   return isSameFilter(filter, resolved) ? filter : resolved
 }
 
 function isSameFilter (left: CatalogFilter, right: CatalogFilter): boolean {
   return left.group === right.group && left.platform === right.platform &&
-    left.mode === right.mode && left.category === right.category
+    left.mode === right.mode && left.category === right.category && left.query === right.query
+}
+
+/**
+ * Case- and accent-insensitive containment over the title and the name.
+ *
+ * Folding both sides means "love" finds *LÖVE* and "ra" finds *Blessing of Ra*; the
+ * name is included because it is what the catalog and the log call a title, and
+ * somebody reading the log will type that.
+ */
+function matchesQuery (game: GameDto, query: string): boolean {
+  const needle = fold(query)
+  if (needle === '') return true
+  return fold(game.title).includes(needle) || fold(game.name).includes(needle)
+}
+
+function fold (text: string): string {
+  return text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
 }
 
 function withAxis (filter: CatalogFilter, axis: FilterAxis, value: string): CatalogFilter {

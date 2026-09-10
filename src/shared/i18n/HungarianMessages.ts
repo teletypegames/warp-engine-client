@@ -35,6 +35,7 @@ export const HUNGARIAN_MESSAGES: MessageBundle = {
   switchFailed: 'Ez a store nem nyitható meg',
   categories: 'Szűrők',
   clearFilters: 'Törlés',
+  search: 'Keresés a címek között',
   catState: 'Állapot',
   catAll: 'Minden',
   catInstalled: 'Telepítve',

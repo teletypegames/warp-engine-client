@@ -163,6 +163,10 @@ Everything that is not a title lives in the **side menu** on the left, and the
   the settings — see below.
 - **Account** appears only where the catalog offers a sign-in, and holds *Sign in…* or
   *Sign out* — see above.
+- The **search box** in the bar narrows the grid to the titles whose title or name
+  contains what is typed — case and accents ignored, so `love` finds *LÖVE*. It is part
+  of the filter: the counts on the chips already allow for it, and *Clear* empties it.
+  Escape empties it too.
 - **Filters** narrow the grid along four axes that combine: the status of a title on
   this machine (*Everything*, *Installed*, *Updates*, *Not installed*, and where the
   catalog gates anything, *Owned* and *To buy*), the **platform** (`godot`, `tic80`,
@@ -300,7 +304,7 @@ builds an application and publishes to a release.
 
 | Step | Image | What it does |
 |---|---|---|
-| `check` | `electronuserland/builder:22` | `npm ci`, type-check, lint, and the smoke test |
+| `check` | `electronuserland/builder:22` | `npm ci`, type-check, lint, the smoke test and the store lifecycle test |
 | `linux` | `electronuserland/builder:22` | AppImage and deb |
 | `windows` | `electronuserland/builder:22-wine` | the NSIS installer and the portable exe, built through Wine |
 | `release` | `alpine` | on a tag only: **creates the release** and attaches what this pipeline built |
@@ -480,8 +484,11 @@ what it reads like. A new engine version cannot arrive silently.
 | older than anything supported | the same, and the log says so |
 | newer than anything supported | the newest dialect is tried anyway, with a warning that titles may be missed |
 
-Three versions share one dialect today, because the catalog's shape has not changed
-across them. One class serving three versions is the honest way to say that.
+Eleven versions share two dialects today — 0.2 to 0.4 read the plain software list,
+0.5 to 0.12 the one with an `access` block — because the catalog's shape has not changed
+across them. One class serving several versions is the honest way to say that. Until 2.11.0
+the list ended at 0.5 while the catalog was served by 0.11, so every fetch logged the
+*newer than this client knows* warning against a shape it read perfectly well.
 
 ## Verified, and not
 
