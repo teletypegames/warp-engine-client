@@ -17,6 +17,9 @@ export interface SideMenuViewCallbacks {
   readonly onSelectLocale: (locale: string) => void
   /** Sign in when signed out, sign out when signed in: the store knows which. */
   readonly onToggleSignedIn: () => void
+  readonly onCheckForUpdates: () => void
+  /** The release page of the newer client, in the browser. */
+  readonly onOpenRelease: () => void
 }
 
 /**
@@ -38,6 +41,9 @@ export class SideMenuView {
   private readonly accountAction = requireElement('account-action', HTMLButtonElement)
   private readonly locale = requireElement('locale', HTMLSelectElement)
   private readonly appVersion = requireElement('app-version', HTMLElement)
+  private readonly updateCheck = requireElement('update-check', HTMLButtonElement)
+  private readonly updateState = requireElement('update-state', HTMLElement)
+  private readonly updateOpen = requireElement('update-open', HTMLButtonElement)
   /** The square around the select: it is what a pointer hovers, so the tooltip is its. */
   private readonly localeControl = requireElement('locale-control', HTMLElement)
 
@@ -47,6 +53,8 @@ export class SideMenuView {
     this.clearFilters.addEventListener('click', callbacks.onClearFilters)
     this.locale.addEventListener('change', (): void => { callbacks.onSelectLocale(this.locale.value) })
     this.accountAction.addEventListener('click', callbacks.onToggleSignedIn)
+    this.updateCheck.addEventListener('click', callbacks.onCheckForUpdates)
+    this.updateOpen.addEventListener('click', callbacks.onOpenRelease)
   }
 
   public render (state: AppState): void {
@@ -64,6 +72,7 @@ export class SideMenuView {
     this.localeControl.title = state.messages.language
 
     setText(this.appVersion, state.appVersion)
+    this.renderClientUpdate(state)
     this.renderStores(state)
     this.renderAccount(state)
     this.renderFilters(state)
@@ -128,6 +137,35 @@ export class SideMenuView {
     // A sign-in already under way has its own panel with a cancel on it; a second
     // "Sign in" here would start a second flow behind the first one's code.
     this.accountAction.disabled = state.busy || state.signIn !== null
+  }
+
+  /**
+   * The version, and whether a newer one is published.
+   *
+   * Nothing is said until asked: the link is the whole of it at first, the sentence and
+   * the download button appear with an answer. A failed check says so in the same place
+   * rather than in the log alone — the person clicked here and is looking here.
+   */
+  private renderClientUpdate (state: AppState): void {
+    const update = state.clientUpdate
+    setText(this.updateCheck, update?.phase === 'checking'
+      ? state.messages.checkingForUpdates
+      : state.messages.checkForUpdates)
+    this.updateCheck.disabled = update?.phase === 'checking'
+
+    const available = update?.phase === 'checked' && update.result.updateAvailable
+    setHidden(this.updateState, update === null || update.phase === 'checking')
+    setHidden(this.updateOpen, !available)
+    if (update === null || update.phase === 'checking') return
+
+    if (update.phase === 'failed') {
+      setText(this.updateState, state.messages.updateCheckFailed)
+      return
+    }
+    setText(this.updateState, available
+      ? state.messages.clientUpdateAvailable.replace('%{version}', update.result.latestVersion)
+      : state.messages.clientUpToDate)
+    setText(this.updateOpen, state.messages.downloadUpdate.replace('%{version}', update.result.latestVersion))
   }
 
   /**

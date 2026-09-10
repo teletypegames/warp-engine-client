@@ -1,6 +1,7 @@
 import type { AccountDto, SignInFinishedDto, SignInPromptDto } from './dto/AccountDto'
 import type { AppStateDto, ViewMode } from './dto/AppStateDto'
 import type { CatalogListingDto } from './dto/CatalogListingDto'
+import type { ClientUpdateDto } from './dto/ClientUpdateDto'
 import type { LocaleSelectionDto } from './dto/LocaleSelectionDto'
 import type { RegistryResultDto } from './dto/RegistryResultDto'
 import type { RegistryStoreDto } from './dto/RegistryStoreDto'
@@ -29,6 +30,8 @@ export interface BridgeApi {
   readPaths: () => Promise<StorePathsDto>
   syncGames: (names: readonly string[]) => Promise<void>
   removeGame: (name: string) => Promise<void>
+  /** Remove and install again from the catalog, even when the copy here looks fine. */
+  reinstallGame: (name: string) => Promise<void>
   launchGame: (name: string) => Promise<boolean>
 
   readAccount: () => Promise<AccountDto>
@@ -51,6 +54,8 @@ export interface BridgeApi {
 
   openFolder: (directory: string) => Promise<boolean>
   openUrl: (url: string) => Promise<boolean>
+  /** Ask the release feed whether a newer client than this one is published. */
+  checkForUpdates: () => Promise<ClientUpdateDto>
 
   onLog: (listener: StreamListener<string>) => void
   onSyncEvent: (listener: StreamListener<SyncEventDto>) => void

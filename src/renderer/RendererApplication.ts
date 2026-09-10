@@ -2,6 +2,7 @@ import type { BridgeApi } from '../shared/contracts/BridgeApi'
 import { requireBridge } from './BridgeAccess'
 import { AccountController } from './controllers/AccountController'
 import { CatalogController } from './controllers/CatalogController'
+import { ClientUpdateController } from './controllers/ClientUpdateController'
 import { EngineStreamController } from './controllers/EngineStreamController'
 import { PreferencesController } from './controllers/PreferencesController'
 import { StoreController } from './controllers/StoreController'
@@ -37,6 +38,7 @@ export class RendererApplication {
   private readonly preferences: PreferencesController
   private readonly streams: EngineStreamController
   private readonly accounts: AccountController
+  private readonly updates: ClientUpdateController
 
   public constructor (bridge: BridgeApi = requireBridge()) {
     this.bridge = bridge
@@ -47,6 +49,7 @@ export class RendererApplication {
       (question: string): boolean => window.confirm(question))
     this.preferences = new PreferencesController(this.bridge, this.store)
     this.streams = new EngineStreamController(this.bridge, this.store)
+    this.updates = new ClientUpdateController(this.bridge, this.store)
     this.accounts = new AccountController(
       this.bridge, this.store,
       async (): Promise<void> => { await this.catalog.refresh() }
@@ -57,6 +60,7 @@ export class RendererApplication {
       onUpgrade: (name: string): void => { void this.catalog.syncGames([name]) },
       onLaunch: (name: string): void => { void this.catalog.launchGame(name) },
       onRemove: (name: string): void => { void this.catalog.removeGame(name) },
+      onReinstall: (name: string): void => { void this.catalog.reinstallGame(name) },
       onPurchase: (name: string): void => { void this.catalog.purchase(name) },
       onSignIn: (): void => { void this.accounts.signIn() }
     })
@@ -80,7 +84,9 @@ export class RendererApplication {
         },
         onClearFilters: (): void => { this.store.applyFilter(EVERYTHING) },
         onSelectLocale: (locale: string): void => { void this.preferences.selectLocale(locale) },
-        onToggleSignedIn: (): void => { void this.accounts.toggleSignedIn() }
+        onToggleSignedIn: (): void => { void this.accounts.toggleSignedIn() },
+        onCheckForUpdates: (): void => { void this.updates.checkForUpdates() },
+        onOpenRelease: (): void => { void this.updates.openRelease() }
       }),
       new LogDrawerView({
         onOpenFolder: (directory: string): void => { void this.bridge.openFolder(directory) },

@@ -14,7 +14,7 @@ import type { SingleFlightGuard } from './SingleFlightGuard'
 /**
  * Everything that touches the catalog.
  *
- * The four engine calls go through the guard; launching does not, because it starts
+ * The five engine calls go through the guard; launching does not, because it starts
  * someone else's program and writes nothing.
  */
 export class CatalogIpcController {
@@ -37,6 +37,8 @@ export class CatalogIpcController {
       this.handleSyncGames(names === undefined ? [] : requireStringArray(names, 'names')))
     router.handle(IPC_CHANNELS.catalogRemoveGame, async (name: unknown): Promise<void> =>
       this.handleRemoveGame(requireString(name, 'name')))
+    router.handle(IPC_CHANNELS.catalogReinstallGame, async (name: unknown): Promise<void> =>
+      this.handleReinstallGame(requireString(name, 'name')))
     router.handle(IPC_CHANNELS.catalogLaunchGame, async (name: unknown): Promise<boolean> =>
       this.handleLaunchGame(requireString(name, 'name')))
   }
@@ -68,6 +70,12 @@ export class CatalogIpcController {
   private async handleRemoveGame (name: string): Promise<void> {
     await this.guard.run(async (): Promise<void> => {
       await this.catalog.removeGame(name, this.streams.asProgressListener())
+    })
+  }
+
+  private async handleReinstallGame (name: string): Promise<void> {
+    await this.guard.run(async (): Promise<void> => {
+      await this.catalog.reinstallGame(name, this.streams.asProgressListener())
     })
   }
 

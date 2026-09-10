@@ -8,9 +8,11 @@ import { DESKTOP_STORE_ENGINE } from '../domain/models/StoreEngine'
 import { deriveStoreId } from '../domain/models/StoreIdentity'
 import type { CredentialRepository } from '../domain/ports/CredentialRepository'
 import { BuildConfiguration } from '../infrastructure/config/BuildConfiguration'
+import { checkForUpdate } from '../domain/models/ClientRelease'
 import { NativeStoreCatalogGateway } from '../infrastructure/engine/NativeStoreCatalogGateway'
 import { HttpTextClient } from '../infrastructure/http/HttpTextClient'
 import { FileSystemInstalledStoreRepository } from '../infrastructure/repositories/FileSystemInstalledStoreRepository'
+import { HttpClientReleaseGateway } from '../infrastructure/repositories/HttpClientReleaseGateway'
 import { HttpStoreRegistryRepository } from '../infrastructure/repositories/HttpStoreRegistryRepository'
 import type { GameDto } from '../shared/contracts/dto/GameDto'
 import { ENGLISH_MESSAGES } from '../shared/i18n/EnglishMessages'
@@ -42,7 +44,9 @@ class SmokeTest {
   private readonly stores = new FileSystemInstalledStoreRepository()
   private readonly catalogGateway = new NativeStoreCatalogGateway(envCredentials(), this.stores)
   private readonly httpClient = new HttpTextClient()
-  private readonly registry = new HttpStoreRegistryRepository(this.httpClient, new BuildConfiguration())
+  private readonly buildConfiguration = new BuildConfiguration()
+  private readonly registry = new HttpStoreRegistryRepository(this.httpClient, this.buildConfiguration)
+  private readonly releases = new HttpClientReleaseGateway(this.httpClient, this.buildConfiguration)
   private readonly gameMapper = new GameDtoMapper()
 
   public async run (): Promise<number> {
@@ -50,6 +54,7 @@ class SmokeTest {
 
     this.checkMessages()
     await this.checkRegistry()
+    await this.checkReleases()
 
     const store = this.findStore()
     if (store === null) return this.failed ? 1 : 0
@@ -82,6 +87,34 @@ class SmokeTest {
       }
     } catch (error: unknown) {
       this.reportBad('registry', `${this.registry.sourceUrl}: ${describeError(error)}`)
+    }
+  }
+
+  /**
+   * The release feed answers, and the comparison reads it the right way round.
+   *
+   * The version compared against is the one in the package.json this build was made
+   * from, the same one the app reports about itself.
+   */
+  private async checkReleases (): Promise<void> {
+    try {
+      const latest = await this.releases.readLatestRelease()
+      if (latest.version.length === 0 || latest.url.length === 0) {
+        this.reportBad('releases', `${this.releases.sourceUrl} answered without a version or a page`)
+        return
+      }
+      const current = readOwnVersion()
+      const check = checkForUpdate(current, latest)
+      this.reportOk('releases', `${latest.version} at ${latest.url} — this build is ${current}, ` +
+        (check.updateAvailable ? 'an update is available' : 'nothing newer'))
+      // The comparison itself, on values with a known answer.
+      const older = checkForUpdate('2.8.0', { version: '2.9.0', url: '' }).updateAvailable
+      const same = checkForUpdate('2.9.0', { version: 'v2.9', url: '' }).updateAvailable
+      const newer = checkForUpdate('3.0.0', { version: '2.9.9', url: '' }).updateAvailable
+      if (older && !same && !newer) this.reportOk('version compare', '2.8.0 < 2.9.0, 2.9.0 = v2.9, 3.0.0 > 2.9.9')
+      else this.reportBad('version compare', `older:${String(older)} same:${String(same)} newer:${String(newer)}`)
+    } catch (error: unknown) {
+      this.reportBad('releases', `${this.releases.sourceUrl}: ${describeError(error)}`)
     }
   }
 
@@ -224,6 +257,24 @@ void new SmokeTest().run().then(
     process.exitCode = 1
   }
 )
+
+/** The version of the package this test was built from — what the app says about itself. */
+function readOwnVersion (): string {
+  for (const candidate of [
+    path.join(__dirname, '..', '..', 'package.json'),
+    path.join(__dirname, '..', 'package.json')
+  ]) {
+    try {
+      const parsed: unknown = JSON.parse(fs.readFileSync(candidate, 'utf8'))
+      if (typeof parsed === 'object' && parsed !== null && 'version' in parsed && typeof parsed.version === 'string') {
+        return parsed.version
+      }
+    } catch {
+      // The next candidate; the build directory is one level deeper than the source.
+    }
+  }
+  return '0.0.0'
+}
 
 /**
  * The token from the environment, for every store.

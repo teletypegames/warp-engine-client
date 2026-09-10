@@ -44,6 +44,15 @@ export class CatalogController {
     await this.refresh()
   }
 
+  public async reinstallGame (name: string): Promise<void> {
+    try {
+      await this.bridge.reinstallGame(name)
+    } catch (error: unknown) {
+      this.reportFailure(error)
+    }
+    await this.refresh()
+  }
+
   public async launchGame (name: string): Promise<void> {
     try {
       const launched = await this.bridge.launchGame(name)

@@ -8,6 +8,8 @@ export interface GameCardViewCallbacks {
   readonly onUpgrade: (name: string) => void
   readonly onLaunch: (name: string) => void
   readonly onRemove: (name: string) => void
+  /** Take the copy here off and put it back from the catalog. */
+  readonly onReinstall: (name: string) => void
   /** Opens the catalog's own purchase page in the person's browser. */
   readonly onPurchase: (name: string) => void
   readonly onSignIn: () => void
@@ -77,12 +79,13 @@ export class GameCardView {
   }
 
   /**
-   * The three-dot menu: upgrade, and uninstall.
+   * The three-dot menu: upgrade, reinstall, and uninstall.
    *
    * A `<details>` rather than a scripted popover, so the open state is the DOM's and the
    * keyboard works without being taught to. Upgrade is present but disabled when there
    * is nothing newer — a menu whose items appear and disappear makes a person hunt for
-   * the one they used last time, and "greyed out" already says "not now".
+   * the one they used last time, and "greyed out" already says "not now". Reinstall is
+   * always live: it is for the copy that looks installed and does not work.
    */
   public createMenu (game: GameDto, messages: MessageBundle, busy: boolean): HTMLElement {
     const menu = createElement('details', 'menu')
@@ -94,6 +97,8 @@ export class GameCardView {
     const items = createElement('div', 'menu-items')
     items.appendChild(this.createMenuItem(messages.upgrade, busy || !game.updateAvailable,
       (): void => { this.callbacks.onUpgrade(game.name) }))
+    items.appendChild(this.createMenuItem(messages.reinstall, busy,
+      (): void => { this.callbacks.onReinstall(game.name) }))
     items.appendChild(this.createMenuItem(messages.uninstall, busy,
       (): void => { this.callbacks.onRemove(game.name) }))
     menu.appendChild(items)

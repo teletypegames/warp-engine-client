@@ -39,6 +39,11 @@ export class CatalogService {
     this.forgetListing()
   }
 
+  public async reinstallGame (name: string, progress?: EngineProgressListener): Promise<void> {
+    await this.catalogGateway.reinstallGame(this.selection.requireCurrentStore(), name, progress)
+    this.forgetListing()
+  }
+
   public findGame (name: string): Game | null {
     return this.lastListing?.games.find((game: Game): boolean => game.name === name) ?? null
   }

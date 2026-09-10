@@ -1,8 +1,11 @@
+import type { ClientUpdateDtoMapper } from '../../application/mappers/ClientUpdateDtoMapper'
 import type { ApplicationStateService } from '../../application/services/ApplicationStateService'
+import type { ClientUpdateService } from '../../application/services/ClientUpdateService'
 import type { GameLaunchService } from '../../application/services/GameLaunchService'
 import type { PreferencesService } from '../../application/services/PreferencesService'
 import { IPC_CHANNELS } from '../../shared/contracts/IpcChannels'
 import type { AppStateDto } from '../../shared/contracts/dto/AppStateDto'
+import type { ClientUpdateDto } from '../../shared/contracts/dto/ClientUpdateDto'
 import type { LocaleSelectionDto } from '../../shared/contracts/dto/LocaleSelectionDto'
 import type { TranslationCatalog } from '../../shared/i18n/TranslationCatalog'
 import type { ViewMode } from '../../shared/contracts/dto/AppStateDto'
@@ -15,7 +18,9 @@ export class AppIpcController {
     private readonly state: ApplicationStateService,
     private readonly preferences: PreferencesService,
     private readonly launching: GameLaunchService,
-    private readonly translations: TranslationCatalog
+    private readonly updates: ClientUpdateService,
+    private readonly translations: TranslationCatalog,
+    private readonly updateMapper: ClientUpdateDtoMapper
   ) {}
 
   public register (router: IpcRouter): void {
@@ -30,6 +35,8 @@ export class AppIpcController {
       this.handleOpenFolder(requireString(directory, 'directory')))
     router.handle(IPC_CHANNELS.appOpenUrl, async (url: unknown): Promise<boolean> =>
       this.handleOpenUrl(requireString(url, 'url')))
+    router.handle(IPC_CHANNELS.appCheckForUpdates, async (): Promise<ClientUpdateDto> =>
+      this.handleCheckForUpdates())
   }
 
   private handleReadState (): AppStateDto {
@@ -55,5 +62,9 @@ export class AppIpcController {
 
   private async handleOpenUrl (url: string): Promise<boolean> {
     return this.launching.openUrl(url)
+  }
+
+  private async handleCheckForUpdates (): Promise<ClientUpdateDto> {
+    return this.updateMapper.toDto(await this.updates.checkForUpdates())
   }
 }

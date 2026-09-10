@@ -99,7 +99,8 @@ src/
     main.ts                   the entry point
     RendererApplication.ts    wires views and controllers, owns the boot decision
     BridgeAccess.ts           the typed window.storeApi
-    state/                    AppStore, CatalogFilter, GatePresentation
+    state/                    AppStore, CatalogFilter, GatePresentation,
+                              ClientUpdatePresentation
     views/                    one class per region of the window; Listing is what the
                               grid and the list share
     controllers/              one class per group of actions
@@ -138,7 +139,8 @@ Both are ports; the distinction is what is behind them.
 - **Gateway** — something with a protocol of its own, whether or not it is another
   process: `StoreCatalogGateway` (the store engine), which today is
   `NativeStoreCatalogGateway` in this application and was a Python CLI before it. The port
-  stays async because the work is: it downloads and unpacks.
+  stays async because the work is: it downloads and unpacks. `ClientReleaseGateway` is the
+  forge's release list, read by `HttpClientReleaseGateway` for the update check.
 
 ### Service
 

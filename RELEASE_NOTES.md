@@ -1,3 +1,22 @@
+# WarpEngine Client 2.9.0
+
+**Check for updates.** The side menu shows the version number, and now a *Check for
+updates* link beside it. It asks the client's own release list on the forge for the newest
+published release and answers in place: *This is the latest version*, or *Version X is
+available* with a button that opens the release page in the browser, where the package
+for this machine is. The app does not update itself and does not ask on its own — a
+store that phones home at start-up is a different kind of program — so nothing happens
+until someone clicks. The check is a port (`ClientReleaseGateway`), a service and one
+bridge call, and the smoke test reads the feed and checks the version comparison.
+
+**Reinstall.** The three-dot menu on an installed card gains *Reinstall* between
+*Upgrade* and *Uninstall*. Refresh and Upgrade leave an install they find intact, which
+is right for a sync and wrong for a copy that stopped working in a way the record cannot
+see — a payload edited by hand, a launcher that no longer starts. Reinstall removes the
+copy first, so the installer sees nothing there and unpacks the payload, writes the icon
+and the menu entry again from the catalog. A title the catalog no longer has, or this
+machine cannot install, is logged and left alone.
+
 # WarpEngine Client 2.8.0
 
 **The filter has axes.** The side menu used to offer one list of categories — a status,

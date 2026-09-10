@@ -25,6 +25,14 @@ export class BuildConfiguration {
     return url.length > 0 ? url : null
   }
 
+  /** Where this client's own releases are listed; null means the built-in forge. */
+  public readReleasesApiUrl (): string | null {
+    const section = readRecord(this.read(), 'warpEngine')
+    if (section === null) return null
+    const url = readString(section, 'releasesUrl').trim()
+    return url.length > 0 ? url : null
+  }
+
   private read (): Readonly<Record<string, unknown>> {
     if (this.cached !== null) return this.cached
     // build/infrastructure/config → the package root, packaged or not.

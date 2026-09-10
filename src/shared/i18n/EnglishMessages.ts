@@ -12,6 +12,7 @@ export const ENGLISH_MESSAGES = {
   play: 'Play',
   open: 'Open',
   uninstall: 'Uninstall',
+  reinstall: 'Reinstall',
   moreActions: 'More actions',
   installed: 'installed',
   native: 'native',
@@ -87,7 +88,13 @@ export const ENGLISH_MESSAGES = {
   signInCancelled: 'Sign-in cancelled.',
   signInFailed: 'Signing in did not work.',
   gridView: 'Grid view',
-  listView: 'List view'
+  listView: 'List view',
+  checkForUpdates: 'Check for updates',
+  checkingForUpdates: 'Checking…',
+  clientUpToDate: 'This is the latest version.',
+  clientUpdateAvailable: 'Version %{version} is available.',
+  downloadUpdate: 'Get %{version}',
+  updateCheckFailed: 'The release list could not be reached.'
 } as const
 
 /** Every string the window can show, by key. */

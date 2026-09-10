@@ -89,6 +89,10 @@ body.nav-closed .side { margin-left: calc(-1 * var(--side-width)); }
   align-items: center;
 }
 .side-version { font-size: 11px; color: var(--ink-dim); }
+/* The version row: the number on the left, the check on the right, an answer under them. */
+.side-update { padding-top: 12px; border-top: 1px solid var(--line); gap: 4px; }
+.side-update-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.side-update-state { margin: 0; }
 /* The icons sit at the end of the footer row, away from the log toggle. */
 .side-tools { display: flex; align-items: center; gap: 4px; margin-left: auto; }
 .side-head {
@@ -631,6 +635,7 @@ body.nav-closed .side { margin-left: calc(-1 * var(--side-width)); }
   cursor: pointer;
 }
 .side-link:hover { text-decoration: underline; }
+.side-link:disabled { color: var(--ink-dim); cursor: default; text-decoration: none; }
 .cats { gap: 14px; padding-right: 2px; }
 .filter-axis { display: flex; flex-direction: column; gap: 4px; }
 .filter-axis-title {

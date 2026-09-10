@@ -41,7 +41,7 @@ interface SelfTestReport {
   readonly locales: readonly string[]
   /** `<accessible name>:<glyph count>` per icon-only control in the footer. */
   readonly iconControls: readonly string[]
-  /** `<title> [current|newer] Upgrade:on|off Uninstall:on|off` per installed card. */
+  /** `<title> [current|newer] Upgrade:on|off Reinstall:on|off Uninstall:on|off` per installed card. */
   readonly cardMenus: readonly string[]
 }
 
@@ -94,10 +94,11 @@ export class SelfTestRunner {
     // adding one, which this should not fail on; a missing one is what it guards.
     const iconsNamed = report.iconControls.length >= 3 &&
       report.iconControls.every((control: string): boolean => /^.+:1$/.test(control))
-    // Every installed card offers both actions, and Upgrade is enabled exactly when the
-    // version line says there is something newer. Uninstall is always available.
+    // Every installed card offers all three actions, and Upgrade is enabled exactly when
+    // the version line says there is something newer. Reinstall and Uninstall are always
+    // available: both are for a copy that is here, whatever version it is.
     const menusAgree = report.cardMenus.every((entry: string): boolean =>
-      /\[newer\] \S+:on \S+:on$/.test(entry) || /\[current\] \S+:off \S+:on$/.test(entry))
+      /\[newer\] \S+:on \S+:on \S+:on$/.test(entry) || /\[current\] \S+:off \S+:on \S+:on$/.test(entry))
     const rendered = report.locales.length > 1 && iconsNamed && menusAgree && (
       (report.cards > 0 && !report.gateVisible && report.stores.length > 0 &&
         report.categories.length > 0 && report.activeCategory !== null) ||

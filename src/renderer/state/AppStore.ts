@@ -6,6 +6,7 @@ import type { StorePathsDto } from '../../shared/contracts/dto/StorePathsDto'
 import { ENGLISH_MESSAGES } from '../../shared/i18n/EnglishMessages'
 import type { Locale, MessageBundle } from '../../shared/i18n/MessageBundle'
 import { EVERYTHING, resolveFilter, type CatalogFilter } from './CatalogFilter'
+import type { ClientUpdatePresentation } from './ClientUpdatePresentation'
 import type { GatePresentation } from './GatePresentation'
 
 /** How far a running sync has got, for the counter in the bar. */
@@ -41,6 +42,8 @@ export interface AppState {
   /** Non-null while a code is on screen waiting to be typed into a browser. */
   readonly signIn: SignInPromptDto | null
   readonly appVersion: string
+  /** Null until someone asks whether a newer client is published. */
+  readonly clientUpdate: ClientUpdatePresentation | null
   readonly viewMode: ViewMode
   /** The store's own output, newest last, capped at `MAX_LOG_LINES`. */
   readonly logLines: readonly string[]
@@ -65,6 +68,7 @@ const INITIAL_STATE: AppState = {
   account: { signInAvailable: false, signedIn: false },
   signIn: null,
   appVersion: '',
+  clientUpdate: null,
   viewMode: 'grid',
   logLines: [],
   logOpen: false
@@ -178,6 +182,11 @@ export class AppStore {
 
   public applyBusy (busy: boolean): void {
     this.state = { ...this.state, busy, progress: busy ? this.state.progress : null }
+    this.notify()
+  }
+
+  public applyClientUpdate (clientUpdate: ClientUpdatePresentation | null): void {
+    this.state = { ...this.state, clientUpdate }
     this.notify()
   }
 

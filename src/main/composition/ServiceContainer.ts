@@ -1,5 +1,6 @@
 import type { App, IpcMain, Shell } from 'electron'
 import { AccountDtoMapper } from '../../application/mappers/AccountDtoMapper'
+import { ClientUpdateDtoMapper } from '../../application/mappers/ClientUpdateDtoMapper'
 import { GameDtoMapper } from '../../application/mappers/GameDtoMapper'
 import { InstalledStoreDtoMapper } from '../../application/mappers/InstalledStoreDtoMapper'
 import { RegistryStoreDtoMapper } from '../../application/mappers/RegistryStoreDtoMapper'
@@ -7,6 +8,7 @@ import { StorePathsDtoMapper } from '../../application/mappers/StorePathsDtoMapp
 import { AccountService } from '../../application/services/AccountService'
 import { ApplicationStateService } from '../../application/services/ApplicationStateService'
 import { CatalogService } from '../../application/services/CatalogService'
+import { ClientUpdateService } from '../../application/services/ClientUpdateService'
 import { GameLaunchService } from '../../application/services/GameLaunchService'
 import { PreferencesService } from '../../application/services/PreferencesService'
 import { StoreProvisioningService } from '../../application/services/StoreProvisioningService'
@@ -18,6 +20,7 @@ import { SafeStorageCredentialRepository } from '../../infrastructure/electron/S
 import { NativeStoreCatalogGateway } from '../../infrastructure/engine/NativeStoreCatalogGateway'
 import { HttpTextClient } from '../../infrastructure/http/HttpTextClient'
 import { FileSystemInstalledStoreRepository } from '../../infrastructure/repositories/FileSystemInstalledStoreRepository'
+import { HttpClientReleaseGateway } from '../../infrastructure/repositories/HttpClientReleaseGateway'
 import { NativeStoreEngineInstaller } from '../../infrastructure/repositories/NativeStoreEngineInstaller'
 import { HttpStoreRegistryRepository } from '../../infrastructure/repositories/HttpStoreRegistryRepository'
 import { JsonFilePreferencesRepository } from '../../infrastructure/repositories/JsonFilePreferencesRepository'
@@ -46,6 +49,7 @@ export class ServiceContainer {
   public readonly state: ApplicationStateService
   public readonly launching: GameLaunchService
   public readonly accounts: AccountService
+  public readonly updates: ClientUpdateService
 
   private readonly controllers: readonly { register: (router: IpcRouter) => void }[]
 
@@ -62,7 +66,9 @@ export class ServiceContainer {
     const stores = new FileSystemInstalledStoreRepository()
     const credentials = new SafeStorageCredentialRepository(environment)
     const catalogGateway = new NativeStoreCatalogGateway(credentials, stores)
-    const registry = new HttpStoreRegistryRepository(httpClient, new BuildConfiguration())
+    const buildConfiguration = new BuildConfiguration()
+    const registry = new HttpStoreRegistryRepository(httpClient, buildConfiguration)
+    const releases = new HttpClientReleaseGateway(httpClient, buildConfiguration)
     const installer = new NativeStoreEngineInstaller()
     const preferencesRepository = new JsonFilePreferencesRepository(environment)
 
@@ -74,12 +80,14 @@ export class ServiceContainer {
       registry, installer, stores, this.selection, catalogGateway
     )
     this.launching = new GameLaunchService(new ElectronGameLauncher(shell), this.catalog)
+    this.updates = new ClientUpdateService(releases, environment)
     this.state = new ApplicationStateService(
       preferences, this.selection, this.provisioning, environment, translations, storeMapper
     )
 
     this.controllers = [
-      new AppIpcController(this.state, preferences, this.launching, translations),
+      new AppIpcController(
+        this.state, preferences, this.launching, this.updates, translations, new ClientUpdateDtoMapper()),
       new CatalogIpcController(
         this.catalog, this.launching, this.guard, this.streams,
         new GameDtoMapper(), new StorePathsDtoMapper(), accountMapper),

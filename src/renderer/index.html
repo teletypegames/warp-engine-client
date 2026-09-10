@@ -71,8 +71,21 @@
         <nav class="cats" id="cats"></nav>
       </section>
 
+      <!--
+        The version, and a way to ask whether a newer client is out. Its own row above
+        the tools: the check answers with a sentence and sometimes a button, and the
+        icon row has no room for either.
+      -->
+      <section class="side-block side-update">
+        <div class="side-update-row">
+          <span id="app-version" class="side-version"></span>
+          <button id="update-check" class="side-link"></button>
+        </div>
+        <p class="side-quiet-text side-update-state" id="update-state" hidden></p>
+        <button id="update-open" class="btn btn-ghost btn-wide" hidden></button>
+      </section>
+
       <section class="side-block side-foot">
-        <span id="app-version" class="side-version"></span>
         <button id="log-toggle" class="side-quiet" aria-expanded="false" aria-controls="log-panel"></button>
         <!--
           Two icons and nothing else. Both carry their name in `title` and `aria-label`,

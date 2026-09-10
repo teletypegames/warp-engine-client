@@ -162,6 +162,45 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
   }
 
   /**
+   * Remove one title and install it again from the catalog.
+   *
+   * A sync keeps an install it finds intact, so a copy that is broken in a way the
+   * record cannot see — a payload edited by hand, a launcher that no longer starts — is
+   * left alone by Refresh. Here the record is removed first, so the installer sees no
+   * previous install and unpacks, writes the icon and the menu entry from scratch.
+   */
+  public async reinstallGame (
+    store: InstalledStore,
+    name: string,
+    progress: EngineProgressListener = {}
+  ): Promise<void> {
+    const engine = this.openStore(store, progress)
+    const survey: CatalogSurvey = engine.surveyor.survey(
+      await this.readEntries(engine), this.hosts.findHost())
+    const wanted = limitToNames(survey.games, [name])
+    if (wanted.length === 0) {
+      engine.log(`not in the catalog, or not for this machine: ${name}`)
+      return
+    }
+
+    const installed = engine.state.readState()
+    for (const key of matchStateKeys(installed, [name])) {
+      const record = installed.get(key)
+      if (record === undefined) continue
+      engine.log(`reinstalling ${record.name} ${record.version}: removing the copy here first`)
+      engine.installer.removeGame(engine.layout, record)
+      progress.onEvent?.({ event: 'removed', name: record.name })
+      installed.delete(key)
+    }
+    engine.state.writeState(installed)
+
+    await engine.installer.installAll(engine.layout, wanted, installed, false, progress)
+    engine.state.writeState(installed)
+    engine.launchers.refreshMenu(engine.layout)
+    engine.log(`done — the games are in ${engine.layouts.resolveMenuGroup(engine.layout)}`)
+  }
+
+  /**
    * Take a whole store off this machine.
    *
    * The order is the whole of it. `state.json` is the only record of what this store

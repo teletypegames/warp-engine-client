@@ -17,6 +17,13 @@ export interface StoreCatalogGateway {
   syncGames: (store: InstalledStore, names: readonly string[], progress?: EngineProgressListener) => Promise<void>
   removeGame: (store: InstalledStore, name: string, progress?: EngineProgressListener) => Promise<void>
   /**
+   * Take one title off and put it back from the catalog, whatever state it is in.
+   *
+   * A sync leaves an intact install alone, which is right for a refresh and wrong for a
+   * person whose copy stopped working: this is the call that does not trust what is there.
+   */
+  reinstallGame: (store: InstalledStore, name: string, progress?: EngineProgressListener) => Promise<void>
+  /**
    * Take a whole store off this machine: everything it installed, then its own home.
    *
    * The games go first and deliberately so. A store's `state.json` is the only record

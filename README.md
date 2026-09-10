@@ -182,9 +182,18 @@ Everything that is not a title lives in the **side menu** on the left, and the
   folders everything lands in. Off screen until asked for: the window has no footer,
   because a permanent bar of absolute paths is not what a store is for.
 - **Language** follows the system and can be switched; **English and Hungarian**.
+- **Check for updates**, next to the version number, asks the client's own release
+  list whether a newer client is published. It answers in place — *This is the latest
+  version*, or *Version X is available* with a button that opens the release page in
+  your browser, where the package for your machine is. Nothing is downloaded or
+  installed by the app itself, and nothing is asked until you click.
 
 In the grid, a card's button is **Install**, **Update**, or **Play** / **Open**
-once it is there. **Remove** takes a title back out. Each card says whether it is
+once it is there. The three-dot menu on an installed card holds **Upgrade** (live only
+when the catalog has something newer), **Reinstall** and **Uninstall**. Reinstall is for
+the copy that looks installed and does not work: Refresh leaves an intact install alone,
+Reinstall removes it first and unpacks it again from the catalog, icon and menu entry
+included. **Remove** takes a title back out. Each card says whether it is
 **native** — unpacked and run locally, works offline — or **hosted**: a browser
 build the catalog serves rather than packages, so its entry opens a page and needs
 the network.

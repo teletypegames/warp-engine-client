@@ -12,6 +12,7 @@ export const HUNGARIAN_MESSAGES: MessageBundle = {
   play: 'Indítás',
   open: 'Megnyitás',
   uninstall: 'Eltávolítás',
+  reinstall: 'Újratelepítés',
   moreActions: 'További műveletek',
   installed: 'telepítve',
   native: 'natív',
@@ -87,5 +88,11 @@ export const HUNGARIAN_MESSAGES: MessageBundle = {
   signInCancelled: 'Belépés megszakítva.',
   signInFailed: 'A belépés nem sikerült.',
   gridView: 'Rácsnézet',
-  listView: 'Listanézet'
+  listView: 'Listanézet',
+  checkForUpdates: 'Frissítés keresése',
+  checkingForUpdates: 'Keresés…',
+  clientUpToDate: 'Ez a legújabb verzió.',
+  clientUpdateAvailable: 'Elérhető a %{version} verzió.',
+  downloadUpdate: '%{version} letöltése',
+  updateCheckFailed: 'A kiadások listája nem érhető el.'
 }

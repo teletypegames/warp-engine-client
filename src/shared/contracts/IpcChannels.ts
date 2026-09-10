@@ -13,11 +13,13 @@ export const IPC_CHANNELS = {
   appOpenFolder: 'app:openFolder',
   appUpdateViewMode: 'app:updateViewMode',
   appOpenUrl: 'app:openUrl',
+  appCheckForUpdates: 'app:checkForUpdates',
 
   catalogListGames: 'catalog:listGames',
   catalogReadPaths: 'catalog:readPaths',
   catalogSyncGames: 'catalog:syncGames',
   catalogRemoveGame: 'catalog:removeGame',
+  catalogReinstallGame: 'catalog:reinstallGame',
   catalogLaunchGame: 'catalog:launchGame',
 
   accountRead: 'account:read',

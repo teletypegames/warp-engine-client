@@ -8,6 +8,7 @@ import type {
 } from '../shared/contracts/dto/AccountDto'
 import type { AppStateDto, ViewMode } from '../shared/contracts/dto/AppStateDto'
 import type { CatalogListingDto } from '../shared/contracts/dto/CatalogListingDto'
+import type { ClientUpdateDto } from '../shared/contracts/dto/ClientUpdateDto'
 import type { LocaleSelectionDto } from '../shared/contracts/dto/LocaleSelectionDto'
 import type { RegistryResultDto } from '../shared/contracts/dto/RegistryResultDto'
 import type { RegistryStoreDto } from '../shared/contracts/dto/RegistryStoreDto'
@@ -54,6 +55,9 @@ const bridge: BridgeApi = {
   removeGame: async (name: string): Promise<void> => {
     await invoke<unknown>(IPC_CHANNELS.catalogRemoveGame, name)
   },
+  reinstallGame: async (name: string): Promise<void> => {
+    await invoke<unknown>(IPC_CHANNELS.catalogReinstallGame, name)
+  },
   launchGame: async (name: string): Promise<boolean> =>
     invoke<boolean>(IPC_CHANNELS.catalogLaunchGame, name),
 
@@ -82,6 +86,8 @@ const bridge: BridgeApi = {
     invoke<boolean>(IPC_CHANNELS.appOpenFolder, directory),
   openUrl: async (url: string): Promise<boolean> =>
     invoke<boolean>(IPC_CHANNELS.appOpenUrl, url),
+  checkForUpdates: async (): Promise<ClientUpdateDto> =>
+    invoke<ClientUpdateDto>(IPC_CHANNELS.appCheckForUpdates),
 
   onLog: (listener: StreamListener<string>): void => {
     ipcRenderer.on(IPC_CHANNELS.streamLog, (_event: IpcRendererEvent, line: string): void => {
