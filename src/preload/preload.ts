@@ -8,6 +8,7 @@ import type {
 } from '../shared/contracts/dto/AccountDto'
 import type { AppStateDto, ViewMode } from '../shared/contracts/dto/AppStateDto'
 import type { CatalogListingDto } from '../shared/contracts/dto/CatalogListingDto'
+import type { CatalogPageDto } from '../shared/contracts/dto/CatalogPageDto'
 import type { ClientUpdateDto } from '../shared/contracts/dto/ClientUpdateDto'
 import type { LocaleSelectionDto } from '../shared/contracts/dto/LocaleSelectionDto'
 import type { RegistryResultDto } from '../shared/contracts/dto/RegistryResultDto'
@@ -75,8 +76,8 @@ const bridge: BridgeApi = {
     invoke<RegistryResultDto>(IPC_CHANNELS.storeListRegistry),
   installStore: async (store: RegistryStoreDto): Promise<AppStateDto> =>
     invoke<AppStateDto>(IPC_CHANNELS.storeInstallStore, store),
-  installCatalog: async (catalogUrl: string): Promise<AppStateDto> =>
-    invoke<AppStateDto>(IPC_CHANNELS.storeInstallCatalog, catalogUrl),
+  installCatalog: async (catalogUrl: string, name?: string): Promise<AppStateDto> =>
+    invoke<AppStateDto>(IPC_CHANNELS.storeInstallCatalog, catalogUrl, name ?? null),
   selectStore: async (home: string): Promise<StoreSelectionDto> =>
     invoke<StoreSelectionDto>(IPC_CHANNELS.storeSelectStore, home),
   removeStore: async (home: string): Promise<AppStateDto> =>
@@ -98,6 +99,11 @@ const bridge: BridgeApi = {
   },
   onSyncEvent: (listener: StreamListener<SyncEventDto>): void => {
     ipcRenderer.on(IPC_CHANNELS.streamSyncEvent, (_event: IpcRendererEvent, payload: SyncEventDto): void => {
+      listener(payload)
+    })
+  },
+  onCatalogPage: (listener: StreamListener<CatalogPageDto>): void => {
+    ipcRenderer.on(IPC_CHANNELS.streamCatalogPage, (_event: IpcRendererEvent, payload: CatalogPageDto): void => {
       listener(payload)
     })
   },

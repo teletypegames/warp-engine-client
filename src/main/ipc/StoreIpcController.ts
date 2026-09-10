@@ -36,8 +36,8 @@ export class StoreIpcController {
       this.handleListRegistry())
     router.handle(IPC_CHANNELS.storeInstallStore, async (store: unknown): Promise<AppStateDto> =>
       this.handleInstallStore(store))
-    router.handle(IPC_CHANNELS.storeInstallCatalog, async (url: unknown): Promise<AppStateDto> =>
-      this.handleInstallCatalog(requireString(url, 'catalogUrl')))
+    router.handle(IPC_CHANNELS.storeInstallCatalog, async (url: unknown, name: unknown): Promise<AppStateDto> =>
+      this.handleInstallCatalog(requireString(url, 'catalogUrl'), name === null || name === undefined ? null : requireString(name, 'name')))
     router.handle(IPC_CHANNELS.storeSelectStore, (home: unknown): StoreSelectionDto =>
       this.handleSelectStore(requireString(home, 'home')))
     router.handle(IPC_CHANNELS.storeRemoveStore, async (home: unknown): Promise<AppStateDto> =>
@@ -82,9 +82,9 @@ export class StoreIpcController {
    * configuration comes from the engine's defaults, so a typed URL can no more decide
    * where files land than a registry record can.
    */
-  private async handleInstallCatalog (catalogUrl: string): Promise<AppStateDto> {
+  private async handleInstallCatalog (catalogUrl: string, name: string | null): Promise<AppStateDto> {
     return this.guard.run(async (): Promise<AppStateDto> => {
-      await this.provisioning.installCatalog(catalogUrl, null, this.streams.asProgressListener())
+      await this.provisioning.installCatalog(catalogUrl, name, this.streams.asProgressListener())
       return this.state.readState()
     })
   }

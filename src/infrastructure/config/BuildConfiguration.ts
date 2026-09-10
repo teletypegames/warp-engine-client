@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import type { Brand } from '../../domain/models/Brand'
 import { asRecord, readRecord, readString } from '../json/JsonRecord'
 
 /**
@@ -23,6 +24,27 @@ export class BuildConfiguration {
     if (section === null) return null
     const url = readString(section, 'registryUrl').trim()
     return url.length > 0 ? url : null
+  }
+
+  /**
+   * The brand this build carries, or null for the generic client.
+   *
+   * The same three levels as the registry address: a runtime `BRAND_NAME` + `BRAND_STORE`
+   * pair for trying a brand out, the `warpEngine.brand` section `make dist BRAND_*` wrote
+   * into the package, and nothing. A brand is a name and a catalog, so half a brand — a
+   * name with no store, or the reverse — is no brand.
+   */
+  public readBrand (): Brand | null {
+    const name = (process.env['BRAND_NAME'] ?? '').trim()
+    const catalogUrl = (process.env['BRAND_STORE'] ?? '').trim()
+    if (name.length > 0 && catalogUrl.length > 0) return { name, catalogUrl }
+
+    const section = readRecord(this.read(), 'warpEngine')
+    const brand = section === null ? null : readRecord(section, 'brand')
+    if (brand === null) return null
+    const builtName = readString(brand, 'name').trim()
+    const builtUrl = readString(brand, 'catalogUrl').trim()
+    return builtName.length > 0 && builtUrl.length > 0 ? { name: builtName, catalogUrl: builtUrl } : null
   }
 
   /** Where this client's own releases are listed; null means the built-in forge. */

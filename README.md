@@ -150,6 +150,38 @@ user's machine. With neither set, the address is ours.
 Adding a store is therefore a database row on the site — see its ActiveAdmin
 panel — and not a release of this app.
 
+## A branded build
+
+A build can carry a **brand**: a name and a store. Without one the client is what this
+README describes — the generic WarpEngine Client, which asks the registry which stores
+exist. With one:
+
+```sh
+make dist BRAND_NAME="Teletype Games Store" BRAND_STORE=https://teletypegames.org BRAND_ID=teletype-store
+BRAND_NAME="Teletype Games Store" BRAND_STORE=https://teletypegames.org npm start   # trying it out
+```
+
+- the **name** is the window's title and the bar's heading, the `productName` (the Dock,
+  `/Applications`, the NSIS folder, the `.desktop` entry) and the package file names;
+- the **store** is installed on the first run without asking — no registry, no picker —
+  under the brand's name. The store's id and folders derive from the catalog host as
+  always, so a branded and a generic client on one machine share one store rather than
+  installing it twice;
+- the brand is an **alternative default**, not a cage: the side menu still lists every
+  store on the machine, and the settings still add and remove them;
+- `BRAND_ID` names the `appId` (`org.teletypegames.warpstore.gui.<id>`), so the two apps
+  can live side by side, and prefixes the package names in place of `WarpEngineClient`;
+- `RELEASES_API` says where the branded build's own releases are listed, for *Check for
+  updates*; without it the check asks this repository's releases, which is wrong for a
+  brand, so set it;
+- the settings' General tab shows *Based on WarpEngine Client 3.0.0*, for support.
+
+The brand is **data the build supplies**, read by `BuildConfiguration.readBrand()` from
+the package's own `package.json` (`warpEngine.brand`), with the runtime pair winning for a
+trial run. Nothing in the source names a store — the same rule the registry follows. If
+the brand's catalog cannot be installed on the first run, the window falls back to the
+registry's offer rather than to nothing.
+
 ## Use
 
 Everything that is not a title lives in the **side menu** on the left, and the
@@ -170,7 +202,9 @@ Everything that is not a title lives in the **side menu** on the left, and the
 - **Filters** narrow the grid along four axes that combine: the status of a title on
   this machine (*Everything*, *Installed*, *Updates*, *Not installed*, and where the
   catalog gates anything, *Owned* and *To buy*), the **platform** (`godot`, `tic80`,
-  `love`, …), the **kind** (native or hosted) and the **category**, when the catalog
+  `love`, …), the **kind** (native or hosted) and the **category** — named as the catalog
+  names it, from `GET /api/software/vocabulary` (WarpEngine 0.13), the key itself on an
+  older engine — when the catalog
   publishes one. Every count says how many titles the option would show given the
   other axes as they stand; *Clear* appears while anything is narrowing the catalog.
   The axes are built from what the catalog actually contains — a platform with no
@@ -219,6 +253,15 @@ included. **Remove** takes a title back out. Each card says whether it is
 build the catalog serves rather than packages, so its entry opens a page and needs
 the network.
 
+**The catalog arrives a page at a time, and the grid draws as it comes.** WarpEngine
+0.13 pages `GET /api/software`; the client reads every page in turn and shows each one
+as it lands, with the bar counting titles until the last page. The listing is complete
+before anything that needs the whole — the *Updates* group, *Upgrade all*, the prune of
+titles the catalog dropped — acts on it. The grid itself is **windowed**: it draws 48
+titles and 48 more each time you near the bottom, so a five-hundred-title catalog costs
+what is on screen, not what is in the store. A filter or a search starts the window over
+from the top; a page arriving or a screenful more does not move your scroll.
+
 **Everything in the catalog is listed, including what this machine cannot install.**
 Those cards are dimmed, carry an *unsupported platform* or *no build for this machine*
 badge with the engine's own explanation under it, and have nothing to press. A store
@@ -266,6 +309,7 @@ names. `make` on its own lists everything.
 | `SMOKE_HOME=<dir> SMOKE_TOKEN=<bearer> npm run smoke` | the same, against a sandbox store and as a signed-in person |
 | `make uitest` | load the window once and report what rendered |
 | `SELFTEST_SHOT=shot.png npm run uitest` | the same, and the window photographs itself into that file |
+| `BRAND_NAME=… BRAND_STORE=… npm run uitest` | the same as a branded build: the bar must carry the brand's name |
 | `make test` | both test suites |
 | `make dist` | package for this machine (`dist-mac`, `dist-win`, `dist-linux` to pick) |
 | `make publish` | upload the packages already in `dist/` to the Gitea release |
@@ -466,6 +510,23 @@ It reads what our own release pipeline produces and refuses the rest: a zip64 ar
 unknown compression method and a path that would escape the destination are all errors
 rather than best guesses.
 
+### A paged catalog
+
+WarpEngine 0.13 answers `GET /api/software` in an envelope — `api`, `page`, `perPage`,
+`total`, `totalPages`, `nextPage`, and the `softwares` of that page. `CatalogClient`
+asks for page 1 and follows `nextPage` until it is null, reporting every page with the
+catalog **stitched together so far**, so the window can draw early; the gateway builds a
+listing from each partial catalog with the same code that builds the final one, and the
+main process sends it down the fourth stream, `stream:catalogPage`.
+
+What lands in the cache is always the stitched whole — one envelope holding every title,
+the `softwares` list the shell engine also reads — and never a partial one: a fetch that
+fails on page three leaves the previous cache alone. An engine older than 0.13 ignores
+`page` and answers with a plain list, which the client reads as a catalog of one page. The
+`api` field is the version of the JSON's shape, separate from the engine's version and
+present in the cache where a response header cannot follow. The smoke test proves the
+paging against a three-page server of its own.
+
 ### Which WarpEngine served the catalog
 
 Every WarpEngine API response carries a `WarpEngine-Version` header, so the client knows
@@ -484,9 +545,10 @@ what it reads like. A new engine version cannot arrive silently.
 | older than anything supported | the same, and the log says so |
 | newer than anything supported | the newest dialect is tried anyway, with a warning that titles may be missed |
 
-Eleven versions share two dialects today — 0.2 to 0.4 read the plain software list,
-0.5 to 0.12 the one with an `access` block — because the catalog's shape has not changed
-across them. One class serving several versions is the honest way to say that. Until 2.11.0
+Twelve versions share two dialects today — 0.2 to 0.4 read the plain software list,
+0.5 to 0.13 the one with an `access` block — because the shape of a title has not changed
+across them; 0.13's paging is the client's business, not the dialect's, and the pages are
+stitched back into one list before any dialect sees them. One class serving several versions is the honest way to say that. Until 2.11.0
 the list ended at 0.5 while the catalog was served by 0.11, so every fetch logged the
 *newer than this client knows* warning against a shape it read perfectly well.
 

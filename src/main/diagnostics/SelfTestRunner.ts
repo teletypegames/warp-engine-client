@@ -142,7 +142,12 @@ export class SelfTestRunner {
       searched.narrowed >= 1 && searched.cleared === searched.total &&
       (searched.total < 2 || searched.narrowed < searched.total))
 
-    const passed = rendered && switchedWell && settingsWell && searchedWell
+    // A run under BRAND_NAME is a branded build for the duration: the bar and the window
+    // must carry that name and not the software's.
+    const brand = process.env['BRAND_NAME'] ?? ''
+    const brandedWell = brand.length === 0 || report.appName === brand
+
+    const passed = rendered && switchedWell && settingsWell && searchedWell && brandedWell
     console.log(passed ? 'SELFTEST OK' : 'SELFTEST FAILED')
     return passed
   }

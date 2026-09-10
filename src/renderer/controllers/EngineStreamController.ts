@@ -1,4 +1,5 @@
 import type { BridgeApi } from '../../shared/contracts/BridgeApi'
+import type { CatalogPageDto } from '../../shared/contracts/dto/CatalogPageDto'
 import type { SyncEventDto } from '../../shared/contracts/dto/SyncEventDto'
 import type { AppStore } from '../state/AppStore'
 
@@ -19,6 +20,24 @@ export class EngineStreamController {
     this.bridge.onLog((line: string): void => { this.store.applyLogLine(line) })
     this.bridge.onBusyChanged((busy: boolean): void => { this.store.applyBusy(busy) })
     this.bridge.onSyncEvent((event: SyncEventDto): void => { this.handleEvent(event) })
+    this.bridge.onCatalogPage((page: CatalogPageDto): void => { this.handlePage(page) })
+  }
+
+  /**
+   * A page of the catalog: draw what has arrived, and say how far along the read is.
+   * The listing call that started the read applies the complete listing when it
+   * returns and clears the progress; until then the bar counts titles.
+   */
+  private handlePage (page: CatalogPageDto): void {
+    const { messages } = this.store.readState()
+    this.store.applyCatalog(page.listing.games, page.listing.paths, page.listing.account)
+    if (page.totalPages > 1) {
+      this.store.applyProgress({
+        total: page.total,
+        done: page.loaded,
+        label: `${String(page.loaded)} ${messages.of} ${String(page.total)}`
+      })
+    }
   }
 
   private handleEvent (event: SyncEventDto): void {

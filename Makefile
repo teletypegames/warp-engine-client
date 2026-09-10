@@ -32,7 +32,31 @@ TAG ?= v$(VERSION)
 # It is baked into the package's own package.json, so the built app carries it. A runtime
 # STORES_API still overrides it, which is for trying something out rather than shipping.
 STORES_API ?=
-BUILDER_ARGS := $(if $(STORES_API),-- --config.extraMetadata.warpEngine.registryUrl=$(STORES_API),)
+
+# A brand: a name for the window and a store to install first, baked in the same way.
+# Optional, all of it — without BRAND_NAME the build is the generic WarpEngine Client.
+# BRAND_ID names the appId and the package files, so a branded and a generic client can
+# live on one machine; RELEASES_API is where the branded build's own releases are listed.
+#
+#   make dist BRAND_NAME="Teletype Games Store" BRAND_STORE=https://teletypegames.org BRAND_ID=teletype-store
+#
+# A runtime BRAND_NAME + BRAND_STORE pair overrides the baked brand, for trying one out.
+BRAND_NAME ?=
+BRAND_STORE ?=
+BRAND_ID ?=
+RELEASES_API ?=
+
+REGISTRY_ARGS := $(if $(STORES_API),--config.extraMetadata.warpEngine.registryUrl=$(STORES_API),)
+BRAND_ARGS := $(if $(BRAND_NAME),--config.extraMetadata.warpEngine.brand.name="$(BRAND_NAME)" --config.productName="$(BRAND_NAME)",) \
+              $(if $(BRAND_STORE),--config.extraMetadata.warpEngine.brand.catalogUrl=$(BRAND_STORE),) \
+              $(if $(RELEASES_API),--config.extraMetadata.warpEngine.releasesUrl=$(RELEASES_API),) \
+              $(if $(BRAND_ID),--config.appId=org.teletypegames.warpstore.gui.$(BRAND_ID) \
+                --config.mac.artifactName='$(BRAND_ID)-$${version}-$${arch}-mac.$${ext}' \
+                --config.dmg.artifactName='$(BRAND_ID)-$${version}-$${arch}.$${ext}' \
+                --config.nsis.artifactName='$(BRAND_ID)-Setup-$${version}-$${arch}.$${ext}' \
+                --config.portable.artifactName='$(BRAND_ID)-Portable-$${version}-$${arch}.$${ext}' \
+                --config.appImage.artifactName='$(BRAND_ID)-$${version}-$${arch}.$${ext}',)
+BUILDER_ARGS := $(if $(strip $(REGISTRY_ARGS) $(BRAND_ARGS)),-- $(REGISTRY_ARGS) $(BRAND_ARGS),)
 
 .DEFAULT_GOAL := help
 
@@ -126,3 +150,4 @@ version: ## Show the versions involved
 	@printf "tea        "; tea --version 2>/dev/null | head -1 || echo "missing — devarea: make tea"
 	@printf "registry   "; node -p 'require("./package.json").warpEngine.registryUrl'
 	@if [ -n "$(STORES_API)" ]; then printf "  build override: %s\n" "$(STORES_API)"; fi
+	@if [ -n "$(BRAND_NAME)" ]; then printf "  brand:          %s → %s (%s)\n" "$(BRAND_NAME)" "$(BRAND_STORE)" "$(BRAND_ID)"; fi

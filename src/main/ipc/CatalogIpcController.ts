@@ -4,6 +4,8 @@ import type { AccountDtoMapper } from '../../application/mappers/AccountDtoMappe
 import type { GameDtoMapper } from '../../application/mappers/GameDtoMapper'
 import type { StorePathsDtoMapper } from '../../application/mappers/StorePathsDtoMapper'
 import { IPC_CHANNELS } from '../../shared/contracts/IpcChannels'
+import type { CatalogListing } from '../../domain/models/CatalogListing'
+import type { CatalogPageProgress } from '../../domain/models/CatalogPage'
 import type { CatalogListingDto } from '../../shared/contracts/dto/CatalogListingDto'
 import type { StorePathsDto } from '../../shared/contracts/dto/StorePathsDto'
 import type { WindowStreamBroadcaster } from '../streams/WindowStreamBroadcaster'
@@ -43,17 +45,33 @@ export class CatalogIpcController {
       this.handleLaunchGame(requireString(name, 'name')))
   }
 
+  /**
+   * The listing, and every page of it on the way.
+   *
+   * A paged catalog is drawn as it arrives: each page's listing goes out on its own
+   * stream, mapped exactly as the final answer is, so the window shows the same cards
+   * early that it would have shown late.
+   */
   private async handleListGames (): Promise<CatalogListingDto> {
     return this.guard.run(async (): Promise<CatalogListingDto> => {
-      const listing = await this.catalog.listGames(this.streams.asProgressListener())
-      const baseUrl = listing.paths?.catalogBaseUrl ?? ''
-      return {
-        games: this.gameMapper.toDtoList(listing.games, baseUrl),
-        skipped: listing.skipped,
-        paths: listing.paths === null ? null : this.pathsMapper.toDto(listing.paths),
-        account: this.accountMapper.toDto(listing.account)
-      }
+      const listing = await this.catalog.listGames({
+        ...this.streams.asProgressListener(),
+        onCatalogPage: (progress: CatalogPageProgress, partial: CatalogListing): void => {
+          this.streams.publishCatalogPage({ ...progress, listing: this.toListingDto(partial) })
+        }
+      })
+      return this.toListingDto(listing)
     })
+  }
+
+  private toListingDto (listing: CatalogListing): CatalogListingDto {
+    const baseUrl = listing.paths?.catalogBaseUrl ?? ''
+    return {
+      games: this.gameMapper.toDtoList(listing.games, baseUrl),
+      skipped: listing.skipped,
+      paths: listing.paths === null ? null : this.pathsMapper.toDto(listing.paths),
+      account: this.accountMapper.toDto(listing.account)
+    }
   }
 
   private async handleReadPaths (): Promise<StorePathsDto> {

@@ -96,6 +96,7 @@ export const HUNGARIAN_MESSAGES: MessageBundle = {
   updateCheckFailed: 'A kiadások listája nem érhető el.',
   settings: 'Beállítások',
   general: 'Általános',
+  basedOn: 'WarpEngine Client %{version} alapon',
   updates: 'Frissítések',
   close: 'Bezárás',
   addStoreFromList: 'Bolt hozzáadása a listából',

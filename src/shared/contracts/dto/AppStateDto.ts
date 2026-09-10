@@ -1,5 +1,6 @@
 import type { Locale } from '../../i18n/MessageBundle'
 import type { MessageBundle } from '../../i18n/MessageBundle'
+import type { BrandDto } from './BrandDto'
 import type { InstalledStoreDto } from './InstalledStoreDto'
 
 export type ViewMode = 'grid' | 'list'
@@ -16,4 +17,5 @@ export interface AppStateDto {
   readonly defaultStoreRoot: string
   readonly appVersion: string
   readonly viewMode: ViewMode
+  readonly brand: BrandDto | null
 }

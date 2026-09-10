@@ -38,6 +38,7 @@ export const IPC_CHANNELS = {
   streamLog: 'stream:log',
   streamSyncEvent: 'stream:syncEvent',
   streamBusyChanged: 'stream:busyChanged',
+  streamCatalogPage: 'stream:catalogPage',
   /** How a sign-in ended, once the browser half is done. */
   streamSignInFinished: 'stream:signInFinished'
 } as const

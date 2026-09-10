@@ -1,5 +1,6 @@
 import type { AccountDto, SignInPromptDto } from '../../shared/contracts/dto/AccountDto'
 import type { AppStateDto, ViewMode } from '../../shared/contracts/dto/AppStateDto'
+import type { BrandDto } from '../../shared/contracts/dto/BrandDto'
 import type { GameDto } from '../../shared/contracts/dto/GameDto'
 import type { InstalledStoreDto } from '../../shared/contracts/dto/InstalledStoreDto'
 import type { RegistryResultDto } from '../../shared/contracts/dto/RegistryResultDto'
@@ -20,6 +21,15 @@ export interface SyncProgress {
 
 /** How much of the store's output the window keeps; older lines fall off the top. */
 const MAX_LOG_LINES = 400
+
+/**
+ * How many titles the listing draws before it waits for a scroll.
+ *
+ * The grid is windowed: it draws this many, and this many more each time the person
+ * nears the bottom. A fifteen-title catalog never notices; a five-hundred-title one
+ * stops paying for cards nobody has scrolled to.
+ */
+export const VISIBLE_STEP = 48
 
 /** Everything the window draws itself from. Read-only to everyone but the store. */
 export interface AppState {
@@ -58,6 +68,9 @@ export interface AppState {
   readonly renamingHome: string | null
   /** Which page of the settings is showing; opening starts on the first. */
   readonly settingsTab: SettingsTab
+  readonly brand: BrandDto | null
+  /** How many of the filtered titles the listing draws; grows as the person scrolls. */
+  readonly visibleCount: number
 }
 
 const INITIAL_STATE: AppState = {
@@ -85,7 +98,9 @@ const INITIAL_STATE: AppState = {
   settingsOpen: false,
   registry: null,
   renamingHome: null,
-  settingsTab: 'general'
+  settingsTab: 'general',
+  brand: null,
+  visibleCount: VISIBLE_STEP
 }
 
 export type AppStateListener = (state: AppState) => void
@@ -121,7 +136,8 @@ export class AppStore {
       registryUrl: dto.registryUrl,
       defaultStoreRoot: dto.defaultStoreRoot,
       appVersion: dto.appVersion,
-      viewMode: dto.viewMode
+      viewMode: dto.viewMode,
+      brand: dto.brand
     }
     this.notify()
   }
@@ -178,6 +194,7 @@ export class AppStore {
       games: [],
       paths: null,
       filter: EVERYTHING,
+      visibleCount: VISIBLE_STEP,
       account: { signInAvailable: false, signedIn: false },
       signIn: null
     }
@@ -190,7 +207,17 @@ export class AppStore {
   }
 
   public applyFilter (filter: CatalogFilter): void {
-    this.state = { ...this.state, filter: resolveFilter(filter, this.state.games) }
+    // A new filter is a new list from the top, so the window shrinks back to the first
+    // screenful; scrolling grows it again.
+    this.state = { ...this.state, filter: resolveFilter(filter, this.state.games), visibleCount: VISIBLE_STEP }
+    this.notify()
+  }
+
+  /** More of the filtered titles may be drawn; capped by how many there are at all. */
+  public applyVisibleCount (visibleCount: number): void {
+    const capped = Math.min(Math.max(visibleCount, VISIBLE_STEP), Math.max(this.state.games.length, VISIBLE_STEP))
+    if (capped === this.state.visibleCount) return
+    this.state = { ...this.state, visibleCount: capped }
     this.notify()
   }
 

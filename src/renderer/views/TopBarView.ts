@@ -30,7 +30,11 @@ export class TopBarView {
   }
 
   public render (state: AppState): void {
-    setText(this.appName, state.messages.appName)
+    // A branded build is called what the brand says, in the bar and on the window;
+    // the generic client keeps its own name.
+    const appName = state.brand?.name ?? state.messages.appName
+    setText(this.appName, appName)
+    if (document.title !== appName) document.title = appName
     setText(this.storeId, state.currentStore === null ? '' : state.currentStore.id)
     describeControl(this.navToggle, state.messages.menu)
     this.navToggle.setAttribute('aria-expanded', String(state.navigationOpen))

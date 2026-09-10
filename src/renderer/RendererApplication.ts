@@ -7,7 +7,7 @@ import { ClientUpdateController } from './controllers/ClientUpdateController'
 import { EngineStreamController } from './controllers/EngineStreamController'
 import { PreferencesController } from './controllers/PreferencesController'
 import { StoreController } from './controllers/StoreController'
-import { AppStore, type AppState } from './state/AppStore'
+import { AppStore, VISIBLE_STEP, type AppState } from './state/AppStore'
 import { EVERYTHING, toggleOption, withQuery, type FilterAxis } from './state/CatalogFilter'
 import type { SettingsTab } from './state/SettingsTab'
 import { CatalogGridView } from './views/CatalogGridView'
@@ -111,8 +111,8 @@ export class RendererApplication {
         onToggle: (): void => { this.store.applyLogOpen(!this.store.readState().logOpen) }
       }),
       new GateView((url: string): void => { void this.bridge.openUrl(url) }),
-      new CatalogGridView(cards),
-      new CatalogListView(cards)
+      new CatalogGridView(cards, (): void => { this.showMore() }),
+      new CatalogListView(cards, (): void => { this.showMore() })
     ]
 
     this.store.subscribe((state: AppState): void => { this.render(state) })
@@ -126,11 +126,19 @@ export class RendererApplication {
     const state = this.store.readState()
 
     if (state.currentStore === null) {
+      // A branded build installs its own store first and asks nobody; only if that
+      // fails does the first run fall back to the registry's offer.
+      if (state.brand !== null && await this.stores.installBrandStore(state.brand)) return
       await this.stores.offerStores()
       return
     }
     this.store.applyGate(null)
     await this.catalog.refresh()
+  }
+
+  private showMore (): void {
+    const state = this.store.readState()
+    this.store.applyVisibleCount(state.visibleCount + VISIBLE_STEP)
   }
 
   private render (state: AppState): void {

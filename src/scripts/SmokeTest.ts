@@ -1,4 +1,6 @@
 import fs from 'node:fs'
+import http from 'node:http'
+import os from 'node:os'
 import path from 'node:path'
 import { GameDtoMapper } from '../application/mappers/GameDtoMapper'
 import { describeError } from '../domain/errors/DescribeError'
@@ -9,7 +11,12 @@ import { deriveStoreId } from '../domain/models/StoreIdentity'
 import type { CredentialRepository } from '../domain/ports/CredentialRepository'
 import { BuildConfiguration } from '../infrastructure/config/BuildConfiguration'
 import { checkForUpdate } from '../domain/models/ClientRelease'
+import type { CatalogPageProgress } from '../domain/models/CatalogPage'
+import { CatalogClient } from '../infrastructure/engine/CatalogClient'
 import { NativeStoreCatalogGateway } from '../infrastructure/engine/NativeStoreCatalogGateway'
+import { StoreConfigurationReader } from '../infrastructure/engine/StoreConfigurationReader'
+import { StoreFileSystem } from '../infrastructure/files/StoreFileSystem'
+import { asRecord } from '../infrastructure/json/JsonRecord'
 import { HttpTextClient } from '../infrastructure/http/HttpTextClient'
 import { FileSystemInstalledStoreRepository } from '../infrastructure/repositories/FileSystemInstalledStoreRepository'
 import { HttpClientReleaseGateway } from '../infrastructure/repositories/HttpClientReleaseGateway'
@@ -53,6 +60,8 @@ class SmokeTest {
     console.log('warp-engine-client smoke test')
 
     this.checkMessages()
+    this.checkBrand()
+    await this.checkPaging()
     await this.checkRegistry()
     await this.checkReleases()
 
@@ -69,6 +78,80 @@ class SmokeTest {
     const hungarian = Object.keys(HUNGARIAN_MESSAGES).length
     if (english === hungarian) this.reportOk('strings', `${String(english)} keys × ${String(LOCALES.length)} languages`)
     else this.reportBad('strings', `en has ${String(english)}, hu has ${String(hungarian)}`)
+  }
+
+  private checkBrand (): void {
+    const brand = this.buildConfiguration.readBrand()
+    if (brand === null) this.reportOk('brand', 'none — the generic client')
+    else this.reportOk('brand', `${brand.name} → ${brand.catalogUrl}`)
+  }
+
+  /**
+   * A paged catalog, read from a server of our own.
+   *
+   * The live catalog may be on an engine that does not page yet, so paging is proved
+   * against three pages served here: every page must be reported as it arrives, the
+   * titles must all be there at the end, and the cache must hold the stitched whole.
+   */
+  private async checkPaging (): Promise<void> {
+    const titles = ['alpha', 'bravo', 'charlie', 'delta', 'echo']
+    const perPage = 2
+    const server = http.createServer((request: http.IncomingMessage, response: http.ServerResponse): void => {
+      const url = new URL(request.url ?? '/', 'http://127.0.0.1')
+      const page = Number(url.searchParams.get('page') ?? '1')
+      const totalPages = Math.ceil(titles.length / perPage)
+      const slice = titles.slice((page - 1) * perPage, page * perPage)
+      response.setHeader('Content-Type', 'application/json')
+      response.setHeader('WarpEngine-Version', '0.13.0')
+      response.end(JSON.stringify({
+        api: 2, page, perPage, total: titles.length, totalPages,
+        nextPage: page < totalPages ? page + 1 : null,
+        softwares: slice.map((name: string): unknown => ({
+          software: { name, title: name.toUpperCase(), platform: 'tic80', status: 'released' },
+          releases: []
+        }))
+      }))
+    })
+    await new Promise<void>((resolve: () => void): void => { server.listen(0, '127.0.0.1', resolve) })
+    const address = server.address()
+    const port = typeof address === 'object' && address !== null ? address.port : 0
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'warp-smoke-paging-'))
+    try {
+      const configPath = path.join(home, 'config.json')
+      fs.writeFileSync(configPath, JSON.stringify({
+        store: { id: 'paging', name: 'Paging', base_url: `http://127.0.0.1:${String(port)}` }
+      }))
+      const logged: string[] = []
+      const log = (line: string): void => { logged.push(line) }
+      const files = new StoreFileSystem('paging-store', log)
+      const configuration = new StoreConfigurationReader(files).readConfiguration(configPath)
+      const cachePath = path.join(home, 'catalog.json')
+      const client = new CatalogClient(configuration, files, cachePath, log)
+
+      const seen: number[] = []
+      const fetched = await client.fetchCatalog((progress: CatalogPageProgress): void => { seen.push(progress.loaded) })
+      const catalog = asRecord(fetched.catalog)
+      const stitched: unknown = catalog === null ? null : catalog['softwares']
+      const cached = asRecord(files.readJson(cachePath))
+      const cachedList: unknown = cached === null ? null : cached['softwares']
+
+      const pagesRight = seen.join(',') === '2,4,5'
+      const wholeRight = Array.isArray(stitched) && stitched.length === titles.length
+      const cacheRight = Array.isArray(cachedList) && cachedList.length === titles.length &&
+        cached !== null && cached['api'] === 2 && cached['nextPage'] === null
+      if (pagesRight && wholeRight && cacheRight && fetched.engineVersion.resolved === '0.13') {
+        this.reportOk('paging', `3 pages of ${String(perPage)} → ${String(titles.length)} titles, reported at ${seen.join('/')}, ` +
+          `cache stitched, ${String(logged.length)} log lines`)
+      } else {
+        this.reportBad('paging', `seen ${seen.join(',')}; whole ${String(wholeRight)}; cache ${String(cacheRight)}; ` +
+          `version ${fetched.engineVersion.resolved}`)
+      }
+    } catch (error: unknown) {
+      this.reportBad('paging', describeError(error))
+    } finally {
+      server.close()
+      fs.rmSync(home, { recursive: true, force: true })
+    }
   }
 
   private async checkRegistry (): Promise<void> {

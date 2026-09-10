@@ -1,6 +1,7 @@
 import { describeError } from '../../domain/errors/DescribeError'
 import type { BridgeApi } from '../../shared/contracts/BridgeApi'
 import type { AppStateDto } from '../../shared/contracts/dto/AppStateDto'
+import type { BrandDto } from '../../shared/contracts/dto/BrandDto'
 import type { GameDto } from '../../shared/contracts/dto/GameDto'
 import type { RegistryStoreDto } from '../../shared/contracts/dto/RegistryStoreDto'
 import type { AppStore } from '../state/AppStore'
@@ -196,6 +197,15 @@ export class StoreController {
     await this.provision(async (): Promise<AppStateDto> => this.bridge.installCatalog(catalogUrl))
   }
 
+  /**
+   * A branded build's first run: its store, installed without asking, under the
+   * brand's name. True when it worked; false hands the first run back to the
+   * registry offer, so a brand whose catalog is down still leaves a usable client.
+   */
+  public async installBrandStore (brand: BrandDto): Promise<boolean> {
+    return this.provision(async (): Promise<AppStateDto> => this.bridge.installCatalog(brand.catalogUrl, brand.name))
+  }
+
   private async installStore (chosen: RegistryStoreDto): Promise<void> {
     await this.provision(async (): Promise<AppStateDto> => this.bridge.installStore(chosen))
   }
@@ -206,7 +216,7 @@ export class StoreController {
    * store's catalog is read and synced. A failure goes to the log and leaves the screen
    * where it was.
    */
-  private async provision (install: () => Promise<AppStateDto>): Promise<void> {
+  private async provision (install: () => Promise<AppStateDto>): Promise<boolean> {
     const messages = this.store.readState().messages
     this.store.applyProgress({ total: 0, done: 0, label: messages.setupWorking })
     try {
@@ -214,8 +224,10 @@ export class StoreController {
       this.store.applySettingsOpen(false)
       await this.catalog.refresh()
       await this.catalog.syncGames([])
+      return true
     } catch (error: unknown) {
       this.store.applyLogLine(describeError(error))
+      return false
     } finally {
       this.store.applyProgress(null)
     }

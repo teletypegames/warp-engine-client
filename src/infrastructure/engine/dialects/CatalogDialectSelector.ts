@@ -15,7 +15,9 @@ import { SoftwareListCatalogDialect } from './SoftwareListCatalogDialect'
  * 0.5 started saying what a title costs, and every engine since reads the same way:
  * 0.6 to 0.11 changed storage, CI, images and the build matrix, none of which is the
  * catalog's shape, and 0.12 added an optional `category` that the dialect already
- * reads when it is there.
+ * reads when it is there. 0.13 pages the catalog, which is the client's business and
+ * not the dialect's: the pages are stitched back into the one `softwares` list before
+ * any dialect sees them.
  */
 export function selectCatalogDialect (version: SupportedWarpEngineVersion): CatalogDialect {
   switch (version) {
@@ -31,6 +33,7 @@ export function selectCatalogDialect (version: SupportedWarpEngineVersion): Cata
     case '0.10':
     case '0.11':
     case '0.12':
+    case '0.13':
       return new AccessAwareCatalogDialect(version)
   }
 }

@@ -6,9 +6,10 @@ import {
 import { describeError } from '../../domain/errors/DescribeError'
 import type { StoreFileSystem } from '../files/StoreFileSystem'
 import { StoreHttpClient } from '../http/StoreHttpClient'
-import { asRecord } from '../json/JsonRecord'
+import { asRecord, readNumber, type JsonRecord } from '../json/JsonRecord'
+import type { CatalogPageProgress } from '../../domain/models/CatalogPage'
 
-const CLIENT_VERSION = '2.0.0'
+const CLIENT_VERSION = '3.0.0'
 
 const IMAGE_EXTENSIONS: Readonly<Record<string, string>> = {
   'image/png': '.png',
@@ -26,6 +27,26 @@ export interface DownloadedImage {
 export interface FetchedCatalog {
   readonly catalog: unknown
   readonly engineVersion: WarpEngineVersion
+}
+
+/**
+ * Called after every page with the catalog as read so far — the same shape the
+ * complete catalog has, so a dialect can read it early — and the engine version, which
+ * the first page's header already told.
+ */
+export type CatalogPageListener = (
+  progress: CatalogPageProgress,
+  catalogSoFar: unknown,
+  engineVersion: WarpEngineVersion
+) => void
+
+/** The paging fields of an API-2 envelope; null where the engine sent a plain list. */
+interface CatalogEnvelope {
+  readonly api: number
+  readonly page: number
+  readonly totalPages: number
+  readonly total: number
+  readonly nextPage: number | null
 }
 
 /**
@@ -77,31 +98,73 @@ export class CatalogClient {
   /**
    * The catalog, and the version of the engine that served it.
    *
+   * WarpEngine 0.13 pages the catalog: the first request asks for page 1, and an
+   * envelope with `api` and `nextPage` means there is more to fetch. Every page is
+   * reported through `onPage` with the catalog stitched together so far, so a window can
+   * draw while the rest is in flight. An older engine ignores `page` and answers with
+   * the whole list, which is a catalog of one page. What lands in the cache is always
+   * the complete, stitched catalog — the format the shell engine wrote, never a partial
+   * one — and a fetch that fails halfway leaves the previous cache alone.
+   *
    * The version comes from the response header, so it costs no extra request. A cache
-   * hit has no header — the cache file holds the catalog exactly as the engine sent it,
-   * which is the format the shell engine wrote and worth keeping — and then the version
-   * is reported as absent, which resolves to the oldest dialect this client knows.
+   * hit has no header — the cache file holds the catalog exactly as the engine sent it —
+   * and then the version is reported as absent, which resolves to the oldest dialect
+   * this client knows.
    */
-  public async fetchCatalog (): Promise<FetchedCatalog> {
-    const ownerId = this.configuration.catalog.ownerId
-    const url = this.resolveApiUrl('catalog', ownerId === null ? undefined : { owner_id: String(ownerId) })
+  public async fetchCatalog (onPage?: CatalogPageListener): Promise<FetchedCatalog> {
+    const firstUrl = this.resolvePageUrl(1)
     try {
-      const { body, headers } = await this.http.readBytes(url)
-      const catalog = asRecord(JSON.parse(body.toString('utf8')))
-      if (catalog === null) throw new Error('the catalog is not a JSON object')
-      this.files.writeJson(this.cachePath, catalog)
-
-      const engineVersion = readWarpEngineVersion(headers[WARP_ENGINE_VERSION_HEADER] ?? null)
+      const first = await this.readPage(firstUrl)
+      const engineVersion = readWarpEngineVersion(first.headers[WARP_ENGINE_VERSION_HEADER] ?? null)
       const sentence = describeWarpEngineVersion(engineVersion)
       if (engineVersion.supported) this.log(sentence)
       else this.log(`warning: ${sentence}`)
+
+      const envelope = readEnvelope(first.record)
+      if (envelope === null) {
+        this.files.writeJson(this.cachePath, first.record)
+        return { catalog: first.record, engineVersion }
+      }
+
+      let softwares = readSoftwares(first.record)
+      onPage?.(toProgress(envelope, softwares.length), stitch(first.record, softwares), engineVersion)
+      let next = envelope.nextPage
+      while (next !== null) {
+        const page = await this.readPage(this.resolvePageUrl(next))
+        const pageEnvelope = readEnvelope(page.record)
+        softwares = [...softwares, ...readSoftwares(page.record)]
+        if (pageEnvelope === null) break
+        onPage?.(toProgress(pageEnvelope, softwares.length), stitch(first.record, softwares), engineVersion)
+        next = pageEnvelope.nextPage
+      }
+      if (envelope.totalPages > 1) {
+        this.log(`catalog: ${String(softwares.length)} titles over ${String(envelope.totalPages)} pages`)
+      }
+
+      const catalog = stitch(first.record, softwares)
+      this.files.writeJson(this.cachePath, catalog)
       return { catalog, engineVersion }
     } catch (error: unknown) {
       const cached = asRecord(this.files.readJson(this.cachePath))
-      if (cached === null) throw new Error(`cannot fetch the catalog from ${url}: ${describeError(error)}`)
+      if (cached === null) throw new Error(`cannot fetch the catalog from ${firstUrl}: ${describeError(error)}`)
       this.log(`warning: catalog fetch failed (${describeError(error)}) — using the cached copy`)
       return { catalog: cached, engineVersion: readWarpEngineVersion(null) }
     }
+  }
+
+  private resolvePageUrl (page: number): string {
+    const ownerId = this.configuration.catalog.ownerId
+    return this.resolveApiUrl('catalog', {
+      ...(ownerId === null ? {} : { owner_id: String(ownerId) }),
+      page: String(page)
+    })
+  }
+
+  private async readPage (url: string): Promise<{ record: JsonRecord, headers: Readonly<Record<string, string>> }> {
+    const { body, headers } = await this.http.readBytes(url)
+    const record = asRecord(JSON.parse(body.toString('utf8')))
+    if (record === null) throw new Error('the catalog is not a JSON object')
+    return { record, headers }
   }
 
   public async downloadAsset (asset: string, destination: string): Promise<number> {
@@ -129,5 +192,40 @@ export class CatalogClient {
   public resolveImageUrl (imageUrl: string): string {
     if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl
     return this.configuration.store.baseUrl + imageUrl
+  }
+}
+
+/** The paging fields, or null where there is no `api` version — a plain, unpaged list. */
+function readEnvelope (record: JsonRecord): CatalogEnvelope | null {
+  if (typeof record['api'] !== 'number') return null
+  const page = readNumber(record, 'page', 1)
+  const next: unknown = record['nextPage']
+  return {
+    api: readNumber(record, 'api', 0),
+    page,
+    totalPages: Math.max(readNumber(record, 'totalPages', 1), 1),
+    total: readNumber(record, 'total', 0),
+    // Only a page past this one counts as next: a server that pointed back at the
+    // same page would otherwise be read forever.
+    nextPage: typeof next === 'number' && next > page ? next : null
+  }
+}
+
+function readSoftwares (record: JsonRecord): readonly unknown[] {
+  const softwares: unknown = record['softwares']
+  return Array.isArray(softwares) ? softwares : []
+}
+
+/** The first page's envelope around every title read so far: one page holding them all. */
+function stitch (first: JsonRecord, softwares: readonly unknown[]): JsonRecord {
+  return { ...first, page: 1, perPage: softwares.length, totalPages: 1, nextPage: null, softwares }
+}
+
+function toProgress (envelope: CatalogEnvelope, loaded: number): CatalogPageProgress {
+  return {
+    page: envelope.page,
+    totalPages: envelope.totalPages,
+    loaded,
+    total: Math.max(envelope.total, loaded)
   }
 }

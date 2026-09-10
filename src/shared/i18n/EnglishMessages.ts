@@ -96,6 +96,7 @@ export const ENGLISH_MESSAGES = {
   updateCheckFailed: 'The release list could not be reached.',
   settings: 'Settings',
   general: 'General',
+  basedOn: 'Based on WarpEngine Client %{version}',
   updates: 'Updates',
   close: 'Close',
   addStoreFromList: 'Add a store from the list',

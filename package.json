@@ -1,7 +1,7 @@
 {
   "name": "warp-engine-client",
   "productName": "WarpEngine Client",
-  "version": "2.11.0",
+  "version": "3.0.0",
   "description": "Graphical client for WarpEngine stores: install a catalog into your own application menu.",
   "license": "MIT",
   "author": "Teletype Games <games@teletype.hu>",

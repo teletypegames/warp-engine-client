@@ -32,7 +32,7 @@ export class ElectronApplication {
     this.container = new ServiceContainer(app, shell)
     this.windowFactory = new MainWindowFactory((message: string, level: number): void => {
       if (level >= 2 || this.selfTest) console.log(`[renderer] ${message}`)
-    })
+    }, this.container.brand?.name ?? PRODUCT_NAME)
   }
 
   public start (): void {
@@ -55,7 +55,7 @@ export class ElectronApplication {
       if (process.platform !== 'darwin') this.app.quit()
     })
     process.on('unhandledRejection', (reason: unknown): void => {
-      dialog.showErrorBox(PRODUCT_NAME, describeError(reason))
+      dialog.showErrorBox(this.container.brand?.name ?? PRODUCT_NAME, describeError(reason))
     })
 
     void this.app.whenReady().then((): void => { this.openWindow() })

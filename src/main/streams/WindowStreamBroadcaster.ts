@@ -2,6 +2,7 @@ import type { BrowserWindow } from 'electron'
 import type { EngineProgressListener } from '../../domain/models/EngineProgress'
 import { IPC_CHANNELS } from '../../shared/contracts/IpcChannels'
 import type { SignInFinishedDto } from '../../shared/contracts/dto/AccountDto'
+import type { CatalogPageDto } from '../../shared/contracts/dto/CatalogPageDto'
 import type { SyncEventDto } from '../../shared/contracts/dto/SyncEventDto'
 
 /**
@@ -29,6 +30,10 @@ export class WindowStreamBroadcaster {
 
   public publishSyncEvent (event: SyncEventDto): void {
     this.send(IPC_CHANNELS.streamSyncEvent, event)
+  }
+
+  public publishCatalogPage (page: CatalogPageDto): void {
+    this.send(IPC_CHANNELS.streamCatalogPage, page)
   }
 
   public publishBusyChanged (busy: boolean): void {

@@ -2,7 +2,7 @@ import type { GameDto } from '../../shared/contracts/dto/GameDto'
 import type { MessageBundle } from '../../shared/i18n/MessageBundle'
 import { closeDetailsOnOutsideClick, createElement, requireElement } from '../dom/Dom'
 import type { AppState } from '../state/AppStore'
-import { renderListing } from './Listing'
+import { nearEnd, renderListing } from './Listing'
 import type { GameCardView } from './GameCardView'
 
 /**
@@ -15,13 +15,20 @@ export class CatalogListView {
   private readonly list = requireElement('catalog-list', HTMLElement)
   private readonly empty = requireElement('empty', HTMLElement)
 
-  public constructor (private readonly cards: GameCardView) {
+  public constructor (
+    private readonly cards: GameCardView,
+    private readonly onMore: () => void
+  ) {
     closeDetailsOnOutsideClick(this.list, 'details.menu')
+    this.list.addEventListener('scroll', (): void => {
+      if (nearEnd(this.list)) this.onMore()
+    }, { passive: true })
   }
 
   public render (state: AppState): void {
     renderListing(this.list, this.empty, state, state.viewMode === 'list',
-      (game: GameDto): HTMLElement => this.createRow(game, state.messages, state.busy))
+      (game: GameDto): HTMLElement => this.createRow(game, state.messages, state.busy),
+      this.onMore)
   }
 
   private createRow (game: GameDto, messages: MessageBundle, busy: boolean): HTMLElement {

@@ -50,12 +50,12 @@ src/
       MessageBundle.ts        MessageBundle, Locale, LOCALES
       TranslationCatalog.ts   locale resolution and bundle lookup
   domain/
-    models/                   Game, InstalledStore, RegistryStore, StorePaths, …
+    models/                   Game, InstalledStore, RegistryStore, StorePaths, Brand, CatalogPage, …
     ports/                    the interfaces the application depends on
     errors/                   DomainError and its subclasses, each with a code
   application/
     services/                 CatalogService, StoreSelectionService, …
-    mappers/                  domain → DTO: Game, InstalledStore, RegistryStore,
+    mappers/                  domain → DTO: Game, InstalledStore, RegistryStore, Brand,
                               StorePaths, Account
   infrastructure/
     engine/                   the store engine, in process
@@ -71,6 +71,7 @@ src/
       StoreStateRepository    state.json → InstalledRecord, and back
       EngineGameMapper        survey entry + installed record + labels → Game
       PlatformLabels, PlatformLabelsClient  what the catalog calls its platforms (GET /api/builds)
+      CatalogVocabulary, VocabularyClient  what the catalog calls its categories (GET /api/software/vocabulary)
       ServiceDescriptorClient what the catalog's server says it offers (GET /api/service)
       DeviceSignInClient      the device authorization grant, client side
       dialects/               one per WarpEngine version's catalog shape
@@ -91,7 +92,7 @@ src/
     MainWindowFactory.ts      the window and its security settings
     composition/              ServiceContainer: the composition root
     ipc/                      IpcRouter, the controllers, the guard, argument readers
-    streams/                  WindowStreamBroadcaster: the three one-way streams
+    streams/                  WindowStreamBroadcaster: the four one-way streams
     diagnostics/              SelfTestRunner
   preload/
     preload.ts                implements BridgeApi over ipcRenderer
@@ -189,9 +190,14 @@ alive.
 
 ### Observer streams
 
-Main pushes three one-way streams — log lines, progress events, busy state — through
-`WindowStreamBroadcaster`, which the engine sees as an `EngineProgressListener`. The
-renderer subscribes once, in `EngineStreamController`.
+Main pushes four one-way streams — log lines, progress events, busy state, and catalog
+pages — through `WindowStreamBroadcaster`, which the engine sees as an
+`EngineProgressListener`. The renderer subscribes once, in `EngineStreamController`. The
+catalog-page stream carries a whole `CatalogListingDto` built from the pages read so far,
+by the same mapping the final answer gets, so the window never has two ways to draw a
+title. `Listing.ts` keeps one render-time memory beside the state — which list it last
+drew, per container — so a page arriving does not reset a scroll; like
+`SideMenuView.renderLocales`, it decides nothing, it only avoids a jump.
 
 ### State store and unidirectional flow
 

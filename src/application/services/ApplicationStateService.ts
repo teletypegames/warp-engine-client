@@ -1,7 +1,9 @@
+import type { Brand } from '../../domain/models/Brand'
 import type { InstalledStore } from '../../domain/models/InstalledStore'
 import type { ApplicationEnvironment } from '../../domain/ports/ApplicationEnvironment'
 import type { AppStateDto } from '../../shared/contracts/dto/AppStateDto'
 import type { TranslationCatalog } from '../../shared/i18n/TranslationCatalog'
+import type { BrandDtoMapper } from '../mappers/BrandDtoMapper'
 import type { InstalledStoreDtoMapper } from '../mappers/InstalledStoreDtoMapper'
 import type { PreferencesService } from './PreferencesService'
 import type { StoreProvisioningService } from './StoreProvisioningService'
@@ -21,7 +23,9 @@ export class ApplicationStateService {
     private readonly provisioning: StoreProvisioningService,
     private readonly environment: ApplicationEnvironment,
     private readonly translations: TranslationCatalog,
-    private readonly storeMapper: InstalledStoreDtoMapper
+    private readonly storeMapper: InstalledStoreDtoMapper,
+    private readonly brand: Brand | null,
+    private readonly brandMapper: BrandDtoMapper
   ) {}
 
   public readState (): AppStateDto {
@@ -39,7 +43,8 @@ export class ApplicationStateService {
       registryUrl: this.provisioning.registryUrl,
       defaultStoreRoot: this.selection.readDefaultStoreRoot(),
       appVersion: this.environment.readVersion(),
-      viewMode: this.preferences.readViewMode()
+      viewMode: this.preferences.readViewMode(),
+      brand: this.brand === null ? null : this.brandMapper.toDto(this.brand)
     }
   }
 }

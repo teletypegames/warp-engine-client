@@ -4,6 +4,7 @@ import type { SelectedGame, UnavailableEntry } from '../../domain/models/Selecte
 import type { ServiceDescriptor } from '../../domain/models/ServiceDescriptor'
 import type { StoreAccount } from '../../domain/models/StoreAccount'
 import { APP_MODE, WEB_MODE } from '../../domain/models/StoreConfiguration'
+import type { CatalogVocabulary } from './CatalogVocabulary'
 import type { PlatformLabels } from './PlatformLabels'
 
 /**
@@ -18,6 +19,7 @@ export class EngineGameMapper {
     game: SelectedGame,
     installed: ReadonlyMap<string, InstalledRecord>,
     labels: PlatformLabels,
+    vocabulary: CatalogVocabulary,
     resolveWebUrl: (game: SelectedGame) => string
   ): Game {
     const record = installed.get(gameKey(game)) ?? null
@@ -32,6 +34,7 @@ export class EngineGameMapper {
       description: game.description,
       author: game.author,
       category: game.category,
+      categoryLabel: game.category === null ? null : vocabulary.describeCategory(game.category),
       imagePath: game.imageUrl,
       installed: record !== null,
       updateAvailable: record !== null && record.asset !== game.asset,
@@ -57,7 +60,7 @@ export class EngineGameMapper {
    * The mode is `app` for want of a truer answer: a title with no build has no mode,
    * and nothing reads this one because `installable` is false.
    */
-  public toUnavailableGame (entry: UnavailableEntry, labels: PlatformLabels): Game {
+  public toUnavailableGame (entry: UnavailableEntry, labels: PlatformLabels, vocabulary: CatalogVocabulary): Game {
     return {
       name: entry.name,
       title: entry.title,
@@ -69,6 +72,7 @@ export class EngineGameMapper {
       description: entry.description,
       author: entry.author,
       category: entry.category,
+      categoryLabel: entry.category === null ? null : vocabulary.describeCategory(entry.category),
       imagePath: entry.imageUrl,
       installed: false,
       updateAvailable: false,

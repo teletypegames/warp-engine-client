@@ -1,5 +1,7 @@
 import path from 'node:path'
 import type { CatalogListing } from '../../domain/models/CatalogListing'
+import type { CatalogPageProgress } from '../../domain/models/CatalogPage'
+import type { WarpEngineVersion } from '../../domain/models/WarpEngineVersion'
 import type { DesktopLayout } from '../../domain/models/DesktopLayout'
 import type { EngineProgressListener } from '../../domain/models/EngineProgress'
 import type { Game } from '../../domain/models/Game'
@@ -16,7 +18,7 @@ import type { CredentialRepository } from '../../domain/ports/CredentialReposito
 import type { InstalledStoreRepository } from '../../domain/ports/InstalledStoreRepository'
 import type { SignInPollResult, StoreCatalogGateway } from '../../domain/ports/StoreCatalogGateway'
 import { StoreFileSystem } from '../files/StoreFileSystem'
-import { CatalogClient, type FetchedCatalog } from './CatalogClient'
+import { CatalogClient, type CatalogPageListener, type FetchedCatalog } from './CatalogClient'
 import { CatalogSurveyor } from './CatalogSurveyor'
 import type { CatalogEntry } from './dialects/CatalogDialect'
 import { selectCatalogDialect } from './dialects/CatalogDialectSelector'
@@ -28,6 +30,7 @@ import { HostMachineDetector } from './HostMachineDetector'
 import { LauncherWriter } from './launchers/LauncherWriter'
 import { PayloadInstaller } from './PayloadInstaller'
 import { PlatformLabelsClient } from './PlatformLabelsClient'
+import { VocabularyClient } from './VocabularyClient'
 import { ServiceDescriptorClient } from './ServiceDescriptorClient'
 import { StoreConfigurationReader } from './StoreConfigurationReader'
 import { StoreStateRepository } from './StoreStateRepository'
@@ -35,6 +38,7 @@ import { StoreStateRepository } from './StoreStateRepository'
 const STATE_FILE_NAME = 'state.json'
 const CATALOG_CACHE_FILE_NAME = 'catalog.json'
 const PLATFORM_LABELS_CACHE_FILE_NAME = 'platforms.json'
+const VOCABULARY_CACHE_FILE_NAME = 'vocabulary.json'
 
 /**
  * The store engine, in process.
@@ -73,27 +77,36 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
     const host = this.hosts.findHost()
     engine.log(`host: ${host.operatingSystem}/${host.architecture}`)
 
-    const [ descriptor, entries, labels ] = await Promise.all([
-      engine.service.fetchDescriptor(), this.readEntries(engine), engine.platforms.fetchLabels()
+    const [ descriptor, labels, vocabulary ] = await Promise.all([
+      engine.service.fetchDescriptor(), engine.platforms.fetchLabels(), engine.vocabulary.fetchVocabulary()
     ])
-    const survey = engine.surveyor.survey(entries, host)
     const installed = engine.state.readState()
+    const account = this.games.toAccount(descriptor, this.credentials.readToken(store.id))
 
-    // One list, both kinds: a client that hides what it cannot install leaves the
-    // visitor wondering whether the catalog is small or their machine is unusual.
-    const games = [
-      ...survey.games.map((game: SelectedGame): Game => this.games.toGame(
-        game, installed, labels, (selected: SelectedGame): string => engine.launchers.resolveWebUrl(selected))),
-      ...survey.unavailable.map((entry: UnavailableEntry): Game => this.games.toUnavailableGame(entry, labels))
-    ].sort((left: Game, right: Game): number =>
-      left.title.toLowerCase().localeCompare(right.title.toLowerCase()))
-
-    return {
-      games,
-      skipped: survey.skipped,
-      paths: this.toPaths(engine),
-      account: this.games.toAccount(descriptor, this.credentials.readToken(store.id))
+    // The same assembly for every page and for the whole: a page's listing is simply
+    // the listing of what has arrived, so nothing the window draws early is drawn twice
+    // by different rules.
+    const assemble = (entries: readonly CatalogEntry[]): CatalogListing => {
+      const survey = engine.surveyor.survey(entries, host)
+      // One list, both kinds: a client that hides what it cannot install leaves the
+      // visitor wondering whether the catalog is small or their machine is unusual.
+      const games = [
+        ...survey.games.map((game: SelectedGame): Game => this.games.toGame(
+          game, installed, labels, vocabulary,
+          (selected: SelectedGame): string => engine.launchers.resolveWebUrl(selected))),
+        ...survey.unavailable.map((entry: UnavailableEntry): Game =>
+          this.games.toUnavailableGame(entry, labels, vocabulary))
+      ].sort((left: Game, right: Game): number =>
+        left.title.toLowerCase().localeCompare(right.title.toLowerCase()))
+      return { games, skipped: survey.skipped, paths: this.toPaths(engine), account }
     }
+
+    const entries = await this.readEntries(engine, (
+      page: CatalogPageProgress, catalogSoFar: unknown, engineVersion: WarpEngineVersion
+    ): void => {
+      progress.onCatalogPage?.(page, assemble(selectCatalogDialect(engineVersion.resolved).listEntries(catalogSoFar)))
+    })
+    return assemble(entries)
   }
 
   /**
@@ -300,8 +313,11 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
    * This is the one place a WarpEngine version turns into behaviour: the header decides
    * which dialect parses the response, and everything downstream sees typed entries.
    */
-  private async readEntries (engine: StoreEngineContext): Promise<readonly CatalogEntry[]> {
-    const fetched: FetchedCatalog = await engine.catalog.fetchCatalog()
+  private async readEntries (
+    engine: StoreEngineContext,
+    onPage?: CatalogPageListener
+  ): Promise<readonly CatalogEntry[]> {
+    const fetched: FetchedCatalog = await engine.catalog.fetchCatalog(onPage)
     return selectCatalogDialect(fetched.engineVersion.resolved).listEntries(fetched.catalog)
   }
 
@@ -334,6 +350,9 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
       platforms: new PlatformLabelsClient(
         catalog.http, configuration.store.baseUrl, files,
         path.join(store.home, PLATFORM_LABELS_CACHE_FILE_NAME), log),
+      vocabulary: new VocabularyClient(
+        catalog.http, configuration.store.baseUrl, files,
+        path.join(store.home, VOCABULARY_CACHE_FILE_NAME), log),
       surveyor: new CatalogSurveyor(configuration, log),
       state: new StoreStateRepository(files, path.join(store.home, STATE_FILE_NAME), log),
       installer: new GameInstaller(
@@ -367,6 +386,7 @@ interface StoreEngineContext {
   readonly catalog: CatalogClient
   readonly service: ServiceDescriptorClient
   readonly platforms: PlatformLabelsClient
+  readonly vocabulary: VocabularyClient
   readonly launchers: LauncherWriter
   readonly surveyor: CatalogSurveyor
   readonly state: StoreStateRepository

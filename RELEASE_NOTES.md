@@ -1,3 +1,37 @@
+# WarpEngine Client 3.0.0
+
+**The catalog is read a page at a time, and drawn as it arrives.** WarpEngine 0.13
+pages `GET /api/software`; the client asks for page 1, follows `nextPage` to the end, and
+after every page hands the window a listing built from everything read so far — the same
+code that builds the final listing, so nothing drawn early differs from what is drawn late.
+The bar counts titles until the last page; what needs the whole (the *Updates* group,
+*Upgrade all*, the prune) waits for it. The cache always holds the stitched whole in the
+`softwares` shape the shell engine reads, never a partial one, and an older engine, which
+ignores `page`, is read as a catalog of one page. `stream:catalogPage` is the fourth
+one-way stream from main to the window.
+
+**The grid is windowed.** It draws 48 titles and 48 more each time you near the bottom
+of the grid or the list, so a large catalog costs what is on screen. A new filter, search,
+store or view starts from the top; a page landing or a screenful more leaves your scroll
+where it was — the listing remembers what it last drew and only resets when that changes.
+
+**Categories are called what the catalog calls them.** `GET /api/software/vocabulary`
+gives every category key a label; the chips show the label and filter by the key. An
+engine without the endpoint keeps the keys, as before.
+
+**A build can be branded.** `make dist BRAND_NAME=… BRAND_STORE=… BRAND_ID=…` bakes a
+name and a store into the package: the name is the window title, the bar heading and the
+`productName`; the store is installed on the first run without a registry or a picker; the
+`appId` and the package names carry the id so a branded and a generic client coexist. The
+brand is an alternative default, not a cage — every store on the machine is still listed
+and the settings still add and remove them — and it is data the build supplies, never a
+store the code knows. `BRAND_NAME` + `BRAND_STORE` at runtime try one out; the settings'
+General tab says *Based on WarpEngine Client 3.0.0*.
+
+The version list runs to 0.13. The smoke test proves the paging against a three-page
+server of its own and reports the brand; the self-test under `BRAND_NAME` fails unless the
+bar carries that name.
+
 # WarpEngine Client 2.11.0
 
 **Search.** A search box in the bar narrows the grid to the titles whose title or name

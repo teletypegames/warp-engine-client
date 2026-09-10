@@ -1,6 +1,7 @@
 import type { AccountDto, SignInFinishedDto, SignInPromptDto } from './dto/AccountDto'
 import type { AppStateDto, ViewMode } from './dto/AppStateDto'
 import type { CatalogListingDto } from './dto/CatalogListingDto'
+import type { CatalogPageDto } from './dto/CatalogPageDto'
 import type { ClientUpdateDto } from './dto/ClientUpdateDto'
 import type { LocaleSelectionDto } from './dto/LocaleSelectionDto'
 import type { RegistryResultDto } from './dto/RegistryResultDto'
@@ -44,7 +45,7 @@ export interface BridgeApi {
   /** Answers with the application state afterwards, the new store open. */
   installStore: (store: RegistryStoreDto) => Promise<AppStateDto>
   /** A catalog the registry does not list; the name is derived from the address. */
-  installCatalog: (catalogUrl: string) => Promise<AppStateDto>
+  installCatalog: (catalogUrl: string, name?: string) => Promise<AppStateDto>
   selectStore: (home: string) => Promise<StoreSelectionDto>
   /**
    * Uninstall everything the store put here, then remove the store itself. Answers
@@ -65,6 +66,7 @@ export interface BridgeApi {
   onLog: (listener: StreamListener<string>) => void
   onSyncEvent: (listener: StreamListener<SyncEventDto>) => void
   onBusyChanged: (listener: StreamListener<boolean>) => void
+  onCatalogPage: (listener: StreamListener<CatalogPageDto>) => void
   onSignInFinished: (listener: StreamListener<SignInFinishedDto>) => void
 }
 

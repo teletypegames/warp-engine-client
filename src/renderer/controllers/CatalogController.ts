@@ -20,6 +20,7 @@ export class CatalogController {
     try {
       const listing: CatalogListingDto = await this.bridge.listGames()
       this.store.applyCatalog(listing.games, listing.paths, listing.account)
+      this.store.applyProgress(null)
       for (const reason of listing.skipped) this.store.applyLogLine(`skipped ${reason}`)
     } catch (error: unknown) {
       this.reportFailure(error)

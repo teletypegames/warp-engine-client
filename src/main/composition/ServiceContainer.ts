@@ -1,5 +1,6 @@
 import type { App, IpcMain, Shell } from 'electron'
 import { AccountDtoMapper } from '../../application/mappers/AccountDtoMapper'
+import { BrandDtoMapper } from '../../application/mappers/BrandDtoMapper'
 import { ClientUpdateDtoMapper } from '../../application/mappers/ClientUpdateDtoMapper'
 import { GameDtoMapper } from '../../application/mappers/GameDtoMapper'
 import { InstalledStoreDtoMapper } from '../../application/mappers/InstalledStoreDtoMapper'
@@ -30,6 +31,7 @@ import { CatalogIpcController } from '../ipc/CatalogIpcController'
 import { IpcRouter } from '../ipc/IpcRouter'
 import { SingleFlightGuard } from '../ipc/SingleFlightGuard'
 import { StoreIpcController } from '../ipc/StoreIpcController'
+import type { Brand } from '../../domain/models/Brand'
 import { TranslationCatalog } from '../../shared/i18n/TranslationCatalog'
 import { WindowStreamBroadcaster } from '../streams/WindowStreamBroadcaster'
 
@@ -50,6 +52,8 @@ export class ServiceContainer {
   public readonly launching: GameLaunchService
   public readonly accounts: AccountService
   public readonly updates: ClientUpdateService
+  /** What this build is branded as; null for the generic client. Decided once, here. */
+  public readonly brand: Brand | null
 
   private readonly controllers: readonly { register: (router: IpcRouter) => void }[]
 
@@ -67,6 +71,7 @@ export class ServiceContainer {
     const credentials = new SafeStorageCredentialRepository(environment)
     const catalogGateway = new NativeStoreCatalogGateway(credentials, stores)
     const buildConfiguration = new BuildConfiguration()
+    this.brand = buildConfiguration.readBrand()
     const registry = new HttpStoreRegistryRepository(httpClient, buildConfiguration)
     const releases = new HttpClientReleaseGateway(httpClient, buildConfiguration)
     const installer = new NativeStoreEngineInstaller()
@@ -82,7 +87,8 @@ export class ServiceContainer {
     this.launching = new GameLaunchService(new ElectronGameLauncher(shell), this.catalog)
     this.updates = new ClientUpdateService(releases, environment)
     this.state = new ApplicationStateService(
-      preferences, this.selection, this.provisioning, environment, translations, storeMapper
+      preferences, this.selection, this.provisioning, environment, translations, storeMapper,
+      this.brand, new BrandDtoMapper()
     )
 
     this.controllers = [

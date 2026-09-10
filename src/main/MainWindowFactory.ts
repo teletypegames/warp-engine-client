@@ -9,8 +9,7 @@ const WINDOW_OPTIONS: BrowserWindowConstructorOptions = {
   height: 720,
   minWidth: 760,
   minHeight: 520,
-  backgroundColor: '#11151c',
-  title: 'WarpEngine Client'
+  backgroundColor: '#11151c'
 }
 
 /**
@@ -37,11 +36,15 @@ function developmentIcon (): Pick<BrowserWindowConstructorOptions, 'icon'> {
  * open a second window — a link the user clicks goes to their browser instead.
  */
 export class MainWindowFactory {
-  public constructor (private readonly onRendererMessage: (message: string, level: number) => void) {}
+  public constructor (
+    private readonly onRendererMessage: (message: string, level: number) => void,
+    private readonly title: string
+  ) {}
 
   public createWindow (): BrowserWindow {
     const window = new BrowserWindow({
       ...WINDOW_OPTIONS,
+      title: this.title,
       ...developmentIcon(),
       webPreferences: {
         preload: path.join(__dirname, '..', 'preload', 'preload.js'),
