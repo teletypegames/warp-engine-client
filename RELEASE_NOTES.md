@@ -1,3 +1,34 @@
+# WarpEngine Client 2.10.0
+
+**Settings.** A gear in the bottom-left corner of the side menu opens a dialog with
+everything that is not about the catalog in front of you, on three tabs. **General**
+holds the language and the default view (grid or list, the same preference the bar's
+toggle writes). **Stores** lists the stores on this machine with their id and catalog
+address; a pencil renames one in place, a bin removes it with the same warning as
+before, and two rows underneath add one — from the registry's list, minus what is
+already here, or from a typed catalog address. Adding a store closes the dialog and
+opens the store. **Updates** is two blocks, kept apart because they are two different things: this client,
+with its version and *Check for updates*; and the installed titles the catalog has a newer
+version of, each with an *Upgrade* and an *Upgrade all* above them. The side menu is
+back to what it was for: which store, and what to look at. The version number returns to the corner, beside the gear; the hover bin on
+the store rows, the *+* and the language globe are gone from the menu.
+
+**Rename is the one edit a store has.** A store is identified by its catalog: the id,
+the home folder and the game folder — the boundary of what a removal may delete — all
+derive from it, so a store with a different catalog is a different store, and the dialog
+does not pretend otherwise. The display name is the only field that is a choice rather
+than a derivation, and renaming writes exactly that field into the store's own
+`config.json`, atomically, leaving the rest of the file as it was. It is a new bridge
+call (`renameStore`) behind the same single-flight guard as the other writes, and the
+store lifecycle test now renames the store it adds and reads the file back.
+
+**The dialog is state.** Like the gate, whether the settings are up is one field in the
+window's state, and a native `<dialog>` follows it: the focus trap, Escape and the
+backdrop come with the element. The store rows are rebuilt only when what they show has
+changed, so a rename field is not rebuilt under somebody's fingers by a log line. The
+self-test opens the dialog, counts its store rows against the side menu's, closes it,
+and — with `SELFTEST_SHOT` — photographs it.
+
 # WarpEngine Client 2.9.0
 
 **Check for updates.** The side menu shows the version number, and now a *Check for

@@ -51,6 +51,11 @@ export interface BridgeApi {
    * with the application state afterwards: which store is open next is decided here.
    */
   removeStore: (home: string) => Promise<AppStateDto>
+  /**
+   * Give a store another display name. The catalog stays: the id, the home and the
+   * game folder all derive from it, so a different catalog is a different store.
+   */
+  renameStore: (home: string, name: string) => Promise<AppStateDto>
 
   openFolder: (directory: string) => Promise<boolean>
   openUrl: (url: string) => Promise<boolean>

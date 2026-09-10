@@ -42,6 +42,8 @@ export class StoreIpcController {
       this.handleSelectStore(requireString(home, 'home')))
     router.handle(IPC_CHANNELS.storeRemoveStore, async (home: unknown): Promise<AppStateDto> =>
       this.handleRemoveStore(requireString(home, 'home')))
+    router.handle(IPC_CHANNELS.storeRenameStore, async (home: unknown, name: unknown): Promise<AppStateDto> =>
+      this.handleRenameStore(requireString(home, 'home'), requireString(name, 'name')))
   }
 
   /**
@@ -105,6 +107,19 @@ export class StoreIpcController {
         this.selection.requireStoreAt(home), this.streams.asProgressListener()
       )
       return this.state.readState()
+    })
+  }
+
+  /**
+   * Rename a store by its home. Guarded like the other writes: the engine reads the
+   * config at the start of every operation, and one writer at a time is the rule.
+   */
+  private async handleRenameStore (home: string, name: string): Promise<AppStateDto> {
+    return this.guard.run((): Promise<AppStateDto> => {
+      this.provisioning.renameStore(
+        this.selection.requireStoreAt(home), name, this.streams.asProgressListener()
+      )
+      return Promise.resolve(this.state.readState())
     })
   }
 }

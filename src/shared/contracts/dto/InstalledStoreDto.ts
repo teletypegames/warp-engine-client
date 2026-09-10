@@ -3,5 +3,6 @@ export interface InstalledStoreDto {
   readonly id: string
   readonly name: string
   readonly home: string
+  readonly catalogUrl: string
   readonly engine: string
 }

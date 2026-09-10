@@ -43,6 +43,7 @@ export class NativeStoreEngineInstaller implements StoreEngineInstaller {
       name: store.name,
       home,
       configPath,
+      catalogUrl: store.catalogUrl,
       engine: DESKTOP_STORE_ENGINE.id
     })
   }

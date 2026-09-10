@@ -72,58 +72,28 @@
       </section>
 
       <!--
-        The version, and a way to ask whether a newer client is out. Its own row above
-        the tools: the check answers with a sentence and sometimes a button, and the
-        icon row has no room for either.
+        The footer: the settings and the version in the corner, the log switch and
+        Refresh at the far end. The icons carry their name in `title` and `aria-label`,
+        set from the message bundle, so the tooltip and the screen reader stay
+        translated while the button stays the size of its glyph.
       -->
-      <section class="side-block side-update">
-        <div class="side-update-row">
-          <span id="app-version" class="side-version"></span>
-          <button id="update-check" class="side-link"></button>
-        </div>
-        <p class="side-quiet-text side-update-state" id="update-state" hidden></p>
-        <button id="update-open" class="btn btn-ghost btn-wide" hidden></button>
-      </section>
-
       <section class="side-block side-foot">
-        <button id="log-toggle" class="side-quiet" aria-expanded="false" aria-controls="log-panel"></button>
-        <!--
-          Two icons and nothing else. Both carry their name in `title` and `aria-label`,
-          set from the message bundle, so the tooltip and the screen reader stay
-          translated while the button stays the size of its glyph.
-        -->
+        <button id="settings-open" class="icon-btn">
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <circle cx="8" cy="8" r="4.6" />
+            <circle cx="8" cy="8" r="1.7" />
+            <path d="M8 1.2v2.2M8 12.6v2.2M1.2 8h2.2M12.6 8h2.2M3.2 3.2l1.55 1.55M11.25 11.25l1.55 1.55M3.2 12.8l1.55-1.55M11.25 4.75l1.55-1.55" />
+          </svg>
+        </button>
+        <span id="app-version" class="side-version"></span>
         <div class="side-tools">
+          <button id="log-toggle" class="side-quiet" aria-expanded="false" aria-controls="log-panel"></button>
           <button id="refresh" class="icon-btn" disabled>
             <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
               <path d="M13.5 8a5.5 5.5 0 1 1-1.61-3.89" />
               <path d="M13.5 2v3h-3" />
             </svg>
           </button>
-          <!--
-            Adding a store sits beside Refresh rather than under the store list: both
-            are actions on the whole store rather than on one of them, and a full-width
-            button under the list read as a third store.
-          -->
-          <button id="add-store" class="icon-btn">
-            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-              <path d="M8 3v10" />
-              <path d="M3 8h10" />
-            </svg>
-          </button>
-          <!--
-            The select is still a real `<select>`, stretched over the icon and invisible:
-            the native dropdown knows how to open upward in a cramped window and is
-            already keyboard- and screen-reader-navigable, which a hand-rolled menu would
-            have to earn back.
-          -->
-          <label class="icon-btn side-lang" id="locale-control">
-            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-              <circle cx="8" cy="8" r="6" />
-              <path d="M2 8h12" />
-              <path d="M8 2c1.8 1.6 2.8 3.8 2.8 6S9.8 12.4 8 14C6.2 12.4 5.2 10.2 5.2 8S6.2 3.6 8 2Z" />
-            </svg>
-            <select id="locale" class="locale-select"></select>
-          </label>
         </div>
       </section>
     </aside>
@@ -188,6 +158,108 @@
       </section>
     </div>
   </div>
+
+  <!--
+    Settings. A native <dialog>: it brings the focus trap, Escape and the backdrop with
+    it, and whether it is up is the state's decision, read by the view like everything
+    else. Everything that is not about the catalog in front of you is in here — which
+    stores this machine has, the language, the view the window opens with, and whether
+    a newer client is out.
+  -->
+  <dialog id="settings" class="settings">
+    <header class="settings-head">
+      <h2 id="settings-title" class="settings-title"></h2>
+      <button id="settings-close" class="icon-btn">
+        <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M4 4l8 8M12 4l-8 8" />
+        </svg>
+      </button>
+    </header>
+
+    <!--
+      Three pages under one row of tabs. The tabs are buttons with the ARIA tab roles,
+      and which one is showing is in the state, so a redraw cannot flip the page.
+    -->
+    <div class="settings-tabs" role="tablist" id="settings-tabs">
+      <button class="settings-tab" role="tab" id="settings-tab-general"
+              aria-controls="settings-panel-general" data-tab="general"></button>
+      <button class="settings-tab" role="tab" id="settings-tab-stores"
+              aria-controls="settings-panel-stores" data-tab="stores"></button>
+      <button class="settings-tab" role="tab" id="settings-tab-updates"
+              aria-controls="settings-panel-updates" data-tab="updates"></button>
+    </div>
+
+    <section class="settings-panel" role="tabpanel" id="settings-panel-general"
+             aria-labelledby="settings-tab-general">
+      <div class="settings-row">
+        <label class="settings-label" for="locale" id="settings-language-label"></label>
+        <select id="locale" class="select"></select>
+      </div>
+      <div class="settings-row">
+        <label class="settings-label" for="view-mode" id="settings-view-label"></label>
+        <select id="view-mode" class="select">
+          <option value="grid" id="view-mode-grid"></option>
+          <option value="list" id="view-mode-list"></option>
+        </select>
+      </div>
+    </section>
+
+    <section class="settings-panel" role="tabpanel" id="settings-panel-stores"
+             aria-labelledby="settings-tab-stores" hidden>
+      <div class="settings-stores" id="settings-stores"></div>
+      <!--
+        Two ways in: the list the registry offers, minus what is already here, and a
+        typed address. Different gestures, so two rows rather than a <select> entry that
+        turns into a text field.
+      -->
+      <div class="settings-row" id="settings-registry-row">
+        <label class="settings-label" for="settings-registry" id="settings-registry-label"></label>
+        <div class="settings-inline">
+          <select id="settings-registry" class="select settings-grow"></select>
+          <button id="settings-registry-add" class="btn btn-secondary"></button>
+        </div>
+      </div>
+      <p class="settings-note" id="settings-registry-note" hidden></p>
+      <div class="settings-row">
+        <label class="settings-label" for="settings-custom-url" id="settings-custom-label"></label>
+        <div class="settings-inline">
+          <input id="settings-custom-url" class="input settings-grow" type="url" spellcheck="false"
+                 autocapitalize="off" autocorrect="off">
+          <button id="settings-custom-add" class="btn btn-secondary"></button>
+        </div>
+        <p class="settings-note" id="settings-custom-hint"></p>
+      </div>
+    </section>
+
+    <!--
+      Two kinds of update, kept apart: this client, which is checked on request and
+      downloaded from the release page; and the titles here, which the catalog already
+      says are behind and which are upgraded in place.
+    -->
+    <section class="settings-panel" role="tabpanel" id="settings-panel-updates"
+             aria-labelledby="settings-tab-updates" hidden>
+      <div class="settings-block">
+        <h3 class="side-head" id="settings-client-head"></h3>
+        <div class="settings-inline">
+          <span class="settings-label" id="settings-version-head"></span>
+          <span id="settings-version" class="settings-version"></span>
+        </div>
+        <div class="settings-inline">
+          <button id="update-check" class="btn btn-secondary"></button>
+          <span class="settings-note settings-update-state" id="update-state" hidden></span>
+        </div>
+        <button id="update-open" class="btn btn-primary" hidden></button>
+      </div>
+      <div class="settings-block">
+        <div class="settings-block-head">
+          <h3 class="side-head" id="settings-games-head"></h3>
+          <button id="upgrade-all" class="btn btn-secondary btn-tiny" hidden></button>
+        </div>
+        <p class="settings-note" id="settings-games-empty" hidden></p>
+        <div class="settings-updates" id="settings-updates"></div>
+      </div>
+    </section>
+  </dialog>
 
   <script src="app.js"></script>
 </body>

@@ -3,7 +3,9 @@ import type { InstalledStoreDto } from '../../shared/contracts/dto/InstalledStor
 
 export class InstalledStoreDtoMapper {
   public toDto (store: InstalledStore): InstalledStoreDto {
-    return { id: store.id, name: store.name, home: store.home, engine: store.engine }
+    return {
+      id: store.id, name: store.name, home: store.home, catalogUrl: store.catalogUrl, engine: store.engine
+    }
   }
 
   public toDtoList (stores: readonly InstalledStore[]): readonly InstalledStoreDto[] {

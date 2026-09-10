@@ -1,7 +1,5 @@
 import { createElement, describeControl, requireElement, setHidden, setText } from '../dom/Dom'
-import { createIcon } from '../dom/Icon'
 import type { InstalledStoreDto } from '../../shared/contracts/dto/InstalledStoreDto'
-import type { Locale } from '../../shared/i18n/MessageBundle'
 import {
   buildFilterSections, isEverything, type FilterAxis, type FilterSection
 } from '../state/CatalogFilter'
@@ -9,29 +7,24 @@ import type { AppState } from '../state/AppStore'
 
 export interface SideMenuViewCallbacks {
   readonly onSelectStore: (home: string) => void
-  readonly onRemoveStore: (home: string, name: string) => void
-  readonly onAddStore: () => void
   readonly onRefresh: () => void
   readonly onToggleFilter: (axis: FilterAxis, value: string) => void
   readonly onClearFilters: () => void
-  readonly onSelectLocale: (locale: string) => void
   /** Sign in when signed out, sign out when signed in: the store knows which. */
   readonly onToggleSignedIn: () => void
-  readonly onCheckForUpdates: () => void
-  /** The release page of the newer client, in the browser. */
-  readonly onOpenRelease: () => void
+  readonly onOpenSettings: () => void
 }
 
 /**
- * The side menu: which store, what to do with it, and what to look at.
+ * The side menu: which store, what to look at, and the way into the settings.
  *
- * Everything that is not a title lives here, and the bar's button folds it away.
+ * Everything that is not a title lives here or behind the gear, and the bar's button
+ * folds it away.
  */
 export class SideMenuView {
   private readonly storesHead = requireElement('head-stores', HTMLElement)
   private readonly categoriesHead = requireElement('head-cats', HTMLElement)
   private readonly storeList = requireElement('store-list', HTMLElement)
-  private readonly addStore = requireElement('add-store', HTMLButtonElement)
   private readonly refresh = requireElement('refresh', HTMLButtonElement)
   private readonly filters = requireElement('cats', HTMLElement)
   private readonly clearFilters = requireElement('filters-clear', HTMLButtonElement)
@@ -39,44 +32,28 @@ export class SideMenuView {
   private readonly accountHead = requireElement('head-account', HTMLElement)
   private readonly accountState = requireElement('account-state', HTMLElement)
   private readonly accountAction = requireElement('account-action', HTMLButtonElement)
-  private readonly locale = requireElement('locale', HTMLSelectElement)
   private readonly appVersion = requireElement('app-version', HTMLElement)
-  private readonly updateCheck = requireElement('update-check', HTMLButtonElement)
-  private readonly updateState = requireElement('update-state', HTMLElement)
-  private readonly updateOpen = requireElement('update-open', HTMLButtonElement)
-  /** The square around the select: it is what a pointer hovers, so the tooltip is its. */
-  private readonly localeControl = requireElement('locale-control', HTMLElement)
+  private readonly settings = requireElement('settings-open', HTMLButtonElement)
 
   public constructor (private readonly callbacks: SideMenuViewCallbacks) {
-    this.addStore.addEventListener('click', callbacks.onAddStore)
     this.refresh.addEventListener('click', callbacks.onRefresh)
     this.clearFilters.addEventListener('click', callbacks.onClearFilters)
-    this.locale.addEventListener('change', (): void => { callbacks.onSelectLocale(this.locale.value) })
     this.accountAction.addEventListener('click', callbacks.onToggleSignedIn)
-    this.updateCheck.addEventListener('click', callbacks.onCheckForUpdates)
-    this.updateOpen.addEventListener('click', callbacks.onOpenRelease)
+    this.settings.addEventListener('click', callbacks.onOpenSettings)
   }
 
   public render (state: AppState): void {
     setText(this.storesHead, state.messages.stores)
     setText(this.categoriesHead, state.messages.categories)
-    // Add is an icon now, beside Refresh: naming it is all the view does, and writing
-    // text into it would replace the glyph.
-    describeControl(this.addStore, state.messages.addStoreHint)
-    // Refresh and the language picker are icons: naming them is all the view does, and
-    // writing text into them would replace the glyph.
+    // Refresh and the gear are icons: naming them is all the view does, and writing
+    // text into them would replace the glyph.
     describeControl(this.refresh, state.messages.refresh)
-    // The picker is two elements: the invisible select takes the focus and the reader's
-    // name, the square around it takes the hover and the tooltip.
-    describeControl(this.locale, state.messages.language)
-    this.localeControl.title = state.messages.language
-
+    describeControl(this.settings, state.messages.settings)
     setText(this.appVersion, state.appVersion)
-    this.renderClientUpdate(state)
+
     this.renderStores(state)
     this.renderAccount(state)
     this.renderFilters(state)
-    this.renderLocales(state)
     this.renderEnabled(state)
   }
 
@@ -91,9 +68,8 @@ export class SideMenuView {
       .map((store: InstalledStoreDto): string => store.id))
 
     this.storeList.replaceChildren(...state.stores.map((store: InstalledStoreDto): HTMLElement => {
-      // A row is a button *and* carries one; nesting them would be invalid markup and
-      // the inner click would reach the outer handler anyway. So the row is a wrapper
-      // with two buttons in it: switch, and remove.
+      // A wrapper with the button inside it, so the framing and the click target are
+      // the same size; the row only switches — the rest happens in the settings.
       const row = createElement('div', 'store-row')
       if (store.home === activeHome) row.classList.add('is-active')
 
@@ -106,15 +82,6 @@ export class SideMenuView {
         if (store.home !== activeHome) this.callbacks.onSelectStore(store.home)
       })
       row.appendChild(open)
-
-      const remove = createElement('button', 'store-row-remove')
-      remove.appendChild(createIcon('trash'))
-      describeControl(remove, state.messages.removeStore)
-      remove.addEventListener('click', (): void => {
-        this.callbacks.onRemoveStore(store.home, store.name)
-      })
-      row.appendChild(remove)
-
       return row
     }))
   }
@@ -137,35 +104,6 @@ export class SideMenuView {
     // A sign-in already under way has its own panel with a cancel on it; a second
     // "Sign in" here would start a second flow behind the first one's code.
     this.accountAction.disabled = state.busy || state.signIn !== null
-  }
-
-  /**
-   * The version, and whether a newer one is published.
-   *
-   * Nothing is said until asked: the link is the whole of it at first, the sentence and
-   * the download button appear with an answer. A failed check says so in the same place
-   * rather than in the log alone — the person clicked here and is looking here.
-   */
-  private renderClientUpdate (state: AppState): void {
-    const update = state.clientUpdate
-    setText(this.updateCheck, update?.phase === 'checking'
-      ? state.messages.checkingForUpdates
-      : state.messages.checkForUpdates)
-    this.updateCheck.disabled = update?.phase === 'checking'
-
-    const available = update?.phase === 'checked' && update.result.updateAvailable
-    setHidden(this.updateState, update === null || update.phase === 'checking')
-    setHidden(this.updateOpen, !available)
-    if (update === null || update.phase === 'checking') return
-
-    if (update.phase === 'failed') {
-      setText(this.updateState, state.messages.updateCheckFailed)
-      return
-    }
-    setText(this.updateState, available
-      ? state.messages.clientUpdateAvailable.replace('%{version}', update.result.latestVersion)
-      : state.messages.clientUpToDate)
-    setText(this.updateOpen, state.messages.downloadUpdate.replace('%{version}', update.result.latestVersion))
   }
 
   /**
@@ -224,25 +162,14 @@ export class SideMenuView {
     return chips
   }
 
-  private renderLocales (state: AppState): void {
-    const current = this.locale.value
-    if (current === state.locale && this.locale.options.length === state.locales.length) return
-    this.locale.replaceChildren(...state.locales.map((locale: Locale): HTMLOptionElement => {
-      const option = createElement('option', undefined, locale.toUpperCase())
-      option.value = locale
-      option.selected = locale === state.locale
-      return option
-    }))
-  }
-
   /**
    * While the store is working only what would start a second call is disabled; the
-   * filters stay live because they change what is on screen and nothing on disk.
+   * filters stay live because they change what is on screen and nothing on disk. The
+   * gear stays live too: the dialog disables its own writes.
    */
   private renderEnabled (state: AppState): void {
     const hasStore = state.currentStore !== null
     this.refresh.disabled = state.busy || !hasStore
-    this.addStore.disabled = state.busy
     for (const row of this.storeList.querySelectorAll('button')) row.disabled = state.busy
   }
 }

@@ -89,11 +89,7 @@ body.nav-closed .side { margin-left: calc(-1 * var(--side-width)); }
   align-items: center;
 }
 .side-version { font-size: 11px; color: var(--ink-dim); }
-/* The version row: the number on the left, the check on the right, an answer under them. */
-.side-update { padding-top: 12px; border-top: 1px solid var(--line); gap: 4px; }
-.side-update-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.side-update-state { margin: 0; }
-/* The icons sit at the end of the footer row, away from the log toggle. */
+/* The log switch and Refresh sit at the end of the footer row, away from the gear. */
 .side-tools { display: flex; align-items: center; gap: 4px; margin-left: auto; }
 .side-head {
   font-size: 11px;
@@ -121,11 +117,9 @@ body.nav-closed .side { margin-left: calc(-1 * var(--side-width)); }
 /*
  * Store switcher: one row per store on this machine, the open one marked.
  *
- * The row is a wrapper holding two buttons — open, and remove — rather than being a
- * button itself: a button inside a button is invalid markup, and the inner click would
- * reach the outer handler anyway. So the framing lives on the wrapper and the padding
- * on the part that is actually clicked, or the click target would be smaller than the
- * thing it looks like.
+ * The row is a wrapper holding the button rather than being one, so the framing lives
+ * on the wrapper and the padding on the part that is actually clicked. Adding, renaming
+ * and removing stores happen in the settings dialog; this list only switches.
  */
 .store-list { display: flex; flex-direction: column; gap: 4px; }
 .store-row {
@@ -164,29 +158,7 @@ body.nav-closed .side { margin-left: calc(-1 * var(--side-width)); }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/*
- * Remove appears on hover or focus only. It is destructive, and it sits in a list
- * whose ordinary use is switching stores — it should not be under the pointer of
- * every routine click. :focus-within is what keeps it reachable by keyboard.
- */
-.store-row-remove {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-  border: none;
-  border-radius: 0 8px 8px 0;
-  background: transparent;
-  color: var(--ink-dim);
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 120ms, color 120ms;
-}
-.store-row:hover .store-row-remove,
-.store-row:focus-within .store-row-remove { opacity: 1; }
-.store-row-remove:hover { color: var(--warn); }
 .store-row-open:disabled { opacity: .55; cursor: default; }
-.store-row-remove:disabled { opacity: 0; cursor: default; }
 .icon-trash { width: 14px; height: 14px; }
 
 /* Categories: what the catalog is filtered down to. */
@@ -219,7 +191,6 @@ body.nav-closed .side { margin-left: calc(-1 * var(--side-width)); }
 
 /*
  * An icon-only control: a square the size of its glyph, quiet until pointed at.
- * `position: relative` is what lets the language picker put its <select> on top.
  */
 .icon-btn {
   position: relative;
@@ -238,30 +209,10 @@ body.nav-closed .side { margin-left: calc(-1 * var(--side-width)); }
 .icon-btn:hover:not(:disabled) { color: var(--ink); background: var(--panel-2); border-color: var(--line); }
 .icon-btn:active:not(:disabled) { transform: scale(.94); }
 .icon-btn:disabled { opacity: .4; cursor: default; }
-/* The select swallows focus, so the ring has to be drawn on the label around it. */
-.icon-btn:focus-visible,
-.icon-btn:focus-within { color: var(--ink); border-color: var(--accent); outline: none; }
+.icon-btn:focus-visible { color: var(--ink); border-color: var(--accent); outline: none; }
 
 .icon { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5;
   stroke-linecap: round; stroke-linejoin: round; }
-
-/*
- * The real <select>, stretched over the icon and invisible. It keeps the native
- * dropdown — and its keyboard and screen-reader behaviour — while only the glyph shows.
- */
-.locale-select {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  opacity: 0;
-  cursor: pointer;
-  appearance: none;
-  font: inherit;
-}
 
 /* --- top bar ------------------------------------------------------------ */
 .bar {
@@ -697,3 +648,126 @@ body.nav-closed .side { margin-left: calc(-1 * var(--side-width)); }
 .chip.is-active .chip-count { background: rgba(0, 0, 0, .18); color: inherit; }
 .chip.is-empty { opacity: .5; }
 .chip:focus-visible, .cat:focus-visible, .side-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* --- settings ----------------------------------------------------------- */
+/*
+ * A native <dialog>, styled as a panel of the same theme. The backdrop is what says
+ * "this is over the window" — the panel itself is flat, like the side menu.
+ */
+.settings {
+  width: min(560px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+  margin: auto;
+  padding: 0;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .45);
+}
+.settings::backdrop { background: rgba(6, 9, 13, .6); }
+.settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.settings-title { margin: 0; font-size: 16px; }
+/*
+ * The tabs: a row of quiet buttons under the title, the open one underlined in the
+ * accent. The panels below share one padding, so switching pages moves nothing else.
+ */
+.settings-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.settings-tab {
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink-dim);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 6px 6px 0 0;
+  padding: 8px 12px;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.settings-tab:hover { color: var(--ink); background: var(--panel-2); }
+.settings-tab.is-active { color: var(--ink); border-bottom-color: var(--accent); }
+.settings-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px 18px;
+  min-height: 150px;
+}
+#settings-panel-general { gap: 16px; }
+#settings-panel-general .select { align-self: flex-start; min-width: 120px; }
+/*
+ * The two halves of the updates page, each a framed block with its own heading, so the
+ * client's update and the titles' updates read as two things and not one list.
+ */
+.settings-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+.settings-block .side-head { margin: 0; }
+.settings-block-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.settings-updates { display: flex; flex-direction: column; gap: 2px; }
+.settings-update {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  border-top: 1px solid var(--line);
+}
+.settings-update:first-child { border-top: none; }
+.settings-update-title { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-update-versions { font-size: 12px; color: var(--ink-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.settings-update-versions b { color: var(--accent); font-weight: 600; }
+.settings-row { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.settings-label { font-size: 12px; color: var(--ink-dim); }
+.settings-inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.settings-grow { flex: 1; min-width: 160px; }
+.settings-note { margin: 0; font-size: 11.5px; color: var(--ink-dim); }
+.settings-version { font-size: 13px; font-weight: 600; }
+
+/*
+ * The stores this machine has. A row is the name with the id and the catalog under
+ * it, and two icons: rename, and remove. Rename swaps the name for a field in place,
+ * so what is being renamed stays exactly where it was.
+ */
+.settings-stores { display: flex; flex-direction: column; gap: 4px; }
+.settings-store {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+.settings-store.is-active { border-color: #2f5a49; }
+.settings-store-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.settings-store-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-store-meta {
+  font-size: 11px;
+  color: var(--ink-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-store-rename { display: flex; align-items: center; gap: 6px; }
+.settings-store-rename .input { flex: 1; min-width: 0; padding: 4px 8px; }
+.settings-store-remove:hover:not(:disabled) { color: var(--warn); }
+.icon-trash, .icon-pencil { width: 14px; height: 14px; }

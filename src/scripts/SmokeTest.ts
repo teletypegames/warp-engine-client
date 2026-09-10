@@ -127,6 +127,7 @@ class SmokeTest {
         name: path.basename(home),
         home,
         configPath: path.join(home, 'config.json'),
+        catalogUrl: '',
         engine: DESKTOP_STORE_ENGINE.id
       }
       if (!fs.existsSync(store.configPath)) {

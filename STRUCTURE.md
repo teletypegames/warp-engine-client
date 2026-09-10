@@ -100,9 +100,9 @@ src/
     RendererApplication.ts    wires views and controllers, owns the boot decision
     BridgeAccess.ts           the typed window.storeApi
     state/                    AppStore, CatalogFilter, GatePresentation,
-                              ClientUpdatePresentation
-    views/                    one class per region of the window; Listing is what the
-                              grid and the list share
+                              ClientUpdatePresentation, SettingsTab
+    views/                    one class per region of the window, the settings dialog
+                              included; Listing is what the grid and the list share
     controllers/              one class per group of actions
     dom/                      Dom.ts: the DOM chores; Icon.ts: the drawn glyphs
     index.html, style.css     copied into the build as-is
@@ -200,7 +200,8 @@ after what it changes and notifies afterwards; `RendererApplication` re-renders 
 view from the new state. Views never read each other and never hold state, so a
 listing can be thrown away and rebuilt.
 
-Screens are state, not calls. The setup screen lives in the state as
+Screens are state, not calls. The settings dialog is `settingsOpen` and `settingsTab`,
+and the `<dialog>` follows both; its own close reports back rather than acting. The setup screen lives in the state as
 `gate: GatePresentation | null`, and that one field decides whether the gate or the
 grid is drawn. While it was two imperative calls the two disagreed: the gate went up
 and the empty-catalog line stayed on screen underneath it.

@@ -10,5 +10,7 @@ export interface InstalledStore {
   readonly name: string
   readonly home: string
   readonly configPath: string
+  /** The catalog the store is *of*: what the id, the home and the game folder derive from. */
+  readonly catalogUrl: string
   readonly engine: string
 }

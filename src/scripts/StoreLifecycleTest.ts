@@ -64,6 +64,7 @@ class StoreLifecycleTest {
 
     try {
       const store = await this.checkAddByUrl()
+      this.checkRename(store)
       await this.checkRemove(store)
       await this.checkRemoveRefusesAnythingElse()
       await this.checkNormalisation()
@@ -93,6 +94,42 @@ class StoreLifecycleTest {
     return store
   }
 
+  /**
+   * A store can be called something else; nothing else about it moves.
+   *
+   * The name is the one field that is a choice, so it is the one field a rename may
+   * touch: the catalog, the home and the id are read back to prove they did not. An
+   * empty name and a home that is not a store are both refused before anything is written.
+   */
+  private checkRename (store: InstalledStore): void {
+    this.report(store.catalogUrl === 'https://orbit.teletypegames.org', 'catalog read back', store.catalogUrl)
+
+    const renamed = this.provisioning.renameStore(store, '  Orbit  ')
+    const found = this.stores.findByHome(store.home)
+    this.report(renamed.name === 'Orbit', 'renamed, trimmed', renamed.name)
+    this.report(found?.name === 'Orbit', 'the scan says the new name', found?.name ?? 'none')
+    this.report(found?.catalogUrl === store.catalogUrl, 'catalog unchanged', found?.catalogUrl ?? 'none')
+    this.report(found?.home === store.home && found.id === store.id, 'home and id unchanged')
+    this.report(readBaseUrl(store.configPath) === 'https://orbit.teletypegames.org', 'base_url still in the file')
+    this.report(this.selection.readCurrentStore()?.name === 'Orbit', 'the open store says so too')
+
+    let refusedEmpty = false
+    try {
+      this.provisioning.renameStore(store, '   ')
+    } catch {
+      refusedEmpty = true
+    }
+    this.report(refusedEmpty, 'refuses an empty name')
+
+    let refusedStranger = false
+    try {
+      this.stores.renameStore(path.join(this.root, 'nowhere'), 'x')
+    } catch {
+      refusedStranger = true
+    }
+    this.report(refusedStranger, 'refuses a home that is not a store')
+  }
+
   /** And it goes away again, home and all. */
   private async checkRemove (store: InstalledStore): Promise<void> {
     await this.provisioning.removeStore(store)
@@ -116,7 +153,7 @@ class StoreLifecycleTest {
 
     const fake: InstalledStore = {
       id: 'fake', name: 'fake', home: bystander,
-      configPath: path.join(bystander, 'config.json'), engine: 'desktop'
+      configPath: path.join(bystander, 'config.json'), catalogUrl: 'https://example.org', engine: 'desktop'
     }
     let refused = false
     try {

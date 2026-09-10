@@ -1,5 +1,5 @@
 /** The glyphs the window draws itself. */
-export type IconName = 'dots' | 'trash'
+export type IconName = 'dots' | 'trash' | 'pencil'
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg'
 
@@ -30,10 +30,15 @@ const SHAPES: Readonly<Record<IconName, () => readonly SVGElement[]>> = {
     return dot
   }),
   trash: (): readonly SVGElement[] =>
-    ['M3 4.5h10', 'M6.5 4.5V3h3v1.5', 'M4.5 4.5 5 13h6l.5-8.5', 'M6.8 7v3.5', 'M9.2 7v3.5']
-      .map((d: string): SVGElement => {
-        const stroke = document.createElementNS(SVG_NAMESPACE, 'path')
-        stroke.setAttribute('d', d)
-        return stroke
-      })
+    createStrokes(['M3 4.5h10', 'M6.5 4.5V3h3v1.5', 'M4.5 4.5 5 13h6l.5-8.5', 'M6.8 7v3.5', 'M9.2 7v3.5']),
+  pencil: (): readonly SVGElement[] =>
+    createStrokes(['M11.2 2.8l2 2L6 12H4v-2z', 'M9.8 4.2l2 2'])
+}
+
+function createStrokes (paths: readonly string[]): readonly SVGElement[] {
+  return paths.map((d: string): SVGElement => {
+    const stroke = document.createElementNS(SVG_NAMESPACE, 'path')
+    stroke.setAttribute('d', d)
+    return stroke
+  })
 }

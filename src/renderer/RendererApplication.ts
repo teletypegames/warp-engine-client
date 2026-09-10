@@ -1,4 +1,5 @@
 import type { BridgeApi } from '../shared/contracts/BridgeApi'
+import type { ViewMode } from '../shared/contracts/dto/AppStateDto'
 import { requireBridge } from './BridgeAccess'
 import { AccountController } from './controllers/AccountController'
 import { CatalogController } from './controllers/CatalogController'
@@ -8,11 +9,13 @@ import { PreferencesController } from './controllers/PreferencesController'
 import { StoreController } from './controllers/StoreController'
 import { AppStore, type AppState } from './state/AppStore'
 import { EVERYTHING, toggleOption, type FilterAxis } from './state/CatalogFilter'
+import type { SettingsTab } from './state/SettingsTab'
 import { CatalogGridView } from './views/CatalogGridView'
 import { CatalogListView } from './views/CatalogListView'
 import { GameCardView } from './views/GameCardView'
 import { GateView } from './views/GateView'
 import { LogDrawerView } from './views/LogDrawerView'
+import { SettingsView } from './views/SettingsView'
 import { SideMenuView } from './views/SideMenuView'
 import { SignInView } from './views/SignInView'
 import { TopBarView } from './views/TopBarView'
@@ -76,17 +79,29 @@ export class RendererApplication {
       }),
       new SideMenuView({
         onSelectStore: (home: string): void => { void this.stores.selectStore(home) },
-        onRemoveStore: (home: string, name: string): void => { void this.stores.removeStore(home, name) },
-        onAddStore: (): void => { void this.stores.offerStores() },
         onRefresh: (): void => { void this.catalog.refresh() },
         onToggleFilter: (axis: FilterAxis, value: string): void => {
           this.store.applyFilter(toggleOption(this.store.readState().filter, axis, value))
         },
         onClearFilters: (): void => { this.store.applyFilter(EVERYTHING) },
-        onSelectLocale: (locale: string): void => { void this.preferences.selectLocale(locale) },
         onToggleSignedIn: (): void => { void this.accounts.toggleSignedIn() },
+        onOpenSettings: (): void => { void this.stores.openSettings() }
+      }),
+      new SettingsView({
+        onClose: (): void => { this.stores.closeSettings() },
+        onSelectTab: (tab: SettingsTab): void => { this.store.applySettingsTab(tab) },
+        onBeginRename: (home: string): void => { this.stores.beginRename(home) },
+        onCancelRename: (): void => { this.stores.cancelRename() },
+        onRename: (home: string, name: string): void => { void this.stores.renameStore(home, name) },
+        onRemoveStore: (home: string, name: string): void => { void this.stores.removeStore(home, name) },
+        onAddStore: (catalogUrl: string): void => { void this.stores.addStore(catalogUrl) },
+        onAddCatalog: (catalogUrl: string): void => { void this.stores.addCatalog(catalogUrl) },
+        onSelectLocale: (locale: string): void => { void this.preferences.selectLocale(locale) },
+        onSelectViewMode: (mode: ViewMode): void => { void this.preferences.selectViewMode(mode) },
         onCheckForUpdates: (): void => { void this.updates.checkForUpdates() },
-        onOpenRelease: (): void => { void this.updates.openRelease() }
+        onOpenRelease: (): void => { void this.updates.openRelease() },
+        onUpgrade: (name: string): void => { void this.catalog.syncGames([name]) },
+        onUpgradeAll: (names: readonly string[]): void => { void this.catalog.syncGames(names) }
       }),
       new LogDrawerView({
         onOpenFolder: (directory: string): void => { void this.bridge.openFolder(directory) },

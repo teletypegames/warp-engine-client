@@ -81,6 +81,8 @@ const bridge: BridgeApi = {
     invoke<StoreSelectionDto>(IPC_CHANNELS.storeSelectStore, home),
   removeStore: async (home: string): Promise<AppStateDto> =>
     invoke<AppStateDto>(IPC_CHANNELS.storeRemoveStore, home),
+  renameStore: async (home: string, name: string): Promise<AppStateDto> =>
+    invoke<AppStateDto>(IPC_CHANNELS.storeRenameStore, home, name),
 
   openFolder: async (directory: string): Promise<boolean> =>
     invoke<boolean>(IPC_CHANNELS.appOpenFolder, directory),

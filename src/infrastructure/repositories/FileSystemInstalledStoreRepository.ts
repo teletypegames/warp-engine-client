@@ -1,9 +1,11 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import type { EngineProgressListener } from '../../domain/models/EngineProgress'
 import type { InstalledStore } from '../../domain/models/InstalledStore'
 import { DESKTOP_STORE_ENGINE, STORE_ENGINES } from '../../domain/models/StoreEngine'
 import type { InstalledStoreRepository } from '../../domain/ports/InstalledStoreRepository'
+import { StoreFileSystem } from '../files/StoreFileSystem'
 import { asRecord, readString } from '../json/JsonRecord'
 
 const STORE_DIRECTORY_NAME = 'warp-engine-store'
@@ -95,31 +97,81 @@ export class FileSystemInstalledStoreRepository implements InstalledStoreReposit
    * the engine script, and dropping that condition is what lets a home provisioned by
    * an older client keep working after its scripts are cleared out.
    */
+  /**
+   * Rename a store, and only one this repository actually found.
+   *
+   * The name is the one field of a store that is a choice rather than derived — the id,
+   * the home and the game folder all come from the catalog — so it is the one field
+   * that can change without the store becoming a different one. The rest of the config
+   * is written back as it was read: this is the store's own record of itself, and a
+   * rename has no business tidying it.
+   */
+  public renameStore (home: string, name: string, progress: EngineProgressListener = {}): InstalledStore {
+    const known = this.findByHome(home)
+    if (known === null) throw new Error(`not a store home on this machine: ${home}`)
+    const trimmed = name.trim()
+    if (trimmed.length === 0) throw new Error('a store needs a name')
+
+    const log = (line: string): void => { progress.onLog?.(line) }
+    const files = new StoreFileSystem(`${known.id}-store`, log)
+    const config = asRecord(files.readJson(known.configPath)) ?? {}
+    const store = asRecord(config['store']) ?? {}
+    files.writeAtomic(
+      known.configPath,
+      Buffer.from(`${JSON.stringify({ ...config, store: { ...store, name: trimmed } }, null, 2)}\n`, 'utf8'),
+      readFileMode(known.configPath)
+    )
+    log(`${known.name} is now called ${trimmed}`)
+    return { ...known, name: trimmed }
+  }
+
   private readStoreAt (home: string, directoryName: string): InstalledStore | null {
     const configPath = path.join(home, CONFIG_FILE_NAME)
     if (!fs.existsSync(configPath)) return null
     for (const engine of STORE_ENGINES) {
       if (!directoryName.endsWith(engine.homeSuffix)) continue
       const id = directoryName.slice(0, directoryName.length - engine.homeSuffix.length)
-      return { id, name: this.readStoreName(configPath, id), home, configPath, engine: engine.id }
+      const descriptor = this.readStoreDescriptor(configPath)
+      return {
+        id,
+        name: descriptor.name.length > 0 ? descriptor.name : id,
+        home,
+        configPath,
+        catalogUrl: descriptor.catalogUrl,
+        engine: engine.id
+      }
     }
     return null
   }
 
   /**
-   * The store's own name, from the config the installer wrote.
+   * The store's own name and catalog, from the config the installer wrote.
    *
    * Read here rather than asked of the engine: the switcher lists every store on the
    * machine, and assembling an engine per entry to learn its name would be absurd.
+   * `StoreConfigurationReader` knows the same two keys; it reads the whole file for an
+   * engine, this reads two fields for a list.
    */
-  private readStoreName (configPath: string, fallback: string): string {
+  private readStoreDescriptor (configPath: string): { readonly name: string; readonly catalogUrl: string } {
     try {
       const config = asRecord(JSON.parse(fs.readFileSync(configPath, 'utf8')))
       const store = config === null ? null : asRecord(config['store'])
-      const name = store === null ? '' : readString(store, 'name')
-      return name.length > 0 ? name : fallback
+      if (store === null) return { name: '', catalogUrl: '' }
+      return {
+        name: readString(store, 'name'),
+        catalogUrl: readString(store, 'base_url').replace(/\/+$/, '')
+      }
     } catch {
-      return fallback
+      return { name: '', catalogUrl: '' }
     }
+  }
+}
+
+/** The mode a file already has, so a rewrite keeps it; the installer's default when it cannot be read. */
+function readFileMode (filePath: string): number {
+  try {
+    return fs.statSync(filePath).mode & 0o777
+  } catch {
+    return 0o644
   }
 }

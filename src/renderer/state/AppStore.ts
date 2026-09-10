@@ -2,12 +2,14 @@ import type { AccountDto, SignInPromptDto } from '../../shared/contracts/dto/Acc
 import type { AppStateDto, ViewMode } from '../../shared/contracts/dto/AppStateDto'
 import type { GameDto } from '../../shared/contracts/dto/GameDto'
 import type { InstalledStoreDto } from '../../shared/contracts/dto/InstalledStoreDto'
+import type { RegistryResultDto } from '../../shared/contracts/dto/RegistryResultDto'
 import type { StorePathsDto } from '../../shared/contracts/dto/StorePathsDto'
 import { ENGLISH_MESSAGES } from '../../shared/i18n/EnglishMessages'
 import type { Locale, MessageBundle } from '../../shared/i18n/MessageBundle'
 import { EVERYTHING, resolveFilter, type CatalogFilter } from './CatalogFilter'
 import type { ClientUpdatePresentation } from './ClientUpdatePresentation'
 import type { GatePresentation } from './GatePresentation'
+import type { SettingsTab } from './SettingsTab'
 
 /** How far a running sync has got, for the counter in the bar. */
 export interface SyncProgress {
@@ -48,6 +50,14 @@ export interface AppState {
   /** The store's own output, newest last, capped at `MAX_LOG_LINES`. */
   readonly logLines: readonly string[]
   readonly logOpen: boolean
+  /** Whether the settings dialog is up; like the gate, one field decides it. */
+  readonly settingsOpen: boolean
+  /** What the registry offers, fetched when the settings open; null until it answers. */
+  readonly registry: RegistryResultDto | null
+  /** The home of the store whose name is being edited in the settings, if any. */
+  readonly renamingHome: string | null
+  /** Which page of the settings is showing; opening starts on the first. */
+  readonly settingsTab: SettingsTab
 }
 
 const INITIAL_STATE: AppState = {
@@ -71,7 +81,11 @@ const INITIAL_STATE: AppState = {
   clientUpdate: null,
   viewMode: 'grid',
   logLines: [],
-  logOpen: false
+  logOpen: false,
+  settingsOpen: false,
+  registry: null,
+  renamingHome: null,
+  settingsTab: 'general'
 }
 
 export type AppStateListener = (state: AppState) => void
@@ -215,6 +229,35 @@ export class AppStore {
 
   public applyLogOpen (open: boolean): void {
     this.state = { ...this.state, logOpen: open }
+    this.notify()
+  }
+
+  /**
+   * The settings dialog, up or down.
+   *
+   * Closing it also ends a rename in progress and forgets the registry answer: both
+   * belong to this opening of the dialog, and the next one asks again.
+   */
+  public applySettingsOpen (open: boolean): void {
+    this.state = open
+      ? { ...this.state, settingsOpen: true, settingsTab: 'general' }
+      : { ...this.state, settingsOpen: false, renamingHome: null, registry: null }
+    this.notify()
+  }
+
+  /** Switching pages ends a rename: the field would be on a page nobody is looking at. */
+  public applySettingsTab (tab: SettingsTab): void {
+    this.state = { ...this.state, settingsTab: tab, renamingHome: null }
+    this.notify()
+  }
+
+  public applyRegistry (registry: RegistryResultDto | null): void {
+    this.state = { ...this.state, registry }
+    this.notify()
+  }
+
+  public applyRenaming (home: string | null): void {
+    this.state = { ...this.state, renamingHome: home }
     this.notify()
   }
 

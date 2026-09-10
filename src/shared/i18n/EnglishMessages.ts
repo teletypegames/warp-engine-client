@@ -25,9 +25,7 @@ export const ENGLISH_MESSAGES = {
   log: 'Log',
   menu: 'Menu',
   stores: 'Stores',
-  addStore: 'Add a store…',
   cancel: 'Cancel',
-  addStoreHint: 'Add a store',
   customTitle: 'Or a catalog of your own',
   customHint: 'Any WarpEngine catalog. The name is taken from the address; https is assumed when you leave the scheme out.',
   customAction: 'Add',
@@ -94,7 +92,22 @@ export const ENGLISH_MESSAGES = {
   clientUpToDate: 'This is the latest version.',
   clientUpdateAvailable: 'Version %{version} is available.',
   downloadUpdate: 'Get %{version}',
-  updateCheckFailed: 'The release list could not be reached.'
+  updateCheckFailed: 'The release list could not be reached.',
+  settings: 'Settings',
+  general: 'General',
+  updates: 'Updates',
+  close: 'Close',
+  addStoreFromList: 'Add a store from the list',
+  registryLoading: 'Fetching the list of stores…',
+  noRegistryStores: 'Every store on the list is already on this machine.',
+  renameStore: 'Rename this store',
+  save: 'Save',
+  renameFailed: 'That store could not be renamed',
+  defaultView: 'Default view',
+  version: 'Version',
+  clientUpdates: 'This client',
+  gameUpdates: 'Titles with a newer version',
+  upgradeAll: 'Upgrade all'
 } as const
 
 /** Every string the window can show, by key. */

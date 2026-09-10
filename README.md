@@ -159,34 +159,51 @@ Everything that is not a title lives in the **side menu** on the left, and the
   another switches to it: the grid, the categories and the folders all follow, and
   the client reopens on that store next time. Two stores installed from the same
   catalog into different folders show their folder instead of their id, because
-  the id would not tell them apart. Hovering a row shows a **bin**, which takes that
-  store off the machine — see below.
-- **+**, beside Refresh, brings up the picker: the stores the registry offers, and a
-  field for **any catalog address of your own**. A bare host is enough (`https` is
-  assumed) and the name is taken from it. This is the same screen the first run shows,
-  so a machine with no store yet can also start from a typed address rather than only
-  from the list.
+  the id would not tell them apart. Adding, renaming and removing stores happen in
+  the settings — see below.
 - **Account** appears only where the catalog offers a sign-in, and holds *Sign in…* or
   *Sign out* — see above.
-- **Actions** holds **Refresh**, which re-reads the catalog, and **+** to add one. Titles are installed
-  one at a time from their own cards; there is no install-everything button.
-- **Categories** narrows the grid, one category at a time, with the count next to
-  each: *Everything*, *Installed*, *Updates*, *Not installed*, then a row per
-  **platform** (`godot`, `tic80`, `love`, …) and per **kind** (native or hosted).
-  Where the catalog gates anything, **Owned** and **To buy** join them.
+- **Filters** narrow the grid along four axes that combine: the status of a title on
+  this machine (*Everything*, *Installed*, *Updates*, *Not installed*, and where the
+  catalog gates anything, *Owned* and *To buy*), the **platform** (`godot`, `tic80`,
+  `love`, …), the **kind** (native or hosted) and the **category**, when the catalog
+  publishes one. Every count says how many titles the option would show given the
+  other axes as they stand; *Clear* appears while anything is narrowing the catalog.
   The axes are built from what the catalog actually contains — a platform with no
-  titles is not listed, and a category that disappears under you falls back to
-  *Everything* rather than leaving an empty grid. There is no genre in a
-  WarpEngine catalog, so these are the categories there are.
-- **Log** opens the store's own output — its words, verbatim — together with the two
-  folders everything lands in. Off screen until asked for: the window has no footer,
-  because a permanent bar of absolute paths is not what a store is for.
-- **Language** follows the system and can be switched; **English and Hungarian**.
-- **Check for updates**, next to the version number, asks the client's own release
-  list whether a newer client is published. It answers in place — *This is the latest
-  version*, or *Version X is available* with a button that opens the release page in
-  your browser, where the package for your machine is. Nothing is downloaded or
-  installed by the app itself, and nothing is asked until you click.
+  titles is not listed, and a choice that disappears under you falls back to
+  *Everything* rather than leaving an empty grid.
+- The **footer** holds the **gear**, the version number, **Log** and **Refresh**.
+  *Log* opens the store's own output — its words, verbatim — together with the two
+  folders everything lands in; off screen until asked for. *Refresh* re-reads the
+  catalog. Titles are installed one at a time from their own cards; there is no
+  install-everything button.
+
+The **gear** opens the **settings**, a dialog over the window with everything that is
+not about the catalog in front of you, on three tabs — **General**, **Stores** and
+**Updates**:
+
+- **General** holds the **language** — follows the system, can be switched, **English
+  and Hungarian** — and the **default view**, grid or list, the same preference the
+  bar's toggle writes, so the two always agree.
+- **Stores**: every store on this machine, with its id and catalog address, the open
+  one marked. The **pencil** renames a store in place — Enter saves, Escape cancels.
+  Only the name can change: the id, the folder and the game folder all derive from the
+  catalog, so a different catalog is a different store, added and removed as one. The
+  **bin** takes a store off the machine — see below. Under the list, **Add a store from
+  the list** offers what the registry publishes and this machine does not have yet, and
+  **Or a catalog of your own** takes **any catalog address**: a bare host is enough
+  (`https` is assumed) and the name is taken from it. Adding a store closes the dialog
+  and opens the new store; the first run, with no store yet, shows the same choices as
+  a full screen instead.
+- **Updates** is two blocks. **This client** shows the version, with **Check for
+  updates**: asks the client's own release list whether a
+  newer client is published and answers in place — *This is the latest version*, or
+  *Version X is available* with a button that opens the release page in your browser,
+  where the package for your machine is. Nothing is downloaded or installed by the app
+  itself, and nothing is asked until you click. **Titles with a newer version** lists the
+  installed titles the catalog has moved past, each with its two versions and an
+  **Upgrade**, and **Upgrade all** when there is more than one — the same titles the
+  *Updates* filter shows, where somebody looking for updates would look.
 
 In the grid, a card's button is **Install**, **Update**, or **Play** / **Open**
 once it is there. The three-dot menu on an installed card holds **Upgrade** (live only
@@ -216,7 +233,7 @@ While the store is working, only the things that would start a second call are
 disabled: the menu, the log drawer and the category filters keep working, because
 they change what is on screen and nothing on disk.
 
-**Removing a store uninstalls what it installed.** The bin on a store row asks first,
+**Removing a store uninstalls what it installed.** The bin in the settings asks first,
 and says how many titles will go with it. That is not a convenience — a store's
 `state.json` is the only record of which payloads, icons and menu entries belong to it,
 so leaving the games behind would leave orphans nothing could ever identify, least of

@@ -1,3 +1,4 @@
+import type { EngineProgressListener } from '../models/EngineProgress'
 import type { InstalledStore } from '../models/InstalledStore'
 
 /** The stores present on this machine, wherever the shell installer would put them. */
@@ -12,4 +13,9 @@ export interface InstalledStoreRepository {
    * accepted, so a caller cannot name an arbitrary path and have it removed.
    */
   removeHome: (home: string) => void
+  /**
+   * Change a store's display name in its own config. Like `removeHome`, only a home
+   * this repository would have *found* is accepted. Answers with the store as it now is.
+   */
+  renameStore: (home: string, name: string, progress?: EngineProgressListener) => InstalledStore
 }

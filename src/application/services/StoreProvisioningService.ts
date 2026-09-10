@@ -85,6 +85,21 @@ export class StoreProvisioningService {
     await this.catalogGateway.removeStore(store, progress)
     this.selection.forgetStore(store)
   }
+
+  /**
+   * Give a store another name.
+   *
+   * Only the name: the catalog is what a store *is*, and the id, the home and the game
+   * folder are all derived from it, so changing it would leave a store's files under
+   * another store's identity. Somebody who wants a different catalog removes this one
+   * and adds that one. The open store is re-adopted so the cached record says the new
+   * name too.
+   */
+  public renameStore (store: InstalledStore, name: string, progress?: EngineProgressListener): InstalledStore {
+    const renamed = this.stores.renameStore(store.home, name, progress)
+    if (this.selection.readCurrentStore()?.home === renamed.home) this.selection.adoptStore(renamed)
+    return renamed
+  }
 }
 
 /**

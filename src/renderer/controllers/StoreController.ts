@@ -133,13 +133,63 @@ export class StoreController {
       const remaining = await this.bridge.removeStore(home)
       this.applyStateAndReopen(remaining)
       if (remaining.currentStore === null) {
+        // Nothing left to manage: the dialog goes and the gate takes over.
+        this.store.applySettingsOpen(false)
         await this.offerStores()
         return
       }
-      await this.catalog.refresh()
+      if (this.store.readState().currentStore?.home !== state.currentStore?.home) await this.catalog.refresh()
     } catch (error: unknown) {
       this.store.applyLogLine(describeError(error))
     }
+  }
+
+  /**
+   * The settings dialog, and the registry's list for its picker.
+   *
+   * The list is asked for on every opening rather than kept: a store added on the site
+   * since the last look should be there, and a dialog is opened rarely enough that the
+   * request costs nothing anyone notices. The answer lands in the state whenever it
+   * comes; a dialog closed in the meantime has already forgotten it.
+   */
+  public async openSettings (): Promise<void> {
+    this.store.applySettingsOpen(true)
+    const result = await this.bridge.listRegistryStores()
+    if (this.store.readState().settingsOpen) this.store.applyRegistry(result)
+  }
+
+  public closeSettings (): void {
+    this.store.applySettingsOpen(false)
+  }
+
+  public beginRename (home: string): void {
+    this.store.applyRenaming(home)
+  }
+
+  public cancelRename (): void {
+    this.store.applyRenaming(null)
+  }
+
+  /** The new name, and the state afterwards, which is where the renamed record comes from. */
+  public async renameStore (home: string, name: string): Promise<void> {
+    const messages = this.store.readState().messages
+    try {
+      this.store.applyAppState(await this.bridge.renameStore(home, name))
+      this.store.applyRenaming(null)
+    } catch (error: unknown) {
+      this.store.applyLogLine(`${messages.renameFailed}: ${describeError(error)}`)
+    }
+  }
+
+  /** A store from the registry's list, found in the state by the catalog the picker named. */
+  public async addStore (catalogUrl: string): Promise<void> {
+    const chosen = this.store.readState().registry?.stores
+      .find((store: RegistryStoreDto): boolean => store.catalogUrl === catalogUrl)
+    if (chosen !== undefined) await this.installStore(chosen)
+  }
+
+  public async addCatalog (catalogUrl: string): Promise<void> {
+    await this.installCatalog(catalogUrl)
   }
 
   private async installCatalog (catalogUrl: string): Promise<void> {
@@ -152,14 +202,16 @@ export class StoreController {
 
   /**
    * Both ways of getting a store end the same: the state the main process reports
-   * afterwards replaces the window's, the gate comes down, and the new store's catalog
-   * is read and synced. A failure goes to the log and leaves the gate where it was.
+   * afterwards replaces the window's, the gate and the settings come down, and the new
+   * store's catalog is read and synced. A failure goes to the log and leaves the screen
+   * where it was.
    */
   private async provision (install: () => Promise<AppStateDto>): Promise<void> {
     const messages = this.store.readState().messages
     this.store.applyProgress({ total: 0, done: 0, label: messages.setupWorking })
     try {
       this.applyStateAndReopen(await install())
+      this.store.applySettingsOpen(false)
       await this.catalog.refresh()
       await this.catalog.syncGames([])
     } catch (error: unknown) {

@@ -45,6 +45,17 @@ interface SelfTestReport {
   readonly cardMenus: readonly string[]
 }
 
+/** What the settings dialog did when opened and closed. */
+interface SettingsReport {
+  readonly opened: boolean
+  readonly title: string
+  /** Store rows in the dialog; the same count as the side menu's. */
+  readonly rows: number
+  /** Whether clicking the Stores tab brought its panel up. */
+  readonly storesTab: boolean
+  readonly closed: boolean
+}
+
 /** What changed after clicking a store that was not open. */
 interface StoreSwitchReport {
   readonly storeId: string
@@ -82,17 +93,20 @@ export class SelfTestRunner {
     const switched = report.stores.length > 1 ? await this.switchStore() : null
     if (switched !== null) console.log(`switched: ${JSON.stringify(switched)}`)
 
+    const settings = await this.probeSettings()
+    console.log(`settings: ${JSON.stringify(settings)}`)
+
     if (this.shotPath !== null) await this.captureShot(this.shotPath)
 
     // A gate passes on having something to do, not on having a picker: the picker
     // only appears when the registry offers more than one store, and one store is
     // the ordinary case. Requiring choices here failed a perfectly good window.
-    // Every footer icon must be named and drawn. There are three — refresh, add a
-    // store, and the language picker — and none of them has a label, so an unnamed one
-    // is a button nobody can identify and the failure is silent because the glyph still
-    // draws. The count is a floor rather than an equality: a fourth control is somebody
-    // adding one, which this should not fail on; a missing one is what it guards.
-    const iconsNamed = report.iconControls.length >= 3 &&
+    // Every footer icon must be named and drawn. There are two — the settings and
+    // refresh — and neither has a label, so an unnamed one is a button nobody can
+    // identify and the failure is silent because the glyph still draws. The count is a
+    // floor rather than an equality: a third control is somebody adding one, which this
+    // should not fail on; a missing one is what it guards.
+    const iconsNamed = report.iconControls.length >= 2 &&
       report.iconControls.every((control: string): boolean => /^.+:1$/.test(control))
     // Every installed card offers all three actions, and Upgrade is enabled exactly when
     // the version line says there is something newer. Reinstall and Uninstall are always
@@ -106,8 +120,12 @@ export class SelfTestRunner {
     const switchedWell = switched === null || (
       switched.storeId.length > 0 && switched.storeId !== report.storeId &&
       switched.cards > 0 && switched.categories > 0)
+    // The dialog opens on the gear, its Stores tab lists the same stores the side menu
+    // does, and it closes on its button — the things a person would do first.
+    const settingsWell = settings.opened && settings.rows === report.stores.length &&
+      settings.title.length > 0 && settings.storesTab && settings.closed
 
-    const passed = rendered && switchedWell
+    const passed = rendered && switchedWell && settingsWell
     console.log(passed ? 'SELFTEST OK' : 'SELFTEST FAILED')
     return passed
   }
@@ -163,7 +181,7 @@ export class SelfTestRunner {
         const arrow = card.querySelector('.version.has-update') === null ? 'current' : 'newer'
         return (card.querySelector('h2') || {}).textContent + ' [' + arrow + '] ' + items.join(' ')
       }),
-      iconControls: [...document.querySelectorAll('.side-tools .icon-btn')]
+      iconControls: [...document.querySelectorAll('.side-foot .icon-btn')]
         .map((control) => {
           const named = control.getAttribute('aria-label') || control.getAttribute('title') ||
             (control.querySelector('[aria-label]') || {}).ariaLabel || ''
@@ -220,6 +238,52 @@ export class SelfTestRunner {
       active: readOptionalString(record, 'active'),
       cards: readNumber(record, 'cards'),
       categories: readNumber(record, 'categories')
+    }
+  }
+
+  /**
+   * The settings, opened and closed again.
+   *
+   * A `<dialog>` that fails to open, or fails to close, is a window nobody can use;
+   * both are checked through the dialog's own `open` flag, which is what the state
+   * drives. The rows are counted while it is up, and compared with the side menu's.
+   */
+  private async probeSettings (): Promise<SettingsReport> {
+    const opened = asRecord(JSON.parse(await this.evaluate(`(async () => {
+      document.getElementById('settings-open').click()
+      await new Promise((done) => setTimeout(done, ${String(SETTLE_POLL_MS)}))
+      document.getElementById('settings-tab-stores').click()
+      await new Promise((done) => setTimeout(done, ${String(SETTLE_POLL_MS)}))
+      return JSON.stringify({
+        opened: document.getElementById('settings').open,
+        title: document.getElementById('settings-title').textContent,
+        rows: document.querySelectorAll('#settings-stores .settings-store').length,
+        storesTab: !document.getElementById('settings-panel-stores').hidden &&
+          document.getElementById('settings-panel-general').hidden
+      })
+    })()`))) ?? {}
+    // The dialog is photographed too, where a shot was asked for: it is the one part of
+    // the window the main shot cannot show, since the shot is taken with it closed.
+    if (this.shotPath !== null) {
+      await this.captureShot(this.shotPath.replace(/(\.png)?$/, '-settings.png'))
+      await this.evaluate("document.getElementById('settings-tab-updates').click(); 'ok'")
+      await this.captureShot(this.shotPath.replace(/(\.png)?$/, '-updates.png'))
+      await this.evaluate("document.getElementById('settings-tab-general').click(); 'ok'")
+      await this.captureShot(this.shotPath.replace(/(\.png)?$/, '-general.png'))
+    }
+
+    const closed = await this.evaluate(`(async () => {
+      document.getElementById('settings-close').click()
+      await new Promise((done) => setTimeout(done, ${String(SETTLE_POLL_MS)}))
+      return String(!document.getElementById('settings').open)
+    })()`)
+
+    return {
+      opened: readBoolean(opened, 'opened'),
+      title: readString(opened, 'title'),
+      rows: readNumber(opened, 'rows'),
+      storesTab: readBoolean(opened, 'storesTab'),
+      closed: closed === 'true'
     }
   }
 

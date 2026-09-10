@@ -21,7 +21,11 @@ export class PreferencesController {
   }
 
   public async toggleViewMode (): Promise<void> {
-    const mode: ViewMode = this.store.readState().viewMode === 'grid' ? 'list' : 'grid'
+    await this.selectViewMode(this.store.readState().viewMode === 'grid' ? 'list' : 'grid')
+  }
+
+  /** The bar's toggle and the settings' choice write the same preference, so they always agree. */
+  public async selectViewMode (mode: ViewMode): Promise<void> {
     this.store.applyViewMode(mode)
     await this.bridge.updateViewMode(mode)
   }
