@@ -102,7 +102,7 @@ class SmokeTest {
       const totalPages = Math.ceil(titles.length / perPage)
       const slice = titles.slice((page - 1) * perPage, page * perPage)
       response.setHeader('Content-Type', 'application/json')
-      response.setHeader('WarpEngine-Version', '0.13.0')
+      response.setHeader('WarpEngine-Version', '1.0.0')
       response.end(JSON.stringify({
         api: 2, page, perPage, total: titles.length, totalPages,
         nextPage: page < totalPages ? page + 1 : null,
@@ -139,7 +139,8 @@ class SmokeTest {
       const wholeRight = Array.isArray(stitched) && stitched.length === titles.length
       const cacheRight = Array.isArray(cachedList) && cachedList.length === titles.length &&
         cached !== null && cached['api'] === 2 && cached['nextPage'] === null
-      if (pagesRight && wholeRight && cacheRight && fetched.engineVersion.resolved === '0.13') {
+      if (pagesRight && wholeRight && cacheRight && fetched.engineVersion.resolved === '1.0' &&
+        fetched.engineVersion.match === 'exact') {
         this.reportOk('paging', `3 pages of ${String(perPage)} → ${String(titles.length)} titles, reported at ${seen.join('/')}, ` +
           `cache stitched, ${String(logged.length)} log lines`)
       } else {

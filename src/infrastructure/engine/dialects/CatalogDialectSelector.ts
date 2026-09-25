@@ -17,7 +17,8 @@ import { SoftwareListCatalogDialect } from './SoftwareListCatalogDialect'
  * catalog's shape, and 0.12 added an optional `category` that the dialect already
  * reads when it is there. 0.13 pages the catalog, which is the client's business and
  * not the dialect's: the pages are stitched back into the one `softwares` list before
- * any dialect sees them.
+ * any dialect sees them. 0.14 and 0.15 changed the admin, and 1.0 added an Admin API
+ * beside the catalog; the catalog envelope is still `api: 2`, so the dialect is too.
  */
 export function selectCatalogDialect (version: SupportedWarpEngineVersion): CatalogDialect {
   switch (version) {
@@ -34,6 +35,9 @@ export function selectCatalogDialect (version: SupportedWarpEngineVersion): Cata
     case '0.11':
     case '0.12':
     case '0.13':
+    case '0.14':
+    case '0.15':
+    case '1.0':
       return new AccessAwareCatalogDialect(version)
   }
 }

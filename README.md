@@ -545,10 +545,12 @@ what it reads like. A new engine version cannot arrive silently.
 | older than anything supported | the same, and the log says so |
 | newer than anything supported | the newest dialect is tried anyway, with a warning that titles may be missed |
 
-Twelve versions share two dialects today — 0.2 to 0.4 read the plain software list,
-0.5 to 0.13 the one with an `access` block — because the shape of a title has not changed
+Fifteen versions share two dialects today — 0.2 to 0.4 read the plain software list,
+0.5 to 1.0 the one with an `access` block — because the shape of a title has not changed
 across them; 0.13's paging is the client's business, not the dialect's, and the pages are
-stitched back into one list before any dialect sees them. One class serving several versions is the honest way to say that. Until 2.11.0
+stitched back into one list before any dialect sees them. 1.0 is the first major version,
+but what it added is an Admin API beside the catalog: the catalog envelope is still
+`api: 2`, and the service descriptor's new `admin` key only reaches the log. One class serving several versions is the honest way to say that. Until 2.11.0
 the list ended at 0.5 while the catalog was served by 0.11, so every fetch logged the
 *newer than this client knows* warning against a shape it read perfectly well.
 

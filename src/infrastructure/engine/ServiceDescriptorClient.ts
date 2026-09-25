@@ -35,7 +35,8 @@ export class ServiceDescriptorClient {
       const descriptor: ServiceDescriptor = {
         engineVersion: readOptionalString(record, 'version'),
         catalogGated: readBoolean(readRecord(record, 'catalog') ?? {}, 'gated', false),
-        auth: readAuth(record, this.baseUrl)
+        auth: readAuth(record, this.baseUrl),
+        adminApiVersion: readAdminApiVersion(record)
       }
       this.log(describe(descriptor))
       return descriptor
@@ -74,6 +75,13 @@ function readAuth (record: Readonly<Record<string, unknown>>, baseUrl: string): 
   return { device: descriptor }
 }
 
+function readAdminApiVersion (record: Readonly<Record<string, unknown>>): number | null {
+  const admin = readRecord(record, 'admin')
+  if (admin === null) return null
+  const version = readNumber(admin, 'version', 0)
+  return version > 0 ? version : null
+}
+
 /** A server may answer with a path; it knows its own address better than we do. */
 function absolute (value: string | null, baseUrl: string): string | null {
   if (value === null || value.length === 0) return null
@@ -85,5 +93,6 @@ function describe (descriptor: ServiceDescriptor): string {
   const version = descriptor.engineVersion ?? 'an unnamed version'
   const gated = descriptor.catalogGated ? 'some titles need an entitlement' : 'nothing is gated'
   const auth = descriptor.auth === null ? 'no sign-in' : 'sign-in available'
-  return `catalog served by WarpEngine ${version} — ${gated}, ${auth}`
+  const admin = descriptor.adminApiVersion === null ? '' : `, Admin API v${String(descriptor.adminApiVersion)} alongside`
+  return `catalog served by WarpEngine ${version} — ${gated}, ${auth}${admin}`
 }

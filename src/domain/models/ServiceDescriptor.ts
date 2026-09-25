@@ -16,6 +16,11 @@ export interface ServiceDescriptor {
   readonly catalogGated: boolean
   /** Null where the server offers no sign-in, which is most of them. */
   readonly auth: AuthDescriptor | null
+  /**
+   * The version of the engine's Admin API (WarpEngine 1.0), or null where it is off.
+   * The client administers nothing; this is here so the log can say what it talks to.
+   */
+  readonly adminApiVersion: number | null
 }
 
 export interface AuthDescriptor {
@@ -39,5 +44,6 @@ export interface DeviceAuthDescriptor {
 export const DEFAULT_SERVICE_DESCRIPTOR: ServiceDescriptor = {
   engineVersion: null,
   catalogGated: false,
-  auth: null
+  auth: null,
+  adminApiVersion: null
 }

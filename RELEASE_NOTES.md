@@ -1,3 +1,22 @@
+# WarpEngine Client 3.1.0
+
+**WarpEngine 1.0 is a version this client knows.** The engine's first major version adds
+an Admin API beside the catalog — a JSON API for what the admin does, with an OpenAPI
+document and an MCP server — and leaves the catalog alone: the envelope is still `api: 2`,
+the titles have the same shape. So 1.0 reads with the same dialect as 0.5 to 0.13, and so do
+0.14 and 0.15, which only changed the admin. Before this, a catalog served by 0.14 or later
+logged *newer than this client knows* on every fetch, against a shape it read perfectly well.
+The version list runs to 1.0, and the exhaustive switch still stops the build when the next
+one arrives.
+
+**The service descriptor's `admin` key reaches the log.** A 1.0 engine that has its Admin
+API on says so in `GET /api/service`; the log line now ends with *Admin API v1 alongside*.
+The client administers nothing — the line is there so a log says exactly what the client
+was talking to.
+
+The smoke test's paging server now answers as WarpEngine 1.0.0 and expects the client to
+recognise it exactly.
+
 # WarpEngine Client 3.0.0
 
 **The catalog is read a page at a time, and drawn as it arrives.** WarpEngine 0.13
