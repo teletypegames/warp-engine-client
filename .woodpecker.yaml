@@ -20,10 +20,13 @@ variables:
 
 steps:
   - name: check
-    image: *node_image
+    # the node image with this repo's node_modules preinstalled (services/teletypegames
+    # ci/warp-engine-client.Dockerfile); a moving tag, so always pulled
+    image: git.teletypegames.org/build/warp-engine-client-ci:node22
+    pull: true
     commands:
       - node --version
-      - npm ci
+      - scripts/ci-npm.sh
       - npm run typecheck
       - npm run lint
       # The window test wants a display and a store on the machine; that check belongs
@@ -55,7 +58,9 @@ steps:
   # Only on a tag, and only what this pipeline built: the macOS assets are uploaded
   # from the Mac that can sign them.
   - name: release
-    image: alpine
+    # curl, jq, zip and git are in the image (services/teletypegames ci/ci-tools.Dockerfile); by digest,
+    # since the step gets a token
+    image: git.teletypegames.org/build/ci-tools@sha256:4f03160226e51bdf67b850f21a9fbeab7314127766979f72e514efb5ef4dcba8
     environment:
       # Needed. Woodpecker does hand steps a forge credential — a manual build printed
       # one — but a build started by the tag webhook does not get it: the first tag build
@@ -64,7 +69,6 @@ steps:
       GITEA_TOKEN:
         from_secret: gitea_token
     commands:
-      - apk add --no-cache curl jq
       # No globs on the command line: the package names have spaces in them.
       - scripts/ci-upload.sh
     when:
