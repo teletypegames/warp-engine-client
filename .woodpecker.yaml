@@ -14,11 +14,9 @@ when:
 
 variables:
   # The official electron-builder images: Node with the packaging tools, and the same
-  # image plus Wine, which is what lets a Windows installer be built on Linux. Rebuilt
-  # with a patched Node (services/teletypegames ci/electron-builder-*.Dockerfile) until
-  # upstream ships >= 22.23.4 (Node.js October 2026 security release).
-  - &node_image 'git.teletypegames.org/build/electron-builder:22'
-  - &wine_image 'git.teletypegames.org/build/electron-builder:22-wine'
+  # image plus Wine, which is what lets a Windows installer be built on Linux.
+  - &node_image 'electronuserland/builder:22'
+  - &wine_image 'electronuserland/builder:22-wine'
 
 steps:
   - name: check
@@ -39,11 +37,26 @@ steps:
       - npm run smoke
       - npm run storetest
 
+  # The builder images above still ship Node 22.22.2, older than the October 2026
+  # security release (22.23.4). Until upstream catches up, the two builds run the
+  # patched binary from the official Node image, put outside the project so it is not
+  # packaged. (Rebuilding the builders with it is not an option: their layers are
+  # larger than the registry accepts in one upload.) Drop this step and the PATH line
+  # once `node -v` in the builder images is >= 22.23.4.
+  - name: patched-node
+    image: node:22-bookworm-slim
+    commands:
+      - mkdir -p /woodpecker/patched-node && cp /usr/local/bin/node /woodpecker/patched-node/
+      - /woodpecker/patched-node/node --version
+    when:
+      - event: [tag, manual]
+
   # A quarter of a gigabyte of packages is not worth building on every push, so the
   # two builds run when a release is being cut — or when asked for by hand.
   - name: linux
     image: *node_image
     commands:
+      - export PATH="/woodpecker/patched-node:$PATH" && node --version
       - npm run dist:linux
       - scripts/ci-verify-packages.sh '*.AppImage' '*.deb'
     when:
@@ -52,6 +65,7 @@ steps:
   - name: windows
     image: *wine_image
     commands:
+      - export PATH="/woodpecker/patched-node:$PATH" && node --version
       - npm run dist:win
       - scripts/ci-verify-packages.sh '*.exe'
     when:
