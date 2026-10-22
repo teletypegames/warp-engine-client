@@ -348,9 +348,9 @@ builds an application and publishes to a release.
 
 | Step | Image | What it does |
 |---|---|---|
-| `check` | `electronuserland/builder:22` | `npm ci`, type-check, lint, the smoke test and the store lifecycle test |
-| `linux` | `electronuserland/builder:22` | AppImage and deb |
-| `windows` | `electronuserland/builder:22-wine` | the NSIS installer and the portable exe, built through Wine |
+| `check` | `build/warp-engine-client-ci:node22` | `npm ci`, type-check, lint, the smoke test and the store lifecycle test |
+| `linux` | `build/electron-builder:22` (`electronuserland/builder:22` with a patched Node) | AppImage and deb |
+| `windows` | `build/electron-builder:22-wine` (the same, plus Wine) | the NSIS installer and the portable exe, built through Wine |
 | `release` | `alpine` | on a tag only: **creates the release** and attaches what this pipeline built |
 
 **macOS stays a local build.** Apple's toolchain and its signing only exist on a Mac.

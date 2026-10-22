@@ -14,9 +14,11 @@ when:
 
 variables:
   # The official electron-builder images: Node with the packaging tools, and the same
-  # image plus Wine, which is what lets a Windows installer be built on Linux.
-  - &node_image 'electronuserland/builder:22'
-  - &wine_image 'electronuserland/builder:22-wine'
+  # image plus Wine, which is what lets a Windows installer be built on Linux. Rebuilt
+  # with a patched Node (services/teletypegames ci/electron-builder-*.Dockerfile) until
+  # upstream ships >= 22.23.4 (Node.js October 2026 security release).
+  - &node_image 'git.teletypegames.org/build/electron-builder:22'
+  - &wine_image 'git.teletypegames.org/build/electron-builder:22-wine'
 
 steps:
   - name: check
