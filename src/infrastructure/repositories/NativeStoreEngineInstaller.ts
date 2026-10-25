@@ -49,20 +49,18 @@ export class NativeStoreEngineInstaller implements StoreEngineInstaller {
   }
 
   /**
-   * The store's configuration: its identity, and the two things worth stating.
+   * The store's configuration: its identity, and the one thing worth stating.
    *
    * Everything absent from this falls to the engine's defaults, which is most of it. The
    * subfolder is named after the store so two stores on one machine cannot reach into
    * each other's files — it is the prune boundary, so it has to be the store's own.
-   * Demo titles are listed because a catalog that publishes them means them to be
-   * played; the engine defaults to released and archived only, which is the safer
-   * default for a store nobody configured.
+   * No status list: which statuses a store lists is the catalog's to say, in its
+   * vocabulary, and a list written here would outvote it for good.
    */
   private buildConfig (store: RegistryStore, storeId: string): Record<string, unknown> {
     return {
       store: { id: storeId, name: store.name, base_url: store.catalogUrl },
-      paths: { subfolder: storeId },
-      catalog: { statuses: ['released', 'archived', 'demo'] }
+      paths: { subfolder: storeId }
     }
   }
 

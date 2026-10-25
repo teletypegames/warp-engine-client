@@ -14,7 +14,9 @@ import { checkForUpdate } from '../domain/models/ClientRelease'
 import type { CatalogPageProgress } from '../domain/models/CatalogPage'
 import { CatalogClient } from '../infrastructure/engine/CatalogClient'
 import { NativeStoreCatalogGateway } from '../infrastructure/engine/NativeStoreCatalogGateway'
+import { StoreConfigurationMigrator } from '../infrastructure/engine/StoreConfigurationMigrator'
 import { StoreConfigurationReader } from '../infrastructure/engine/StoreConfigurationReader'
+import { VocabularyClient } from '../infrastructure/engine/VocabularyClient'
 import { StoreFileSystem } from '../infrastructure/files/StoreFileSystem'
 import { asRecord } from '../infrastructure/json/JsonRecord'
 import { HttpTextClient } from '../infrastructure/http/HttpTextClient'
@@ -62,6 +64,7 @@ class SmokeTest {
     this.checkMessages()
     this.checkBrand()
     await this.checkPaging()
+    await this.checkStatuses()
     await this.checkRegistry()
     await this.checkReleases()
 
@@ -149,6 +152,75 @@ class SmokeTest {
       }
     } catch (error: unknown) {
       this.reportBad('paging', describeError(error))
+    } finally {
+      server.close()
+      fs.rmSync(home, { recursive: true, force: true })
+    }
+  }
+
+  /**
+   * Which statuses a store lists, from a vocabulary served here.
+   *
+   * A config with no list follows the catalog's `defaultVisible`; one with a list keeps
+   * it; the cache answers the same offline, and a pre-3.2.0 cache of bare labels still
+   * reads. The list 3.1.0 wrote at setup is taken out of the config, an edited one is not.
+   */
+  private async checkStatuses (): Promise<void> {
+    const server = http.createServer((_request: http.IncomingMessage, response: http.ServerResponse): void => {
+      response.setHeader('Content-Type', 'application/json')
+      response.end(JSON.stringify({
+        api: 2,
+        statuses: [
+          { key: 'released', label: 'Released', position: 1, defaultVisible: true, badge: null },
+          { key: 'demo', label: 'Demo', position: 2, defaultVisible: false, badge: null },
+          { key: 'development', label: 'In development', position: 3, defaultVisible: true, badge: null }
+        ],
+        categories: [{ key: 'puzzle', label: 'Puzzle' }]
+      }))
+    })
+    await new Promise<void>((resolve: () => void): void => { server.listen(0, '127.0.0.1', resolve) })
+    const address = server.address()
+    const port = typeof address === 'object' && address !== null ? address.port : 0
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'warp-smoke-statuses-'))
+    try {
+      const logged: string[] = []
+      const log = (line: string): void => { logged.push(line) }
+      const files = new StoreFileSystem('statuses-store', log)
+      const configPath = path.join(home, 'config.json')
+      const cachePath = path.join(home, 'vocabulary.json')
+      fs.writeFileSync(configPath, JSON.stringify({ store: { id: 'statuses', base_url: `http://127.0.0.1:${String(port)}` } }))
+      const configuration = new StoreConfigurationReader(files).readConfiguration(configPath)
+      const client = (baseUrl: string): VocabularyClient =>
+        new VocabularyClient(new CatalogClient(configuration, files, path.join(home, 'catalog.json'), log).http,
+          baseUrl, files, cachePath, log)
+
+      const live = await client(configuration.store.baseUrl).fetchVocabulary()
+      const offline = await client('http://127.0.0.1:1').fetchVocabulary()
+      fs.writeFileSync(cachePath, JSON.stringify({ puzzle: 'Puzzle' }))
+      const legacy = await client('http://127.0.0.1:1').fetchVocabulary()
+
+      const followed = live.resolveStatuses(configuration.catalog.statuses).join(',')
+      const kept = live.resolveStatuses(['released']).join(',')
+      const cached = offline.resolveStatuses(null).join(',') + ' ' + offline.describeCategory('puzzle')
+      const fallback = legacy.resolveStatuses(null).join(',') + ' ' + legacy.describeCategory('puzzle')
+
+      const migrator = new StoreConfigurationMigrator(files, log)
+      fs.writeFileSync(configPath, JSON.stringify({ store: { id: 'a' }, catalog: { statuses: ['released', 'archived', 'demo'] } }))
+      migrator.migrate(configPath)
+      const retired = asRecord(files.readJson(configPath))?.['catalog'] === undefined
+      fs.writeFileSync(configPath, JSON.stringify({ catalog: { statuses: ['released', 'demo'], only: [] } }))
+      migrator.migrate(configPath)
+      const edited = new StoreConfigurationReader(files).readConfiguration(configPath).catalog.statuses?.join(',')
+
+      if (followed === 'released,development' && kept === 'released' && cached === 'released,development Puzzle' &&
+        fallback === 'released,archived Puzzle' && retired && edited === 'released,demo') {
+        this.reportOk('statuses', `catalog → ${followed}, config list kept, cache and legacy cache read, setup list retired`)
+      } else {
+        this.reportBad('statuses', `followed ${followed}; kept ${kept}; cached ${cached}; legacy ${fallback}; ` +
+          `retired ${String(retired)}; edited ${String(edited)}`)
+      }
+    } catch (error: unknown) {
+      this.reportBad('statuses', describeError(error))
     } finally {
       server.close()
       fs.rmSync(home, { recursive: true, force: true })

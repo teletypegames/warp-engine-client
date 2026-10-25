@@ -91,8 +91,9 @@ function readCatalog (record: JsonRecord): CatalogConfiguration {
   const statuses = readStringArray(record, 'statuses')
   const ownerId = record['owner_id']
   return {
-    // An explicit empty list means "every status", so only a missing key falls back.
-    statuses: record['statuses'] === undefined ? defaults.statuses : statuses,
+    // An explicit empty list means "every status", so only a missing key leaves the
+    // choice to the catalog.
+    statuses: record['statuses'] === undefined || record['statuses'] === null ? defaults.statuses : statuses,
     ownerId: typeof ownerId === 'number' && Number.isFinite(ownerId) ? ownerId : null,
     only: readStringArray(record, 'only'),
     exclude: readStringArray(record, 'exclude')

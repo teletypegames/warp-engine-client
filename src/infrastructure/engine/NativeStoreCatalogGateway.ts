@@ -32,6 +32,7 @@ import { PayloadInstaller } from './PayloadInstaller'
 import { PlatformLabelsClient } from './PlatformLabelsClient'
 import { VocabularyClient } from './VocabularyClient'
 import { ServiceDescriptorClient } from './ServiceDescriptorClient'
+import { StoreConfigurationMigrator } from './StoreConfigurationMigrator'
 import { StoreConfigurationReader } from './StoreConfigurationReader'
 import { StoreStateRepository } from './StoreStateRepository'
 
@@ -80,6 +81,7 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
     const [ descriptor, labels, vocabulary ] = await Promise.all([
       engine.service.fetchDescriptor(), engine.platforms.fetchLabels(), engine.vocabulary.fetchVocabulary()
     ])
+    const statuses = vocabulary.resolveStatuses(engine.configuration.catalog.statuses)
     const installed = engine.state.readState()
     const account = this.games.toAccount(descriptor, this.credentials.readToken(store.id))
 
@@ -87,7 +89,7 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
     // the listing of what has arrived, so nothing the window draws early is drawn twice
     // by different rules.
     const assemble = (entries: readonly CatalogEntry[]): CatalogListing => {
-      const survey = engine.surveyor.survey(entries, host)
+      const survey = engine.surveyor.survey(entries, host, statuses)
       // One list, both kinds: a client that hides what it cannot install leaves the
       // visitor wondering whether the catalog is small or their machine is unusual.
       const games = [
@@ -130,7 +132,7 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
   ): Promise<void> {
     const engine = this.openStore(store, progress)
     const survey: CatalogSurvey = engine.surveyor.survey(
-      await this.readEntries(engine), this.hosts.findHost())
+      await this.readEntries(engine), this.hosts.findHost(), await this.readStatuses(engine))
     for (const reason of survey.skipped) engine.log(`skipped ${reason}`)
 
     const wanted = names.length > 0 ? limitToNames(survey.games, names) : survey.games
@@ -189,7 +191,7 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
   ): Promise<void> {
     const engine = this.openStore(store, progress)
     const survey: CatalogSurvey = engine.surveyor.survey(
-      await this.readEntries(engine), this.hosts.findHost())
+      await this.readEntries(engine), this.hosts.findHost(), await this.readStatuses(engine))
     const wanted = limitToNames(survey.games, [name])
     if (wanted.length === 0) {
       engine.log(`not in the catalog, or not for this machine: ${name}`)
@@ -308,6 +310,15 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
   }
 
   /**
+   * The statuses this store lists. Read before every survey that installs or prunes, so
+   * a sync takes away exactly what the window stopped showing, and nothing more.
+   */
+  private async readStatuses (engine: StoreEngineContext): Promise<readonly string[]> {
+    const vocabulary = await engine.vocabulary.fetchVocabulary()
+    return vocabulary.resolveStatuses(engine.configuration.catalog.statuses)
+  }
+
+  /**
    * Fetch the catalog and read it with the dialect its engine version calls for.
    *
    * This is the one place a WarpEngine version turns into behaviour: the header decides
@@ -330,6 +341,7 @@ export class NativeStoreCatalogGateway implements StoreCatalogGateway {
   private openStore (store: InstalledStore, progress: EngineProgressListener): StoreEngineContext {
     const log = (line: string): void => { progress.onLog?.(`[${store.id}-store] ${line}`) }
     const files = new StoreFileSystem(`${store.id}-store`, log)
+    new StoreConfigurationMigrator(files, log).migrate(store.configPath)
     const configuration = new StoreConfigurationReader(files).readConfiguration(store.configPath)
 
     const layouts = new DesktopLayoutResolver(configuration, this.hosts)

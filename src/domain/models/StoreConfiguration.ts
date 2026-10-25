@@ -56,7 +56,11 @@ export interface InstallConfiguration {
 }
 
 export interface CatalogConfiguration {
-  readonly statuses: readonly string[]
+  /**
+   * The catalog statuses to list. Null leaves it to the catalog, whose vocabulary marks
+   * the statuses a store lists by default; an empty list means every status.
+   */
+  readonly statuses: readonly string[] | null
   readonly ownerId: number | null
   readonly only: readonly string[]
   readonly exclude: readonly string[]
@@ -121,7 +125,7 @@ export const DEFAULT_STORE_CONFIGURATION: StoreConfiguration = {
     }
   },
   catalog: {
-    statuses: ['released', 'archived'],
+    statuses: null,
     ownerId: null,
     only: [],
     exclude: []

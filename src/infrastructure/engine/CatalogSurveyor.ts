@@ -22,7 +22,8 @@ import { pickRelease } from './ReleasePicker'
  * build for this machine" rather than the web mode's complaint about the same title.
  *
  * The entries arrive already typed, from whichever `CatalogDialect` the serving engine
- * version selected — nothing here knows what the catalog's JSON looks like.
+ * version selected — nothing here knows what the catalog's JSON looks like. The statuses
+ * arrive resolved too: the config's own list, or the catalog's vocabulary's.
  */
 export class CatalogSurveyor {
   public constructor (
@@ -30,7 +31,11 @@ export class CatalogSurveyor {
     private readonly log: (line: string) => void
   ) {}
 
-  public survey (entries: readonly CatalogEntry[], host: HostMachine): CatalogSurvey {
+  public survey (
+    entries: readonly CatalogEntry[],
+    host: HostMachine,
+    statuses: readonly string[]
+  ): CatalogSurvey {
     const chosen = new Map<string, SelectedGame>()
     const unmet = new Map<string, UnavailableEntry>()
     const reasonsByName = new Map<string, string[]>()
@@ -41,7 +46,7 @@ export class CatalogSurveyor {
         this.log(`warning: install mode '${mode}' has no asset spec — ignoring it`)
         continue
       }
-      const pass = this.surveyMode(entries, host, mode, specification)
+      const pass = this.surveyMode(entries, host, mode, specification, statuses)
 
       for (const game of pass.games) {
         const key = gameKey(game)
@@ -78,9 +83,10 @@ export class CatalogSurveyor {
     entries: readonly CatalogEntry[],
     host: HostMachine,
     mode: string,
-    specification: AssetSpecification
+    specification: AssetSpecification,
+    listedStatuses: readonly string[]
   ): ModeSurvey {
-    const { statuses, only, exclude } = this.filters()
+    const { statuses, only, exclude } = this.filters(listedStatuses)
     const games: SelectedGame[] = []
     const reasons: [string, string][] = []
     const unavailable: UnavailableEntry[] = []
@@ -142,11 +148,11 @@ export class CatalogSurveyor {
     return { games, reasons, unavailable }
   }
 
-  private filters (): CatalogFilters {
+  private filters (statuses: readonly string[]): CatalogFilters {
     const lower = (values: readonly string[]): ReadonlySet<string> =>
       new Set(values.map((value: string): string => value.toLowerCase()))
     return {
-      statuses: lower(this.configuration.catalog.statuses),
+      statuses: lower(statuses),
       only: lower(this.configuration.catalog.only),
       exclude: lower(this.configuration.catalog.exclude)
     }

@@ -1,3 +1,21 @@
+# WarpEngine Client 3.2.0
+
+**The catalog says which statuses are listed.** A store's config no longer carries a
+status list. The client lists what the catalog's vocabulary marks `defaultVisible`, so
+the catalog's admin decides, per status, without anyone touching the client. An engine
+without a vocabulary gets released and archived, as the engine always did, and a
+`catalog.statuses` list written into the config by hand still wins. The vocabulary
+cache now holds the whole response, so the decision is the same offline; a cache
+written by an older client still reads.
+
+**The list 3.1.0 wrote at setup is taken out.** Every store set up by an earlier client
+has `catalog.statuses: ["released", "archived", "demo"]` in its `config.json`, written
+by the client rather than chosen by anyone. That exact list is removed the next time the
+store is opened; any other list is somebody's choice and stays.
+
+Install, upgrade and reinstall read the same statuses as the listing, so a sync never
+installs what the window does not show.
+
 # WarpEngine Client 3.1.0
 
 **WarpEngine 1.0 is a version this client knows.** The engine's first major version adds

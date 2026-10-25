@@ -123,16 +123,16 @@ From a record the client works out the rest:
 - **the games folder** is that same slug inside the OS's usual place for programs, and it
   is the only subtree this store will ever delete from. That is the whole of how two
   stores on one machine stay out of each other's files: a subfolder, derived here.
-- **released, archived and demo** titles are listed, where the engine alone would show
-  released and archived only — a catalog that publishes a demo means it to be played.
+- **which statuses are listed** is the catalog's to say: the ones its vocabulary
+  (`GET /api/software/vocabulary`) marks `defaultVisible`. An engine without a vocabulary
+  gets released and archived. A `catalog.statuses` list in the config overrides both.
 
 Because a record has no paths in it and no config, there is nothing for the window to
 tamper with: `RegistryStoreDtoMapper.toModel` can take its choice at face value, and the
 config that lands on disk is written by the installer from the engine's own defaults.
 
 What the defaults produce, for a record with no repository: the games land in a
-folder named after the store id, and released, archived **and demo** titles are
-listed — a catalog that publishes a demo means it to be played.
+folder named after the store id, and the statuses the catalog marks visible are listed.
 
 The registry address is the single thing about a particular site left in the client,
 and it is decided in three places, most specific first:
