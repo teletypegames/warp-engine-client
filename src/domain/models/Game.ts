@@ -6,8 +6,8 @@ export type GameMode = 'app' | 'web'
 /**
  * Why a title cannot be installed here, as the engine codes it.
  *
- * `platformOff` is the store not carrying that platform at all — a C64 cartridge on a
- * desktop — and the other three are about this machine or this catalog: no asset kind
+ * `platformOff` is the store's config turning that platform off, and the other three
+ * are about this machine or this catalog: no asset kind
  * for the os and architecture, no release carrying it, or the adapter refusing it.
  */
 export type UnavailableReason = 'platformOff' | 'hostAsset' | 'noAsset' | 'vetoed'

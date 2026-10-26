@@ -94,6 +94,12 @@ A title nobody has bought is **not** dimmed. That treatment belongs to what this
 *machine* cannot do — an unsupported platform, no build for this architecture — and
 there is nothing wrong with the machine here.
 
+**Which platforms a store shows is the catalog's call.** The client keeps no list of
+platforms: whatever the catalog has is carried, and a store's `config.json` names a
+platform only to turn it off (`"platforms": { "dos": { "enabled": false } }`). Whether a
+title installs is then the builds' question — a DOS program with a Win32 build installs
+on Windows and is dimmed elsewhere — so a catalog that adds a platform needs no new client.
+
 ## Which store it installs
 
 On first run the client fetches the registry and offers what it finds. One store
@@ -545,8 +551,8 @@ what it reads like. A new engine version cannot arrive silently.
 | older than anything supported | the same, and the log says so |
 | newer than anything supported | the newest dialect is tried anyway, with a warning that titles may be missed |
 
-Fifteen versions share two dialects today — 0.2 to 0.4 read the plain software list,
-0.5 to 1.0 the one with an `access` block — because the shape of a title has not changed
+Twenty versions share two dialects today — 0.2 to 0.4 read the plain software list,
+0.5 to 1.5 the one with an `access` block — because the shape of a title has not changed
 across them; 0.13's paging is the client's business, not the dialect's, and the pages are
 stitched back into one list before any dialect sees them. 1.0 is the first major version,
 but what it added is an Admin API beside the catalog: the catalog envelope is still

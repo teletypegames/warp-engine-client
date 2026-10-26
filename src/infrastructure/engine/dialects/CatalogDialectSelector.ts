@@ -19,6 +19,8 @@ import { SoftwareListCatalogDialect } from './SoftwareListCatalogDialect'
  * not the dialect's: the pages are stitched back into the one `softwares` list before
  * any dialect sees them. 0.14 and 0.15 changed the admin, and 1.0 added an Admin API
  * beside the catalog; the catalog envelope is still `api: 2`, so the dialect is too.
+ * 1.1 to 1.5 changed the CI, added shelves, the `dos` platform and host platforms, and
+ * none of it the catalog's shape.
  */
 export function selectCatalogDialect (version: SupportedWarpEngineVersion): CatalogDialect {
   switch (version) {
@@ -38,6 +40,11 @@ export function selectCatalogDialect (version: SupportedWarpEngineVersion): Cata
     case '0.14':
     case '0.15':
     case '1.0':
+    case '1.1':
+    case '1.2':
+    case '1.3':
+    case '1.4':
+    case '1.5':
       return new AccessAwareCatalogDialect(version)
   }
 }

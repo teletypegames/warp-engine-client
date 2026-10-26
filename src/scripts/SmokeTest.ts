@@ -13,6 +13,8 @@ import { BuildConfiguration } from '../infrastructure/config/BuildConfiguration'
 import { checkForUpdate } from '../domain/models/ClientRelease'
 import type { CatalogPageProgress } from '../domain/models/CatalogPage'
 import { CatalogClient } from '../infrastructure/engine/CatalogClient'
+import { CatalogSurveyor } from '../infrastructure/engine/CatalogSurveyor'
+import type { CatalogEntry } from '../infrastructure/engine/dialects/CatalogDialect'
 import { NativeStoreCatalogGateway } from '../infrastructure/engine/NativeStoreCatalogGateway'
 import { StoreConfigurationMigrator } from '../infrastructure/engine/StoreConfigurationMigrator'
 import { StoreConfigurationReader } from '../infrastructure/engine/StoreConfigurationReader'
@@ -65,6 +67,7 @@ class SmokeTest {
     this.checkBrand()
     await this.checkPaging()
     await this.checkStatuses()
+    this.checkPlatforms()
     await this.checkRegistry()
     await this.checkReleases()
 
@@ -223,6 +226,51 @@ class SmokeTest {
       this.reportBad('statuses', describeError(error))
     } finally {
       server.close()
+      fs.rmSync(home, { recursive: true, force: true })
+    }
+  }
+
+  /**
+   * Which platforms a store carries: whatever the catalog has, unless the config says no.
+   *
+   * A platform no client release has heard of (`dos` here) installs where it has a build
+   * for the machine, a Win32 program on Windows; `enabled: false` in the config is the one
+   * way to leave it out.
+   */
+  private checkPlatforms (): void {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'warp-smoke-platforms-'))
+    const ignore = (_line: string): void => { void _line }
+    try {
+      const files = new StoreFileSystem('platforms-store', ignore)
+      const configPath = path.join(home, 'config.json')
+      const release = { version: '0.6.1', createdAt: null, assets: [{ kind: 'win_x86', path: 'dosinst-0.6.1-win-x86.zip' }] }
+      const entries: CatalogEntry[] = [{
+        software: { name: 'dosinst', title: 'DOSINST', platform: 'dos', status: 'released', description: '', author: '', category: 'tool', imageUrl: null },
+        access: null,
+        latestRelease: release,
+        releaseCandidates: [release]
+      }]
+      const windows = { operatingSystem: 'windows', architecture: 'x86_64' }
+      const survey = (config: object): string => {
+        fs.writeFileSync(configPath, JSON.stringify(config))
+        const configuration = new StoreConfigurationReader(files).readConfiguration(configPath)
+        const result = new CatalogSurveyor(configuration, ignore).survey(entries, windows, ['released'])
+        const game = result.games[0]
+        return game !== undefined ? `${game.mode}:${game.kind}` : (result.unavailable[0]?.reason ?? 'nothing')
+      }
+
+      const carried = survey({ store: { id: 'p' } })
+      const off = survey({ store: { id: 'p' }, platforms: { dos: { enabled: false } } })
+      const other = survey({ store: { id: 'p' }, platforms: { c64: { enabled: true } } })
+
+      if (carried === 'app:win_x86' && off === 'platformOff' && other === 'app:win_x86') {
+        this.reportOk('platforms', 'an unlisted platform is carried, enabled: false turns it off')
+      } else {
+        this.reportBad('platforms', `carried ${carried}; off ${off}; other ${other}`)
+      }
+    } catch (error: unknown) {
+      this.reportBad('platforms', describeError(error))
+    } finally {
       fs.rmSync(home, { recursive: true, force: true })
     }
   }

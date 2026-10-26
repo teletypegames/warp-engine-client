@@ -1,3 +1,18 @@
+# WarpEngine Client 3.3.0
+
+**The catalog says which platforms there are.** The client no longer carries a list of
+the platforms a store may show. Every platform the catalog has is carried, and a
+`platforms` entry in a store's config is only there to turn one off
+(`{ "enabled": false }`). Whether a title installs on this machine is still decided by
+its builds: a DOS program with a Win32 build installs on Windows and shows as having
+nothing for this machine elsewhere, and a platform a catalog adds tomorrow needs no new
+client. Configs written by earlier clients keep working: the platforms they name stay as
+they are, and the ones they do not name are now carried.
+
+**WarpEngine 1.1 to 1.5 are versions this client knows.** They changed the CI, added
+shelves, the `dos` platform and platforms a host registers, and left the catalog's shape
+alone, so they read with the same dialect as 1.0 and no longer log as newer than known.
+
 # WarpEngine Client 3.2.0
 
 **The catalog says which statuses are listed.** A store's config no longer carries a

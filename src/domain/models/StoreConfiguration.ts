@@ -12,7 +12,7 @@ export interface StoreConfiguration {
   readonly paths: PathsConfiguration
   readonly install: InstallConfiguration
   readonly catalog: CatalogConfiguration
-  /** Which catalog platforms this store offers at all, by platform name. */
+  /** Platforms this store turns on or off, by name; a platform not named here is carried. */
   readonly platforms: Readonly<Record<string, PlatformConfiguration>>
   readonly behavior: BehaviorConfiguration
 }
@@ -130,19 +130,11 @@ export const DEFAULT_STORE_CONFIGURATION: StoreConfiguration = {
     only: [],
     exclude: []
   },
-  platforms: {
-    ebitengine: { enabled: true },
-    godot: { enabled: true },
-    love: { enabled: true },
-    bevy: { enabled: true },
-    tic80: { enabled: true },
-    phaser: { enabled: true },
-    // A cartridge alone is data for an emulator, but since WarpEngine 0.11 a C64 or
-    // Plus/4 release also carries native players — yapeSDL with a launcher that sets
-    // the machine and autostarts the program — and a browser build, so a desktop menu
-    // has something to launch after all.
-    c64: { enabled: true },
-    plus4: { enabled: true }
-  },
+  // Which platforms a store carries is the catalog's business, not a list here: a
+  // platform the config does not name is carried, so a catalog that gains one needs no
+  // new client. Whether a title has anything this machine can run is the asset check's
+  // job (a DOS program is a Win32 build on Windows and nothing elsewhere). A store
+  // turns a platform off with `{ enabled: false }`.
+  platforms: {},
   behavior: { prune: true, timeout: 60, insecure: false }
 }

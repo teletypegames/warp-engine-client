@@ -102,7 +102,7 @@ export class CatalogSurveyor {
       if (exclude.has(name.toLowerCase())) continue
 
       const platform = this.configuration.platforms[software.platform]
-      if (platform?.enabled !== true) {
+      if (platform !== undefined && !platform.enabled) {
         // Reported rather than hidden: to somebody looking at a catalog, a platform
         // switched off reads as "not supported here".
         unavailable.push(toUnavailable(entry, 'platformOff',
