@@ -45,6 +45,8 @@ export function selectCatalogDialect (version: SupportedWarpEngineVersion): Cata
     case '1.3':
     case '1.4':
     case '1.5':
+    case '1.6':
+    case '1.7':
       return new AccessAwareCatalogDialect(version)
   }
 }

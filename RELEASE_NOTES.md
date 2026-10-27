@@ -1,3 +1,10 @@
+# WarpEngine Client 3.3.1
+
+**WarpEngine 1.6 and 1.7 are versions this client knows.** They changed the CI pipelines
+and the shelves (a DOS store built from the catalog, the addresses a shelf is served at)
+and left the catalog's shape alone, so they read with the same dialect as 1.0 and no
+longer log as newer than known.
+
 # WarpEngine Client 3.3.0
 
 **The catalog says which platforms there are.** The client no longer carries a list of

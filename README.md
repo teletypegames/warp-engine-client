@@ -552,7 +552,7 @@ what it reads like. A new engine version cannot arrive silently.
 | newer than anything supported | the newest dialect is tried anyway, with a warning that titles may be missed |
 
 Twenty versions share two dialects today — 0.2 to 0.4 read the plain software list,
-0.5 to 1.5 the one with an `access` block — because the shape of a title has not changed
+0.5 to 1.7 the one with an `access` block — because the shape of a title has not changed
 across them; 0.13's paging is the client's business, not the dialect's, and the pages are
 stitched back into one list before any dialect sees them. 1.0 is the first major version,
 but what it added is an Admin API beside the catalog: the catalog envelope is still
