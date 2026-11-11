@@ -76,7 +76,7 @@ steps:
   - name: release
     # curl, jq, zip and git are in the image (services/teletypegames ci/ci-tools.Dockerfile); by digest,
     # since the step gets a token
-    image: git.teletypegames.org/build/ci-tools@sha256:4f03160226e51bdf67b850f21a9fbeab7314127766979f72e514efb5ef4dcba8
+    image: git.teletypegames.org/build/ci-tools@sha256:8bb7d77188d3d48ac8c2b1aeea3476f39f41f270e90bdc64ba7b4a35e8037519
     environment:
       # Needed. Woodpecker does hand steps a forge credential — a manual build printed
       # one — but a build started by the tag webhook does not get it: the first tag build
