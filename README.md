@@ -177,6 +177,9 @@ BRAND_NAME="Teletype Games Store" BRAND_STORE=https://teletypegames.org npm star
   store on the machine, and the settings still add and remove them;
 - `BRAND_ID` names the `appId` (`org.teletypegames.warpstore.gui.<id>`), so the two apps
   can live side by side, and prefixes the package names in place of `WarpEngineClient`;
+- the **registry** is the brand's catalog's own, `BRAND_STORE` + `/api/stores` (WarpEngine 4.2
+  serves it, by default listing that catalog alone), so a branded client offers nobody
+  else's stores; `STORES_API` still names another one;
 - `RELEASES_API` says where the branded build's own releases are listed, for *Check for
   updates*; without it the check asks this repository's releases, which is wrong for a
   brand, so set it;

@@ -46,7 +46,12 @@ BRAND_STORE ?=
 BRAND_ID ?=
 RELEASES_API ?=
 
-REGISTRY_ARGS := $(if $(STORES_API),--config.extraMetadata.warpEngine.registryUrl=$(STORES_API),)
+# A branded build reads its own catalog's registry (WarpEngine 4.2+ serves GET /api/stores)
+# unless STORES_API names another one.
+BRAND_CATALOG := $(if $(BRAND_STORE),$(patsubst %/,%,$(if $(findstring ://,$(BRAND_STORE)),$(BRAND_STORE),https://$(BRAND_STORE))),)
+REGISTRY_URL := $(or $(STORES_API),$(if $(BRAND_CATALOG),$(BRAND_CATALOG)/api/stores,))
+
+REGISTRY_ARGS := $(if $(REGISTRY_URL),--config.extraMetadata.warpEngine.registryUrl=$(REGISTRY_URL),)
 BRAND_ARGS := $(if $(BRAND_NAME),--config.extraMetadata.warpEngine.brand.name="$(BRAND_NAME)" --config.productName="$(BRAND_NAME)",) \
               $(if $(BRAND_STORE),--config.extraMetadata.warpEngine.brand.catalogUrl=$(BRAND_STORE),) \
               $(if $(RELEASES_API),--config.extraMetadata.warpEngine.releasesUrl=$(RELEASES_API),) \
