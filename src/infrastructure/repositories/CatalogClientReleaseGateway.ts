@@ -17,7 +17,7 @@ const KIND_BY_MACHINE: Readonly<Record<string, string>> = {
  * The newest release of this client, from the catalog it is published in.
  *
  * The client is a title of the `electron` platform, so its releases are the catalog's:
- * `GET /api/software?q=<name>` and the entry of exactly that name. The page it points
+ * `GET /api/software?q=<name>` and the entry whose `software.name` is exactly that name. The page it points
  * at is the download for this machine when the release has one, else the catalog.
  */
 export class CatalogClientReleaseGateway implements ClientReleaseGateway {
@@ -36,13 +36,19 @@ export class CatalogClientReleaseGateway implements ClientReleaseGateway {
     const entries: readonly unknown[] = Array.isArray(envelope?.['softwares']) ? envelope['softwares'] : []
     const entry = entries
       .map((row: unknown): JsonRecord | null => asRecord(row))
-      .find((row: JsonRecord | null): boolean => row !== null && readString(row, 'name') === this.identity.name)
+      .find((row: JsonRecord | null): boolean => row !== null && this.isOwnEntry(row))
     const release = entry === undefined || entry === null ? null : asRecord(entry['latestRelease'])
     const version = release === null ? '' : readString(release, 'version').trim()
     if (release === null || version.length === 0) {
       throw new ClientNotPublishedError(this.identity.name, this.identity.catalogUrl)
     }
     return { version, url: this.downloadUrl(release) }
+  }
+
+  /** A catalog entry carries the title under `software`; its `name` is what identifies it. */
+  private isOwnEntry (row: JsonRecord): boolean {
+    const software = asRecord(row['software'])
+    return software !== null && readString(software, 'name') === this.identity.name
   }
 
   private downloadUrl (release: JsonRecord): string {

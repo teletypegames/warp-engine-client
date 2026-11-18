@@ -1,3 +1,9 @@
+# WarpEngine Client 3.4.1
+
+**Check for updates finds the client in the catalog.** A catalog entry carries the title
+under `software`, and 3.4.0 looked for the name one level up, so it always answered that
+the client was not published.
+
 # WarpEngine Client 3.4.0
 
 **The client is a catalog title.** It is now a WarpEngine `electron` platform project:
