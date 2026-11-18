@@ -1,5 +1,7 @@
 {
-  "keep": ["LICENSE"],
+  "keep": [
+    "LICENSE"
+  ],
   "json": {
     "package.json": {
       "name": "{name}",
@@ -15,8 +17,15 @@
       "build.portable.artifactName": "{name}-Portable-${version}-${arch}.${ext}",
       "build.appImage.artifactName": "{name}-${version}-${arch}.${ext}",
       "warpEngine.registryUrl": "{catalogUrl}/api/stores",
-      "warpEngine.brand": { "name": "{title}", "catalogUrl": "{catalogUrl}" },
-      "warpEngine.updates": { "catalogUrl": "{catalogUrl}", "name": "{name}" }
+      "warpEngine.brand": {
+        "name": "{title}",
+        "catalogUrl": "{catalogUrl}"
+      },
+      "warpEngine.updates": {
+        "catalogUrl": "{catalogUrl}",
+        "name": "{name}"
+      },
+      "scripts.check": "npm run typecheck && npm run lint && npm run storetest"
     }
   }
 }
