@@ -180,9 +180,8 @@ BRAND_NAME="Teletype Games Store" BRAND_STORE=https://teletypegames.org npm star
 - the **registry** is the brand's catalog's own, `BRAND_STORE` + `/api/stores` (WarpEngine 4.2
   serves it, by default listing that catalog alone), so a branded client offers nobody
   else's stores; `STORES_API` still names another one;
-- `RELEASES_API` says where the branded build's own releases are listed, for *Check for
-  updates*; without it the check asks this repository's releases, which is wrong for a
-  brand, so set it;
+- *Check for updates* reads the brand's catalog for an entry of the package's name
+  (`warpEngine.updates` in `package.json` names another catalog or name);
 - the settings' General tab shows *Based on WarpEngine Client 3.0.0*, for support.
 
 The brand is **data the build supplies**, read by `BuildConfiguration.readBrand()` from
@@ -321,13 +320,12 @@ names. `make` on its own lists everything.
 | `BRAND_NAME=… BRAND_STORE=… npm run uitest` | the same as a branded build: the bar must carry the brand's name |
 | `make test` | both test suites |
 | `make dist` | package for this machine (`dist-mac`, `dist-win`, `dist-linux` to pick) |
-| `make publish` | upload the packages already in `dist/` to the Gitea release |
-| `make release` | **package and publish in one go** |
+| `make mac-release` | build the macOS package and add it to the catalog release (`WARP_TOKEN`) |
 | `make clean` | remove `build/` and the packages (`distclean` also drops `node_modules`) |
-| `make version` | the versions involved, including whether `tea` is there |
+| `make version` | the versions involved |
 
 The npm scripts still work directly (`npm start`, `npm run dist:mac`) — the
-Makefile adds no logic of its own beyond the release step. Every script that runs the
+Makefile adds no logic of its own beyond the macOS upload. Every script that runs the
 app builds first, so there is no way to test a stale bundle.
 
 ### The icon
@@ -347,104 +345,51 @@ it is doing. It was drawn for the smallest size first — at 32px the W still re
 the lines survive as motion rather than as noise. A portal, a play triangle and a send
 arrow were all tried and all discarded: each already means something else.
 
-### Continuous integration
+### Continuous integration and releases
 
-`.woodpecker.yaml` builds the **Linux and Windows** packages, and on a tag attaches
-them to the Gitea release. The pipeline is in this repository rather than served by the
-update server's `/build/config` extension: that extension serves game-platform
-pipelines, which build a cartridge and publish it into the site's catalog, and this
-builds an application and publishes to a release.
+The client is a **WarpEngine `electron` platform project** (WarpEngine 4.3+), released into
+the teletypegames.org catalog like any other title, in the `app` category.
+`.woodpecker.yaml` is the one-line marker; the pipeline is served by the catalog:
 
 | Step | Image | What it does |
 |---|---|---|
-| `check` | `build/warp-engine-client-ci:node22` | `npm ci`, type-check, lint, the smoke test and the store lifecycle test |
-| `linux` | `electronuserland/builder:22` (with the patched Node, see `patched-node`) | AppImage and deb |
-| `windows` | `electronuserland/builder:22-wine` (the same) | the NSIS installer and the portable exe, built through Wine |
-| `release` | `alpine` | on a tag only: **creates the release** and attaches what this pipeline built |
+| `version` | `ci-tools` | the version from `package.json`; a tag must match it |
+| `linux` | `build/electron-builder` (`electronuserland/builder:22-wine`) | `npm ci`, `npm run check` (type-check, lint, the smoke test, the store lifecycle test), `npm run build`, the AppImage |
+| `windows` | the same, through Wine | the NSIS installer |
+| `upload`, `publish` | `ci-tools` | `warp-engine-client-<version>-linux-x64.zip`, `…-win-x64.zip` and `metadata.json` into the catalog |
 
-**macOS stays a local build.** Apple's toolchain and its signing only exist on a Mac.
-So the whole of a release is:
+A release, then:
 
-1. bump the version, commit, and push the tag: `git tag v1.4.0 && git push origin v1.4.0`;
-2. the pipeline builds Linux and Windows, **creates the release** with `RELEASE_NOTES.md`
-   as its body, and attaches those four packages;
-3. on a Mac, `make release` builds the macOS package and pushes it onto the same release.
+1. *Release…* in the WarpEngine Toolbox (or by hand: bump `package.json`'s version,
+   commit, `git tag vX.Y.Z && git push origin vX.Y.Z`);
+2. the pipeline builds Linux and Windows and publishes them;
+3. on a Mac, `WARP_TOKEN=<application token> make mac-release` builds the macOS zip,
+   uploads it as `…-mac-<arch>.zip` and publishes the release again with it.
+   **macOS stays a local build**: Apple's toolchain and signing only exist on a Mac.
 
-The window test is local as well: it needs a display and a store on the machine.
+The window test (`make uitest`) is local: it needs a display.
 
-The `release` step needs a **`gitea_token`** repository secret — a Gitea token with
-write access to this repository:
-
-```sh
-woodpecker-cli repo secret add --repository stores/warp-engine-client \
-  --name gitea_token --value <token> --event tag
-```
-
-Woodpecker does hand steps a forge credential of its own, and the script uses it when the
-secret is absent, but that is not something to rely on: a **manual** build has it and a
-build started by the **tag webhook** does not, which is how the first tag build failed —
-after building all four packages. Gitea takes either credential as `token …` or
-`Bearer …` depending on how it was issued, so the script probes which of the two `/user`
-accepts instead of assuming, and logs which one it used.
-
-There are two publishers on purpose: `scripts/release.sh` drives `tea`, which is logged
-in on a workstation, and `scripts/ci-upload.sh` speaks the API with whatever credential
-CI has. Each is short enough to read in full; one script with two ways to authenticate
-would not be.
-
-Both build steps end by checking what they produced: a package under 10 MB did not
-finish. That check exists because a half-finished Wine build leaves a stub *named* like
-the real installer — 162 KB of it — and `ls` is perfectly happy with that.
-
-**The Windows step cannot be rehearsed on an Apple Silicon Mac.** Wine assumes 4 KB
-memory pages and this host has 16 KB ones, so an emulated amd64 container dies with
-`anon_mmap_fixed: Assertion failed`. It is a property of the machine, not of the
-pipeline; the x86_64 runner is where that step is proven. The Linux step was rehearsed
-locally in the same image and produced both packages.
+**The Windows step needs an x86_64 agent.** Wine assumes 4 KB memory pages and an Apple
+Silicon Mac has 16 KB ones, so an emulated amd64 container dies with
+`anon_mmap_fixed: Assertion failed`.
 
 The Windows installer is **not signed**: Windows will warn about an unknown publisher
 until there is a code-signing certificate. Linux packages carry no signature by
 convention.
 
-### Publishing a release
+**Check for updates** reads the catalog (`GET /api/software?q=warp-engine-client`, the
+entry of exactly that name) and links the download for this machine. The catalog named in
+`warpEngine.updates` is also the one where the client leaves its own entry out of the
+grid: a store does not offer to install itself.
 
-```sh
-make release
-```
+### Your own store client from this one
 
-This is the **macOS half** of a release; the Linux and Windows packages come from the
-pipeline when the tag is pushed (see above). The tag comes from `package.json`, so
-`npm version patch` is the only place a version is set. The release is created if it is
-not there yet — either half can go first — and an attachment whose name is already on it
-is **replaced** rather than refused, so a rebuild and a second `make publish` lands
-rather than erroring.
-
-Release notes come from `RELEASE_NOTES.md` when the file is present, otherwise the
-release gets a one-line note. The repository is read from `origin`, so a fork
-publishes to the fork.
-
-Each upload is retried up to three times, and the existing attachment is dropped
-before every attempt so a retry cannot leave two copies. A 100 MB upload does fail
-on its own: publishing 1.2.0 got *"invalid username, password or token"* on the
-second package while the first had just gone up with the same token, and the same
-command succeeded immediately afterwards.
-
-Package names have no spaces in them — `WarpEngineClient-2.3.0-arm64.dmg` — because a
-space in a release asset is a space in every `curl`, script and shell command that ever
-touches it. The app itself is still called **WarpEngine Client**: that name is what
-appears in the Dock and in `/Applications`, and only the file names were the problem.
-
-The list of files is still passed one path per line rather than as one string, since a
-path given on the command line can contain a space even when a built one cannot;
-splitting it on whitespace is what broke the first attempt at publishing 1.1.0.
-
-It needs `tea` installed and logged in — the devarea repo has `make tea` for that.
-Overridable: `TAG`, `REPO`, `TEA_LOGIN`, `NOTES`, `DIST`.
-
-```sh
-make publish TAG=v1.0.2                 # a tag other than package.json's
-scripts/release.sh dist/one-file.dmg    # just one package
-```
+This repository is the `electron` platform's **demo**: *New Game* → Electron → *Start from
+the demo* in the WarpEngine Toolbox copies it into a new repository on your own WarpEngine
+host. `warp-template.json` tells the toolbox what to rewrite in the copy: the package name,
+the title, the app id, the package file names, and the brand, the registry and the update
+catalog — all pointed at the catalog the toolbox is connected to. The copy is yours; to take
+later changes from here, add this repository as a second remote and merge.
 
 **Node 22 or newer is needed to install**, not to run: Electron's own installer
 is ESM-only, and older Node cannot `require()` it. The packaged app carries its
@@ -482,7 +427,7 @@ is the map** — the layers, every pattern in use, and the naming rules. The sho
 | `src/preload/` | the bridge, bundled into one file — a sandboxed preload cannot require modules |
 | `src/renderer/` | the state store, the views and the renderer controllers |
 | `src/scripts/` | the smoke test: the same services with no window at all |
-| `scripts/release.sh` | creates the Gitea release and replaces its attachments |
+| `scripts/upload-mac.sh` | builds the macOS zip and adds it to the catalog release |
 | `scripts/after-pack.js` | ad-hoc signs the macOS bundle during packaging |
 | `scripts/build-assets.mjs` | bundles the preload and the renderer, copies the page |
 

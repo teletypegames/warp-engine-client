@@ -1,0 +1,22 @@
+{
+  "keep": ["LICENSE"],
+  "json": {
+    "package.json": {
+      "name": "{name}",
+      "productName": "{title}",
+      "description": "{description}",
+      "author": "{author}",
+      "homepage": "{catalogUrl}",
+      "build.appId": "org.warpengine.store.{name}",
+      "build.productName": "{title}",
+      "build.mac.artifactName": "{name}-${version}-${arch}-mac.${ext}",
+      "build.dmg.artifactName": "{name}-${version}-${arch}.${ext}",
+      "build.nsis.artifactName": "{name}-Setup-${version}-${arch}.${ext}",
+      "build.portable.artifactName": "{name}-Portable-${version}-${arch}.${ext}",
+      "build.appImage.artifactName": "{name}-${version}-${arch}.${ext}",
+      "warpEngine.registryUrl": "{catalogUrl}/api/stores",
+      "warpEngine.brand": { "name": "{title}", "catalogUrl": "{catalogUrl}" },
+      "warpEngine.updates": { "catalogUrl": "{catalogUrl}", "name": "{name}" }
+    }
+  }
+}

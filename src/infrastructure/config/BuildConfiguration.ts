@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { Brand } from '../../domain/models/Brand'
+import type { ClientIdentity } from '../../domain/models/ClientIdentity'
 import { asRecord, readRecord, readString } from '../json/JsonRecord'
 
 /**
@@ -47,12 +48,17 @@ export class BuildConfiguration {
     return builtName.length > 0 && builtUrl.length > 0 ? { name: builtName, catalogUrl: builtUrl } : null
   }
 
-  /** Where this client's own releases are listed; null means the built-in forge. */
-  public readReleasesApiUrl (): string | null {
+  /**
+   * This client as a catalog title: `warpEngine.updates` (`catalogUrl`, `name`), the
+   * brand's catalog when it names none, and the package's own name. Null when no catalog
+   * is known, and then there is nothing to check for updates.
+   */
+  public readClientIdentity (): ClientIdentity | null {
     const section = readRecord(this.read(), 'warpEngine')
-    if (section === null) return null
-    const url = readString(section, 'releasesUrl').trim()
-    return url.length > 0 ? url : null
+    const updates = section === null ? null : readRecord(section, 'updates')
+    const catalogUrl = (updates === null ? '' : readString(updates, 'catalogUrl').trim()) || (this.readBrand()?.catalogUrl ?? '')
+    const name = (updates === null ? '' : readString(updates, 'name').trim()) || readString(this.read(), 'name').trim()
+    return catalogUrl.length > 0 && name.length > 0 ? { catalogUrl, name } : null
   }
 
   private read (): Readonly<Record<string, unknown>> {

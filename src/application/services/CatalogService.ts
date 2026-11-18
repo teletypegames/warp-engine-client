@@ -1,4 +1,5 @@
 import type { CatalogListing } from '../../domain/models/CatalogListing'
+import { isClientItself, type ClientIdentity } from '../../domain/models/ClientIdentity'
 import type { EngineProgressListener } from '../../domain/models/EngineProgress'
 import type { Game } from '../../domain/models/Game'
 import type { StorePaths } from '../../domain/models/StorePaths'
@@ -16,13 +17,17 @@ export class CatalogService {
 
   public constructor (
     private readonly catalogGateway: StoreCatalogGateway,
-    private readonly selection: StoreSelectionService
+    private readonly selection: StoreSelectionService,
+    private readonly identity: ClientIdentity | null = null
   ) {}
 
+  /** The listing without this client's own entry: a store does not offer to install itself. */
   public async listGames (progress?: EngineProgressListener): Promise<CatalogListing> {
-    const listing = await this.catalogGateway.listGames(this.selection.requireCurrentStore(), progress)
-    this.lastListing = listing
-    return listing
+    const store = this.selection.requireCurrentStore()
+    const listing = await this.catalogGateway.listGames(store, progress)
+    const games = listing.games.filter((game: Game): boolean => !isClientItself(this.identity, store.catalogUrl, game.name))
+    this.lastListing = { ...listing, games }
+    return this.lastListing
   }
 
   public async readPaths (progress?: EngineProgressListener): Promise<StorePaths> {

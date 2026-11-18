@@ -1,7 +1,7 @@
 {
   "name": "warp-engine-client",
   "productName": "WarpEngine Client",
-  "version": "3.3.1",
+  "version": "3.4.0",
   "description": "Graphical client for WarpEngine stores: install a catalog into your own application menu.",
   "license": "MIT",
   "author": "Teletype Games <games@teletype.hu>",
@@ -15,6 +15,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "check": "npm run typecheck && npm run lint && npm run smoke && npm run storetest",
     "start": "npm run build && electron .",
     "smoke": "npm run build && node build/scripts/SmokeTest.js",
     "uitest": "npm run build && electron . --selftest",
@@ -88,6 +89,9 @@
     "esbuild@0.28.2": true
   },
   "warpEngine": {
-    "registryUrl": "https://teletypegames.org/api/stores"
+    "registryUrl": "https://teletypegames.org/api/stores",
+    "updates": {
+      "catalogUrl": "https://teletypegames.org"
+    }
   }
 }

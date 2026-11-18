@@ -141,7 +141,7 @@ Both are ports; the distinction is what is behind them.
   process: `StoreCatalogGateway` (the store engine), which today is
   `NativeStoreCatalogGateway` in this application and was a Python CLI before it. The port
   stays async because the work is: it downloads and unpacks. `ClientReleaseGateway` is the
-  forge's release list, read by `HttpClientReleaseGateway` for the update check.
+  catalog entry of this client, read by `CatalogClientReleaseGateway` for the update check.
 
 ### Service
 

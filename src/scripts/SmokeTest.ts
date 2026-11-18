@@ -23,7 +23,8 @@ import { StoreFileSystem } from '../infrastructure/files/StoreFileSystem'
 import { asRecord } from '../infrastructure/json/JsonRecord'
 import { HttpTextClient } from '../infrastructure/http/HttpTextClient'
 import { FileSystemInstalledStoreRepository } from '../infrastructure/repositories/FileSystemInstalledStoreRepository'
-import { HttpClientReleaseGateway } from '../infrastructure/repositories/HttpClientReleaseGateway'
+import { ClientNotPublishedError } from '../domain/errors/ClientNotPublishedError'
+import { CatalogClientReleaseGateway, UnpublishedClientReleaseGateway } from '../infrastructure/repositories/CatalogClientReleaseGateway'
 import { HttpStoreRegistryRepository } from '../infrastructure/repositories/HttpStoreRegistryRepository'
 import type { GameDto } from '../shared/contracts/dto/GameDto'
 import { ENGLISH_MESSAGES } from '../shared/i18n/EnglishMessages'
@@ -57,7 +58,10 @@ class SmokeTest {
   private readonly httpClient = new HttpTextClient()
   private readonly buildConfiguration = new BuildConfiguration()
   private readonly registry = new HttpStoreRegistryRepository(this.httpClient, this.buildConfiguration)
-  private readonly releases = new HttpClientReleaseGateway(this.httpClient, this.buildConfiguration)
+  private readonly identity = this.buildConfiguration.readClientIdentity()
+  private readonly releases = this.identity === null
+    ? new UnpublishedClientReleaseGateway()
+    : new CatalogClientReleaseGateway(this.httpClient, this.identity)
   private readonly gameMapper = new GameDtoMapper()
 
   public async run (): Promise<number> {
@@ -318,6 +322,10 @@ class SmokeTest {
       if (older && !same && !newer) this.reportOk('version compare', '2.8.0 < 2.9.0, 2.9.0 = v2.9, 3.0.0 > 2.9.9')
       else this.reportBad('version compare', `older:${String(older)} same:${String(same)} newer:${String(newer)}`)
     } catch (error: unknown) {
+      if (error instanceof ClientNotPublishedError) {
+        this.reportOk('releases', `${error.message}: nothing to compare yet`)
+        return
+      }
       this.reportBad('releases', `${this.releases.sourceUrl}: ${describeError(error)}`)
     }
   }

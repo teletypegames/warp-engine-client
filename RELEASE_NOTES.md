@@ -1,3 +1,18 @@
+# WarpEngine Client 3.4.0
+
+**The client is a catalog title.** It is now a WarpEngine `electron` platform project:
+a version tag builds Linux and Windows in the catalog's served pipeline and publishes them
+into the teletypegames.org catalog, in the `app` category; the macOS package is added from
+a Mac (`make mac-release`). The Gitea releases and their pipeline are gone.
+
+**Check for updates reads the catalog.** It looks up the client's own entry
+(`warpEngine.updates` in `package.json`, a branded build's catalog by default) and links
+the download for this machine. `RELEASES_API` is gone with the Gitea releases. The store
+on that catalog leaves the client's own entry out of its grid.
+
+**Your own store client.** The repository is the `electron` platform's demo: *New Game* in
+the WarpEngine Toolbox 1.3 copies it onto a studio's own host, pointed at that catalog.
+
 # WarpEngine Client 3.3.1
 
 **WarpEngine 1.6 and 1.7 are versions this client knows.** They changed the CI pipelines

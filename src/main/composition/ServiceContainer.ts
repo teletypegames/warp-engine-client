@@ -21,7 +21,7 @@ import { SafeStorageCredentialRepository } from '../../infrastructure/electron/S
 import { NativeStoreCatalogGateway } from '../../infrastructure/engine/NativeStoreCatalogGateway'
 import { HttpTextClient } from '../../infrastructure/http/HttpTextClient'
 import { FileSystemInstalledStoreRepository } from '../../infrastructure/repositories/FileSystemInstalledStoreRepository'
-import { HttpClientReleaseGateway } from '../../infrastructure/repositories/HttpClientReleaseGateway'
+import { CatalogClientReleaseGateway, UnpublishedClientReleaseGateway } from '../../infrastructure/repositories/CatalogClientReleaseGateway'
 import { NativeStoreEngineInstaller } from '../../infrastructure/repositories/NativeStoreEngineInstaller'
 import { HttpStoreRegistryRepository } from '../../infrastructure/repositories/HttpStoreRegistryRepository'
 import { JsonFilePreferencesRepository } from '../../infrastructure/repositories/JsonFilePreferencesRepository'
@@ -73,13 +73,16 @@ export class ServiceContainer {
     const buildConfiguration = new BuildConfiguration()
     this.brand = buildConfiguration.readBrand()
     const registry = new HttpStoreRegistryRepository(httpClient, buildConfiguration)
-    const releases = new HttpClientReleaseGateway(httpClient, buildConfiguration)
+    const identity = buildConfiguration.readClientIdentity()
+    const releases = identity === null
+      ? new UnpublishedClientReleaseGateway()
+      : new CatalogClientReleaseGateway(httpClient, identity)
     const installer = new NativeStoreEngineInstaller()
     const preferencesRepository = new JsonFilePreferencesRepository(environment)
 
     const preferences = new PreferencesService(preferencesRepository, environment, translations)
     this.selection = new StoreSelectionService(stores, preferences)
-    this.catalog = new CatalogService(catalogGateway, this.selection)
+    this.catalog = new CatalogService(catalogGateway, this.selection, identity)
     this.accounts = new AccountService(catalogGateway, this.selection)
     this.provisioning = new StoreProvisioningService(
       registry, installer, stores, this.selection, catalogGateway
